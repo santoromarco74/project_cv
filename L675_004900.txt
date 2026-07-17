@@ -1,0 +1,5 @@
+Codice Ufficio: SV - Export cartografico prodotto in data 17-LUG-2026 16:49:22
+Legenda
+Nome mappa|Comune|Foglio|Allegato|Sviluppo|Denominatore di scala|Data di orientamento|Ricampionato ?|Numero di coppie omologhe attive per il ricampionamento|Scarto massimo (m)|Scarto medio (m)|Deviazione Standard|
+
+L675_004900|VARAZZE|_|49|0|0|2000|26.05.2025|SI|76|1.28|0.56|0.25|
