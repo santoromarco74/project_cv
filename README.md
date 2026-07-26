@@ -35,6 +35,24 @@ python -m src.main --hist data/crops/ribba.png --modern data/crops/ribba_vec.png
 
 Elenco completo delle opzioni: `python -m src.main --help`.
 
+## Stato (M1, M2)
+
+`src/main.py` arriverà con le milestone successive. Quello che gira oggi:
+
+```bash
+# M1 — genera i 5 ritagli di CLAUDE.md §5.6 (PNG + world file affiancato)
+python -m src.prep.crop
+
+# M2 — statistiche e verifiche del parser CXF
+python -m src.io_geo
+
+# M2 — figure di verifica (overview del vettoriale, inquadramento sul raster)
+python -m experiments.m2_cxf_check
+
+# test
+python -m tests.test_smoke
+```
+
 ## Struttura
 
 Vedere `CLAUDE.md` per la specifica completa del progetto (architettura,
