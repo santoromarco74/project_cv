@@ -13,8 +13,11 @@ saltano da soli se `data/raw/` non c'è, dichiarandolo.
 """
 from __future__ import annotations
 
+import json
 import os
 import sys
+import zipfile
+from collections import Counter
 
 import numpy as np
 
@@ -22,8 +25,12 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from src.io_geo import (  # noqa: E402
     apply_affine,
+    assert_dentro_estensione,
+    cxf_extent,
+    parse_cxf,
     pixel_size_m,
     raster_extent,
+    read_cxf,
     read_jgw,
     read_metadata_txt,
 )
@@ -32,6 +39,19 @@ from src.prep.crop import CROPS, crop_world_file  # noqa: E402
 RAW = "data/raw"
 JGW = os.path.join(RAW, "L675_004900.jgw")
 TXT = os.path.join(RAW, "L675_004900_metadata.txt")
+CXF = os.path.join(RAW, "L675_004900.cxf")
+JPG = os.path.join(RAW, "L675_004900.jpg")
+ZIP = os.path.join(RAW, "Richiesta_921360_L675.zip")
+GEOJSON = os.path.join(RAW, "L675_004900_vettoriale_qgis.geojson")
+
+# Dimensione del foglio, letta dal file — qui serve solo come riferimento per il
+# test sull'estensione, e vale 8489x5648 (non 8000x5322 come in §5.2 / I10).
+def _dimensioni_foglio() -> tuple[int, int]:
+    from PIL import Image
+
+    Image.MAX_IMAGE_PIXELS = None
+    with Image.open(_serve(JPG)) as im:
+        return im.size
 
 # Valori dichiarati in CLAUDE.md §5.3, usati come riferimento indipendente dal file.
 JGW_ATTESO = (0.254453, 0.0, 0.0, -0.254453, -31480.044315, -11278.758056)
@@ -117,6 +137,86 @@ def test_metadata_txt_allineato_da_destra():
     assert abs(md.scarto_max_m - 1.28) < 1e-9, md
     assert abs(md.scarto_medio_m - 0.56) < 1e-9, md
     assert abs(md.dev_std_m - 0.25) < 1e-9, md
+
+
+# ------------------------------------------------------------------ M2: parser CXF
+
+
+def test_cxf_conteggi():
+    """I numeri dichiarati in §5.4, uno per uno."""
+    cxf = read_cxf(_serve(CXF))
+    assert cxf.nome_mappa == "L675_004900", cxf.nome_mappa
+    assert cxf.denominatore_scala == 2000.0, cxf.denominatore_scala
+    bordi = cxf.bordi
+    assert len(bordi) == 871, len(bordi)
+    assert Counter(b.codice for b in bordi) == {18: 438, 12: 432, 25: 1}
+    assert sum(b.chiuso for b in bordi) == 838, sum(b.chiuso for b in bordi)
+    assert sum(len(b.pts) for b in bordi) == 14272
+
+
+def test_cxf_nflag():
+    """La trappola di §5.4: nflag vale 0 su 838 record, ma 1, 2 o 5 sui restanti 33."""
+    bordi = parse_cxf(_serve(CXF))
+    assert Counter(b.nflag for b in bordi) == {0: 838, 1: 27, 2: 5, 5: 1}
+    # e dove nflag > 0 gli indici sono stati davvero letti, non saltati a caso
+    for b in bordi:
+        assert len(b.flags) == b.nflag, (b.nome, b.nflag, b.flags)
+
+
+def test_cxf_dentro_estensione_jgw():
+    """Verifica obbligatoria di M2 (§5.4)."""
+    bordi = parse_cxf(_serve(CXF))
+    W = read_jgw(_serve(JGW))
+    w, h = _dimensioni_foglio()
+    assert_dentro_estensione(bordi, raster_extent(W, w, h))
+
+
+def test_cxf_nessuna_coordinata_positiva():
+    """Sentinella anti-sfasamento: in Cassini-Soldner Forte Diamante il foglio 49 sta
+    tutto nel terzo quadrante. Una coordinata positiva (tipo 68, 82) è un indice di
+    cambio tratto letto come coordinata, cioè nflag ignorato."""
+    bordi = parse_cxf(_serve(CXF))
+    pts = np.vstack([b.pts for b in bordi])
+    assert pts.max() < 0, f"coordinata non negativa: {pts.max()}"
+    xmin, ymin, xmax, ymax = cxf_extent(bordi)
+    # l'estensione dichiarata in §5.2, al metro
+    assert abs(xmin - (-31205)) < 1 and abs(xmax - (-29548)) < 1, (xmin, xmax)
+    assert abs(ymin - (-12469)) < 1 and abs(ymax - (-11360)) < 1, (ymin, ymax)
+
+
+def test_cxf_indipendente_dai_newline():
+    """Git normalizza i CRLF: il CXF nel working tree è LF, quello nello zip è CRLF.
+    Devono dare lo stesso identico risultato."""
+    bordi_lf = parse_cxf(_serve(CXF))
+    with zipfile.ZipFile(_serve(ZIP)) as z:
+        grezzo = z.read("L675_004900.cxf")
+    assert b"\r\n" in grezzo, "atteso CRLF nella copia dello zip"
+    tmp = os.path.join(os.path.dirname(CXF), ".crlf_check.cxf")
+    with open(tmp, "wb") as fh:
+        fh.write(grezzo)
+    try:
+        bordi_crlf = parse_cxf(tmp)
+    finally:
+        os.remove(tmp)
+    assert len(bordi_lf) == len(bordi_crlf)
+    for a, b in zip(bordi_lf, bordi_crlf):
+        assert a.nome == b.nome and a.codice == b.codice and a.nflag == b.nflag
+        assert np.array_equal(a.pts, b.pts), a.nome
+
+
+def test_cxf_contro_export_indipendente():
+    """Regressione contro l'export GeoJSON fatto a suo tempo in QGIS: 871 feature,
+    stessi attributi, stesse coordinate."""
+    bordi = parse_cxf(_serve(CXF))
+    with open(_serve(GEOJSON), encoding="utf-8") as fh:
+        feature = json.load(fh)["features"]
+    assert len(feature) == len(bordi) == 871
+    for b, f in zip(bordi, feature):
+        geom = f["geometry"]
+        coord = geom["coordinates"][0] if geom["type"] == "Polygon" else geom["coordinates"]
+        assert f["properties"]["nome"] == b.nome, (b.nome, f["properties"])
+        assert f["properties"]["codice"] == str(b.codice), (b.nome, f["properties"])
+        assert np.allclose(np.asarray(coord), b.pts, atol=1e-9), b.nome
 
 
 # ------------------------------------------------------------------ runner
