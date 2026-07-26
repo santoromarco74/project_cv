@@ -1,7 +1,10 @@
 # ── Dati AdE: NON versionare in repo pubblico finché le condizioni d'uso
 #    non sono state verificate come compatibili con la ridistribuzione ──
-data/raw/
-data/crops/
+# (si ignora il contenuto, non la cartella: altrimenti git non scende dentro e le
+#  eccezioni qui sotto non possono funzionare)
+data/raw/*
+data/crops/*
+!data/crops/README.md
 *.jpg
 *.jpeg
 *.jgw
@@ -9,6 +12,13 @@ data/crops/
 *.sup
 # il .txt dei metadati è piccolo e utile: lo teniamo, ma non i raster
 !data/raw/*_metadata.txt
+# export vettoriali derivati dal CXF: stessa provenienza, stesse condizioni d'uso
+*.geojson
+
+# ── Materiale di lavoro non versionato (appunti, PDF di riferimento, archivi) ──
+docs/*.pdf
+*.tgz
+*.zip
 
 # ── Pesi modelli: troppo grandi per GitHub, si riscaricano ──
 weights/
