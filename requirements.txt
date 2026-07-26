@@ -1,0 +1,15 @@
+# Core vision + numerica
+numpy==1.26.4
+opencv-python==4.10.0.84
+scipy==1.13.1
+Pillow==10.4.0
+
+# Dati / tabelle / figure
+pandas==2.2.2
+matplotlib==3.9.2
+
+# Modulo B — matcher deep (LoFTR via kornia)
+# torch pesante: su WSL2 CPU-only va bene. Se serve GPU, installare la
+# build CUDA da https://pytorch.org al posto di questa riga.
+torch==2.3.1
+kornia==0.7.3

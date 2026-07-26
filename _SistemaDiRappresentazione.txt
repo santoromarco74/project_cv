@@ -1,8 +1,0 @@
-Codice Ufficio: SV - Export cartografico prodotto in data 2026-07-17 17:06:36
-Sistema di Rappresentazione richiesto : Quello ORIGINARIO
- 
-Segue l'elenco delle mappe richieste con l'indicazione del sistema originario
-                      e dell'eventuale motivo di mancata produzione :
- 
-L675_004900 (nativamente CASSINI-SOLDNER zona G0007 - Forte Diamante - 02)
-L675_00490Z (nativamente ROMA40-GAUSS BOAGA DA RILIEVO AEROFOTOGRAMMETRICO OVEST | EPSG:3003)

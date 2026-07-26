@@ -10,12 +10,12 @@ Costituzione del progetto. Se una richiesta contraddice un invariante, fermati e
 Progetto d'esame per **Computer Vision**, Università di Pavia (ING-INF/05, 6 CFU, prof. Luca Lombardi).
 Traccia: *"More complex problems... the solution of a computer vision problem. In this case standard librery or tools may be used (opencv, mathlab, Image magick)"*.
 
-Proposta inviata al docente, **risposta non ancora ricevuta**. Due approcci sottoposti:
+**Approvato dal docente nella forma A+B (Comparative).** Due componenti:
 
 - **A — Core-Vision (classico)**: preprocessing + SIFT/ORB + RANSAC, massimizzando l'efficacia dei metodi classici tramite pulizia ottimale del segnale su mappe storiche degradate.
 - **B — Comparative (ibrido)**: A, più confronto quantitativo (RMSE, inlier ratio) con un matcher detector-free deep learning (LoFTR).
 
-**Il progetto si costruisce come A. B è un modulo opzionale dietro interfaccia.** Se il docente approva solo A, si toglie un flag CLI e non si tocca altro.
+**B resta comunque isolato dietro interfaccia (I4)**: non perché sia opzionale, ma perché la pipeline non deve dipendere da torch/kornia per funzionare, e A deve poter girare da solo se l'ambiente deep non è disponibile.
 
 Caso di studio: **Comune di Varazze, foglio 49** (`L675_004900`), Originale di Impianto dell'Agenzia delle Entrate.
 
@@ -76,7 +76,7 @@ histreg/
 │   ├── raw/              L675_004900.jpg/.jgw/.txt/.cxf
 │   ├── crops/            ritagli generati
 │   └── README.md         provenienza, data di scarico, condizioni d'uso
-├── weights/              pesi LoFTR (solo modulo B)
+├── weights/              pesi LoFTR (vendorati, vedi I-stack)
 ├── src/
 │   ├── main.py           CLI
 │   ├── io_geo.py         lettura JGW, TXT, parser CXF
@@ -292,8 +292,8 @@ Ground truth da JGW (§5.3), pavimento ~0.5 m.
 Griglia: {SIFT, ORB} × {grayscale+CLAHE, Sauvola, Sauvola+morfologia} × {similarità, affine, omografia} × 5 crop (§5.6).
 Interpretare gli inlier ratio alla luce di §5.7: parte delle linee vettoriali non ha corrispondenza storica.
 
-### E3 — Comparative (**solo modulo B**)
-LoFTR su E1 ed E2, stesse metriche, stessi crop. Confronto anche sul costo computazionale.
+### E3 — Comparative (LoFTR)
+LoFTR su E1 ed E2, stesse metriche, stessi crop. Confronto anche sul costo computazionale (tempo per registrazione, CPU vs eventuale GPU). È il cuore della parte comparativa approvata: il confronto ha valore solo se classico e neurale girano nella **stessa** pipeline, cambiando il solo `--matcher`.
 
 ---
 
@@ -335,7 +335,7 @@ Senza `--jgw-*` la pipeline gira e produce `H_est`, semplicemente non calcola RM
 | **M6** | E1 completo | Curva RMSE vs degradazione, SIFT vs ORB. Primo CSV vero. |
 | **M7** | Rasterizzazione CXF | Vettoriale → raster allineato. **Verifica visiva a piena risoluzione** (I5), non metriche indirette (§5.5). |
 | **M8** | E2 cross-domain | Griglia completa. Qualunque sia il risultato, è il risultato. |
-| **M9** | E3 | Solo se il modulo B è approvato. |
+| **M9** | E3 (LoFTR) | LoFTR via kornia su E1 ed E2. Stesse metriche e stessi crop del classico, tabella comparativa affiancata. |
 | **M10** | Relazione | Tabelle e figure generate da `report.py` dal CSV. |
 
 ---
@@ -367,7 +367,7 @@ La traccia chiede: *"a relation is requested with the modality of use of the app
 6. Matching: SIFT, ORB, ratio test; RANSAC e modelli
 7. E1: risultati sintetici, curva RMSE vs degradazione
 8. E2: risultati cross-domain — **incluso il fallimento, se c'è, con l'analisi del perché** (line drawings privi di texture, descrittori a blob)
-9. E3: confronto con LoFTR (solo modulo B)
+9. E3: confronto classico vs LoFTR — RMSE, inlier ratio, robustezza al domain gap, costo computazionale
 10. **Modalità d'uso**: tutte le opzioni CLI con esempi eseguibili — la traccia lo chiede esplicitamente, non è un'appendice
 11. Limiti: incertezza del riferimento, divergenza di contenuto (§5.7), inquadramento come validazione e non applicazione
 
