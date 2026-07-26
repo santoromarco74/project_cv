@@ -34,6 +34,13 @@ from src.io_geo import (  # noqa: E402
     read_jgw,
     read_metadata_txt,
 )
+from src.groundtruth import (  # noqa: E402
+    checkpoints,
+    errore_px_to_m,
+    h_true,
+    residuo_andata_ritorno,
+    transform,
+)
 from src.prep.crop import CROPS, crop_world_file  # noqa: E402
 
 RAW = "data/raw"
@@ -217,6 +224,147 @@ def test_cxf_contro_export_indipendente():
         assert f["properties"]["nome"] == b.nome, (b.nome, f["properties"])
         assert f["properties"]["codice"] == str(b.codice), (b.nome, f["properties"])
         assert np.allclose(np.asarray(coord), b.pts, atol=1e-9), b.nome
+
+
+# ------------------------------------------------------------------ M3: ground truth
+
+
+def _affine(a: float, b: float, c: float, d: float, e: float, f: float) -> np.ndarray:
+    return np.array([[a, b, c], [d, e, f], [0.0, 0.0, 1.0]])
+
+
+def _affine_moderna_finta() -> np.ndarray:
+    """Un'affine 'moderna' non banale: risoluzione diversa e rotazione di 12°.
+
+    Serve a testare la composizione prima che M7 produca il raster del CXF. Se
+    storica e moderna avessero la stessa scala e nessuna rotazione, H_true
+    sarebbe una pura traslazione e il test non direbbe granché.
+    """
+    ang = np.deg2rad(12.0)
+    s = 0.40  # m/px
+    return _affine(
+        s * np.cos(ang), -s * np.sin(ang), -30900.0, -s * np.sin(ang), -s * np.cos(ang), -11500.0
+    )
+
+
+def test_h_true_identita():
+    """Stesso world file per entrambe: H_true è l'identità."""
+    W = read_jgw(_serve(JGW))
+    assert np.allclose(h_true(W, W), np.eye(3), atol=1e-12)
+
+
+def test_h_true_passa_per_il_crs():
+    """H_true deve mandare un pixel storico dove lo manda il giro lungo per il CRS."""
+    W_hist = read_jgw(_serve(JGW))
+    W_modern = _affine_moderna_finta()
+    H = h_true(W_hist, W_modern)
+    pts = checkpoints(8489, 5648, n=5)
+    diretto = transform(H, pts)
+    # giro lungo: pixel storico -> CRS -> pixel moderno
+    crs = apply_affine(W_hist, pts)
+    lungo = apply_affine(np.linalg.inv(W_modern), crs)
+    assert np.allclose(diretto, lungo, atol=1e-9), np.abs(diretto - lungo).max()
+
+
+def test_m3_andata_e_ritorno():
+    """Criterio d'accettazione di M3: il punto trasformato avanti e indietro
+    torna a sé entro 1e-9."""
+    W_hist = read_jgw(_serve(JGW))
+    for W_modern in (_affine_moderna_finta(), W_hist):
+        H = h_true(W_hist, W_modern)
+        residuo = residuo_andata_ritorno(H, checkpoints(1024, 1024))
+        assert residuo < 1e-9, residuo
+
+
+def test_h_true_fra_due_crop_e_una_traslazione():
+    """Due crop dello stesso foglio condividono scala e orientamento: fra loro
+    H_true è la traslazione esatta dei rispettivi offset in pixel."""
+    W_a = read_jgw(_serve(os.path.join("data/crops", "tassarole.jgw")))
+    W_b = read_jgw(_serve(os.path.join("data/crops", "ribba.jgw")))
+    H = h_true(W_a, W_b)
+    atteso = _affine(1, 0, 1500 - 3300, 0, 1, 300 - 600)  # offset di §5.6
+    assert np.allclose(H, atteso, atol=1e-6), H
+
+
+def test_errore_in_metri():
+    """1 px dell'immagine storica vale 0.254453 m — letto dall'affine, non da una
+    costante nel codice."""
+    W = read_jgw(_serve(JGW))
+    assert abs(errore_px_to_m(1.0, W) - 0.254453) < 1e-9
+    assert abs(errore_px_to_m(4.0, W) - 4 * 0.254453) < 1e-9
+
+
+def test_checkpoint_dentro_i_bordi():
+    pts = checkpoints(1024, 1024, n=10, margine=0.05)
+    assert pts.shape == (100, 2)
+    assert pts.min() >= 0.05 * 1024 - 1e-9 and pts.max() <= 0.95 * 1024 + 1e-9
+
+
+# ------------------------------------------------------------------ invarianti I3, I4
+
+
+def _import_di(path: str) -> set[str]:
+    """Moduli importati da un file sorgente, secondo l'AST."""
+    import ast
+
+    with open(path, encoding="utf-8") as fh:
+        albero = ast.parse(fh.read(), filename=path)
+    moduli: set[str] = set()
+    for nodo in ast.walk(albero):
+        if isinstance(nodo, ast.Import):
+            moduli.update(a.name for a in nodo.names)
+        elif isinstance(nodo, ast.ImportFrom) and nodo.module:
+            moduli.add(nodo.module)
+    return moduli
+
+
+def test_i3_groundtruth_fuori_dalla_pipeline():
+    """I3: la georeferenziazione non entra nell'algoritmo. groundtruth.py e
+    io_geo.py possono essere importati da evaluate.py, non dalla pipeline né dai
+    matcher."""
+    lato_algoritmo = [
+        "src/pipeline.py",
+        "src/preprocess.py",
+        "src/estimate.py",
+        "src/matchers/base.py",
+        "src/matchers/classic.py",
+        "src/matchers/loftr.py",
+    ]
+    vietati = {"src.groundtruth", "src.io_geo", "groundtruth", "io_geo"}
+    for path in lato_algoritmo:
+        if not os.path.exists(path):
+            continue
+        colpevoli = _import_di(path) & vietati
+        assert not colpevoli, f"{path} importa {colpevoli}: viola I3"
+
+
+def test_i4_torch_solo_in_loftr():
+    """I4: nessun `import torch` (o kornia) fuori da matchers/loftr.py, dove
+    l'import è comunque lazy — dentro una funzione, non a livello di modulo."""
+    import ast
+
+    for cartella, _, file in os.walk("src"):
+        for nome in file:
+            if not nome.endswith(".py"):
+                continue
+            path = os.path.join(cartella, nome)
+            deep = {m for m in _import_di(path) if m.split(".")[0] in {"torch", "kornia"}}
+            if path.replace(os.sep, "/") != "src/matchers/loftr.py":
+                assert not deep, f"{path} importa {deep}: viola I4"
+                continue
+            # in loftr.py l'import c'è, ma non a livello di modulo
+            with open(path, encoding="utf-8") as fh:
+                albero = ast.parse(fh.read(), filename=path)
+            for nodo in albero.body:
+                if isinstance(nodo, (ast.Import, ast.ImportFrom)):
+                    nomi = (
+                        [a.name for a in nodo.names]
+                        if isinstance(nodo, ast.Import)
+                        else [nodo.module or ""]
+                    )
+                    assert not any(
+                        n.split(".")[0] in {"torch", "kornia"} for n in nomi
+                    ), f"{path}: import di {nomi} a livello di modulo, deve essere lazy (I4)"
 
 
 # ------------------------------------------------------------------ runner

@@ -35,7 +35,7 @@ python -m src.main --hist data/crops/ribba.png --modern data/crops/ribba_vec.png
 
 Elenco completo delle opzioni: `python -m src.main --help`.
 
-## Stato (M1, M2)
+## Stato (M1, M2, M3)
 
 `src/main.py` arriverà con le milestone successive. Quello che gira oggi:
 
@@ -48,6 +48,10 @@ python -m src.io_geo
 
 # M2 — figure di verifica (overview del vettoriale, inquadramento sul raster)
 python -m experiments.m2_cxf_check
+
+# M3 — trasformazione di riferimento fra due raster georeferenziati
+python -m src.groundtruth --jgw-hist data/crops/tassarole.jgw \
+                          --jgw-modern data/crops/ribba.jgw
 
 # test
 python -m tests.test_smoke
