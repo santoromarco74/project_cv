@@ -51,7 +51,7 @@ Ogni milestone è un programma che gira e produce un artefatto guardabile. Un co
 Seed fisso per RANSAC e per ogni generazione sintetica. Stesso input + stessi parametri = stesso CSV, cifra per cifra.
 
 **I10 — Ritagli, non fogli interi.**
-Il foglio 49 è 8000×5322 px. Tiling e gestione memoria non aggiungono nulla al tema d'esame. Crop di ~1000-1200 px per lato.
+Il foglio 49 è 8489×5648 px. Tiling e gestione memoria non aggiungono nulla al tema d'esame. Crop di ~1000-1200 px per lato.
 
 ---
 
@@ -119,8 +119,10 @@ L675_00490Z (nativamente ROMA40-GAUSS BOAGA DA RILIEVO AEROFOTOGRAMMETRICO OVEST
 Raster e vettoriale (`004900`) sono entrambi in **Cassini-Soldner zona G0007, origine Forte Diamante**. Nessuna riproiezione, nessun EPSG reale.
 
 Estensioni verificate:
-- JPG via JGW: X −31480…−29444, Y −12633…−11279
+- JPG via JGW: X −31480.04…−29320.25, Y −12715.65…−11278.76 (foglio 8489×5648 px)
 - CXF: X −31205…−29548, Y −12469…−11360 (contenuto nel raster ✓)
+
+Gli estremi sono nella convenzione del world file: sono i **centri** dei pixel d'angolo, non gli spigoli (mezzo pixel = 0.127 m di differenza rispetto a come li riporta QGIS). La dimensione del raster si legge sempre dal file, mai da una costante.
 
 **Nota per QGIS**: etichettare entrambi i layer come EPSG:3003 è una bugia utile — geodeticamente falso, ma finché *entrambi* portano la stessa etichetta QGIS non riproietta e le coordinate restano grezze. Non usare quel progetto per misure geodetiche.
 
