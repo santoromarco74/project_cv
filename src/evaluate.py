@@ -34,6 +34,7 @@ COLONNE = (
     "preprocess",
     "morph_open",
     "morph_close",
+    "codici",  # E2: quali codici CXF sono stati rasterizzati (§5.4)
     "modello",
     "degrado",
     "rot_deg",
@@ -41,6 +42,9 @@ COLONNE = (
     "tx",
     "ty",
     "prospettiva",
+    "ratio",
+    "loftr_conf",
+    "loftr_max_lato",
     "seed",
     "n_kp_a",
     "n_kp_b",
@@ -79,8 +83,12 @@ def valuta(
     """Riga di metriche per un singolo esperimento (§7.4).
 
     `W_hist` serve solo a convertire i pixel in metri: senza, le colonne in metri
-    restano vuote e il resto funziona lo stesso. `soglia_m` decide `success`;
-    senza soglia, `success` è solo la riuscita della stima.
+    restano vuote e il resto funziona lo stesso.
+
+    `success` segue §7.4 alla lettera: "stima riuscita **e** RMSE sotto soglia
+    dichiarata". Senza soglia dichiarata non è definito, e resta vuoto — non
+    True. Metterci True significherebbe scrivere `success` accanto a un errore
+    di 200 m, che è esattamente il tipo di numero che poi finisce in una tabella.
     """
     riga = {
         "success_stima": bool(stima.success),
@@ -92,7 +100,7 @@ def valuta(
         "rmse_px": None,
         "rmse_m": None,
         "err_max_px": None,
-        "success": False,
+        "success": False if soglia_m is not None else "",
     }
     if not stima.success or stima.H is None:
         return riga
@@ -105,11 +113,9 @@ def valuta(
         riga["rmse_m"] = errore_px_to_m(riga["rmse_px"], W_hist)
 
     if soglia_m is None:
-        riga["success"] = True
-    elif riga["rmse_m"] is not None:
-        riga["success"] = riga["rmse_m"] < soglia_m
+        riga["success"] = ""  # non dichiarata: la domanda non ha risposta
     else:
-        riga["success"] = False
+        riga["success"] = riga["rmse_m"] is not None and riga["rmse_m"] < soglia_m
     return riga
 
 
@@ -125,8 +131,33 @@ def append_csv(path: str, riga: dict) -> None:
     """
     os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
     nuovo = not os.path.exists(path) or os.path.getsize(path) == 0
+    if not nuovo:
+        _verifica_intestazione(path)
     with open(path, "a", newline="", encoding="utf-8") as fh:
         w = csv.DictWriter(fh, fieldnames=COLONNE, extrasaction="ignore")
         if nuovo:
             w.writeheader()
         w.writerow({k: riga.get(k, "") for k in COLONNE})
+
+
+def _verifica_intestazione(path: str) -> None:
+    """Rifiuta di appendere a un CSV con uno schema diverso.
+
+    Se COLONNE cambia (una colonna nuova, un ordine diverso) e si continua ad
+    appendere a un file vecchio, le righe finiscono disallineate rispetto
+    all'intestazione: i valori ci sono tutti, sono solo sotto la colonna
+    sbagliata. Nessuna aggregazione se ne accorge, e i numeri della relazione
+    diventano falsi in modo silenzioso. Meglio fermarsi e rigenerare.
+    """
+    with open(path, newline="", encoding="utf-8") as fh:
+        intestazione = next(csv.reader(fh), None)
+    if intestazione is not None and tuple(intestazione) != COLONNE:
+        mancanti = set(COLONNE) - set(intestazione)
+        avanzo = set(intestazione) - set(COLONNE)
+        raise ValueError(
+            f"{path}: lo schema del CSV non coincide con COLONNE "
+            f"(in più nello schema: {sorted(mancanti) or '—'}, "
+            f"nel file e non nello schema: {sorted(avanzo) or '—'}). "
+            "Rigenera il file invece di appendere: le righe finirebbero sotto "
+            "le colonne sbagliate senza che nulla se ne accorga."
+        )
