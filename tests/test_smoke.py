@@ -43,7 +43,7 @@ from src.groundtruth import (  # noqa: E402
     transform,
 )
 from src.estimate import stima as stima_ransac  # noqa: E402
-from src.evaluate import valuta  # noqa: E402
+from src.evaluate import COLONNE, append_csv, valuta  # noqa: E402
 from src.matchers.classic import crea_matcher  # noqa: E402
 from src.preprocess import (  # noqa: E402
     applica,
@@ -540,6 +540,71 @@ def test_sauvola_regge_il_gradiente_dove_otsu_cede():
     base = percentuale_inchiostro(sauvola(gray))
     assert percentuale_inchiostro(otsu(scurito)) > 0.30, "atteso il collasso di Otsu"
     assert abs(percentuale_inchiostro(sauvola(scurito)) - base) < 0.02, "Sauvola non è stabile"
+
+
+# ------------------------------------------------------------------ M6: CSV
+
+
+def _csv_temporaneo() -> str:
+    import tempfile
+
+    return os.path.join(tempfile.mkdtemp(prefix="histreg-test-"), "runs.csv")
+
+
+def test_csv_intestazione_una_volta_sola():
+    """Il CSV si scrive in append: l'intestazione va messa solo alla creazione."""
+    path = _csv_temporaneo()
+    for i in range(3):
+        append_csv(path, {"esperimento": "E1", "crop": f"c{i}", "rmse_px": i})
+    with open(path, encoding="utf-8") as fh:
+        righe = fh.read().strip().split("\n")
+    assert len(righe) == 4, righe
+    assert righe[0].split(",") == list(COLONNE)
+    assert sum(r.startswith("esperimento,") for r in righe) == 1
+
+
+def test_csv_schema_stabile():
+    """Chiavi mancanti restano vuote, chiavi estranee non entrano: le colonne non
+    possono cambiare fra un esperimento e l'altro, o le aggregazioni non tornano."""
+    path = _csv_temporaneo()
+    append_csv(path, {"esperimento": "E1", "colonna_inventata": 99})
+    with open(path, encoding="utf-8") as fh:
+        intestazione, riga = fh.read().strip().split("\n")
+    assert "colonna_inventata" not in intestazione
+    assert len(riga.split(",")) == len(COLONNE)
+
+
+def test_csv_scrive_anche_i_fallimenti():
+    """§7.3 e I7: una stima fallita produce comunque la sua riga."""
+    path = _csv_temporaneo()
+    pts = np.zeros((2, 2))
+    st = stima_ransac(pts, pts, modello="homography")
+    riga = valuta(st, np.eye(3), 100, 100)
+    append_csv(path, riga | {"esperimento": "E1", "crop": "finto"})
+    with open(path, encoding="utf-8") as fh:
+        contenuto = fh.read().strip().split("\n")
+    assert len(contenuto) == 2, contenuto
+    assert "False" in contenuto[1], contenuto[1]
+
+
+def test_csv_deterministico():
+    """I9: stesso input e stessi parametri = stesso CSV, cifra per cifra."""
+    img = _crop_di_prova(256)
+    t = Trasformazione(rot_deg=12, scala=1.1)
+
+    def una_passata() -> str:
+        path = _csv_temporaneo()
+        for livello in (0.0, 0.5):
+            b, H_true = genera_coppia(img, t, scala_degradazione(livello), seed=42)
+            pts_a, pts_b, meta = crea_matcher("sift").match(img, b)
+            st = stima_ransac(pts_a, pts_b, seed=42)
+            riga = valuta(st, H_true, 256, 256)
+            # i tempi sono l'unica colonna non riproducibile: si escludono
+            append_csv(path, riga | {"esperimento": "E1", "degrado": livello})
+        with open(path, encoding="utf-8") as fh:
+            return fh.read()
+
+    assert una_passata() == una_passata(), "stesso input, CSV diverso"
 
 
 # ------------------------------------------------------------------ invarianti I3, I4

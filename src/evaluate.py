@@ -17,9 +17,45 @@ metrica, cambia solo da dove arriva il riferimento.
 """
 from __future__ import annotations
 
+import csv
+import os
+
 import numpy as np
 
 from src.groundtruth import checkpoints, errore_px_to_m, transform
+
+# Schema del CSV (§7.4). Fisso e ordinato: le tabelle della relazione sono
+# aggregazioni di questo file, non numeri ricopiati a mano, quindi le colonne
+# non possono cambiare nome fra un esperimento e l'altro.
+COLONNE = (
+    "esperimento",
+    "crop",
+    "matcher",
+    "preprocess",
+    "morph_open",
+    "morph_close",
+    "modello",
+    "degrado",
+    "rot_deg",
+    "scala",
+    "tx",
+    "ty",
+    "prospettiva",
+    "seed",
+    "n_kp_a",
+    "n_kp_b",
+    "n_matches",
+    "n_inliers",
+    "inlier_ratio",
+    "rmse_px",
+    "rmse_m",
+    "err_max_px",
+    "success_stima",
+    "success",
+    "motivo",
+    "t_match_ms",
+    "t_stima_ms",
+)
 
 
 def errori_px(H_est: np.ndarray, H_true: np.ndarray, pts: np.ndarray) -> np.ndarray:
@@ -75,3 +111,22 @@ def valuta(
     else:
         riga["success"] = False
     return riga
+
+
+def append_csv(path: str, riga: dict) -> None:
+    """Aggiunge una riga al CSV, scrivendo l'intestazione se il file è nuovo.
+
+    Le chiavi fuori da COLONNE vengono ignorate e quelle mancanti restano vuote:
+    un esperimento che non usa la degradazione non deve rompere lo schema, e uno
+    che inventa una colonna non deve sporcarlo.
+
+    Le righe di fallimento si scrivono come le altre (§7.3, I7): un esperimento
+    che non produce una stima ha comunque prodotto un dato.
+    """
+    os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+    nuovo = not os.path.exists(path) or os.path.getsize(path) == 0
+    with open(path, "a", newline="", encoding="utf-8") as fh:
+        w = csv.DictWriter(fh, fieldnames=COLONNE, extrasaction="ignore")
+        if nuovo:
+            w.writeheader()
+        w.writerow({k: riga.get(k, "") for k in COLONNE})

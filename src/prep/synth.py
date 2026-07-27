@@ -104,16 +104,25 @@ def genera_coppia(
     return warped, H
 
 
+CONTRASTO_MINIMO = 0.15
+
+
 def scala_degradazione(livello: float) -> Degradazione:
-    """Degradazione parametrizzata da un solo numero in [0, 1].
+    """Degradazione parametrizzata da un solo numero, tipicamente in [0, 1.5].
 
     Serve alla curva RMSE vs degradazione di M6: una variabile indipendente
     sola, monotona, così l'asse x della figura ha un significato.
+
+    Il livello 1 non è un massimo: su questi dati SIFT lo regge ancora (RMSE
+    ~0.16 px), e la soglia di rottura sta poco sopra. Livelli maggiori sono
+    ammessi, con il contrasto limitato dal basso — a `1 - 0.5·livello` puro
+    diventerebbe nullo a 2 e negativo oltre, cioè un'immagine uniforme o
+    invertita: non più una degradazione ma un'immagine diversa.
     """
     return Degradazione(
         rumore=20.0 * livello,
         blur=2.0 * livello,
-        contrasto=1.0 - 0.5 * livello,
+        contrasto=max(CONTRASTO_MINIMO, 1.0 - 0.5 * livello),
         luminosita=20.0 * livello,
     )
 
