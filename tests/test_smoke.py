@@ -19,6 +19,7 @@ import sys
 import zipfile
 from collections import Counter
 
+import cv2
 import numpy as np
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -44,6 +45,14 @@ from src.groundtruth import (  # noqa: E402
 from src.estimate import stima as stima_ransac  # noqa: E402
 from src.evaluate import valuta  # noqa: E402
 from src.matchers.classic import crea_matcher  # noqa: E402
+from src.preprocess import (  # noqa: E402
+    applica,
+    morfologia,
+    otsu,
+    percentuale_inchiostro,
+    rimuovi_componenti,
+    sauvola,
+)
 from src.prep.crop import CROPS, crop_world_file  # noqa: E402
 from src.prep.synth import (  # noqa: E402
     Trasformazione,
@@ -417,6 +426,120 @@ def test_m4_e1_sift_recupera_h():
         assert riga["success_stima"], (t, st.motivo)
         assert riga["rmse_px"] < 0.5, (t, riga["rmse_px"])
         assert riga["inlier_ratio"] > 0.5, (t, riga["inlier_ratio"])
+
+
+# ------------------------------------------------------------------ M5: preprocessing
+
+
+def _sauvola_ingenuo(gray, finestra=25, k=0.2, R=128.0):
+    """Sauvola scritto nel modo ovvio: una finestra per pixel, O(finestra²).
+
+    Serve solo come riferimento per verificare la versione con immagini
+    integrali. Se le due non coincidono, l'ottimizzazione ha introdotto un bug —
+    ed è il tipo di bug che non si vede a occhio sull'immagine.
+    """
+    import cv2
+
+    r = finestra // 2
+    pad = cv2.copyMakeBorder(gray.astype(np.float64), r, r, r, r, cv2.BORDER_REFLECT_101)
+    h, w = gray.shape
+    out = np.zeros((h, w), dtype=np.uint8)
+    for i in range(h):
+        for j in range(w):
+            fin = pad[i : i + finestra, j : j + finestra]
+            m, s = fin.mean(), fin.std()
+            out[i, j] = 0 if gray[i, j] < m * (1 + k * (s / R - 1)) else 255
+    return out
+
+
+def test_sauvola_uguale_alla_versione_ingenua():
+    """Le immagini integrali danno O(1) per pixel: devono dare gli stessi pixel."""
+    rng = np.random.default_rng(7)
+    gray = rng.integers(90, 230, size=(40, 40), dtype=np.uint8)
+    gray[12:20, 5:35] = 30  # un tratto scuro
+    veloce = sauvola(gray, finestra=25, k=0.2)
+    lento = _sauvola_ingenuo(gray, finestra=25, k=0.2)
+    assert np.array_equal(veloce, lento), int((veloce != lento).sum())
+
+
+def test_binarizzazioni_sono_binarie_e_scure_sul_tratto():
+    """Polarità: l'inchiostro resta scuro, come nell'originale."""
+    gray = np.full((60, 60), 220, dtype=np.uint8)
+    gray[20:40, 20:40] = 40  # tratto
+    for out in (otsu(gray), sauvola(gray)):
+        assert set(np.unique(out)) <= {0, 255}, np.unique(out)
+        assert out[30, 30] == 0, "il tratto dovrebbe essere inchiostro (scuro)"
+        assert out[5, 5] == 255, "la carta dovrebbe essere sfondo (chiaro)"
+
+
+def test_chiusura_salda_le_interruzioni():
+    """`chiudi` deve saldare un tratto spezzato: è il suo scopo dichiarato."""
+    img = np.full((40, 40), 255, dtype=np.uint8)
+    img[20, 5:35] = 0  # tratto orizzontale
+    img[20, 19:21] = 255  # con un buco di 2 px
+    saldato = morfologia(img, chiudi=1)
+    assert saldato[20, 19] == 0 and saldato[20, 20] == 0, "il buco non è stato saldato"
+
+
+def test_apertura_toglie_il_pepe():
+    img = np.full((40, 40), 255, dtype=np.uint8)
+    img[10:30, 10:30] = 0  # blocco di inchiostro
+    img[5, 5] = 0  # un granello isolato
+    pulito = morfologia(img, apri=1)
+    assert pulito[5, 5] == 255, "il granello non è stato rimosso"
+    assert pulito[20, 20] == 0, "l'apertura ha mangiato il tratto vero"
+
+
+def test_rimuovi_componenti_per_area():
+    img = np.full((60, 60), 255, dtype=np.uint8)
+    img[10:14, 10:14] = 0  # 16 px
+    img[30:50, 30:50] = 0  # 400 px
+    out = rimuovi_componenti(img, area_min=100)
+    assert out[11, 11] == 255, "la componente piccola doveva sparire"
+    assert out[40, 40] == 0, "la componente grande doveva restare"
+
+
+def test_applica_modi_e_morfologia_ignorata():
+    """Su `none` e `clahe` l'uscita è grayscale: morfologia e pulizia non si
+    applicano, e non devono nemmeno provarci."""
+    # una rampa, non due soli livelli: su un'immagine bicolore "l'uscita non è
+    # binaria" non sarebbe distinguibile da "l'uscita è binaria"
+    rampa = np.tile(np.linspace(120, 240, 50, dtype=np.uint8), (50, 1))
+    img = cv2.cvtColor(rampa, cv2.COLOR_GRAY2BGR)
+    img[20:30, 20:30] = 30
+    grigio = applica(img, modo="none", morph_close=3, area_min=50)
+    assert grigio.ndim == 2 and len(np.unique(grigio)) > 2
+    assert np.array_equal(grigio, applica(img, modo="none"))
+    assert applica(img, modo="clahe").ndim == 2
+    for modo in ("otsu", "sauvola"):
+        assert set(np.unique(applica(img, modo=modo))) <= {0, 255}
+    try:
+        applica(img, modo="adattiva")
+    except ValueError as exc:
+        assert "adattiva" in str(exc)
+    else:
+        raise AssertionError("atteso ValueError su preprocess sconosciuto")
+
+
+def test_sauvola_regge_il_gradiente_dove_otsu_cede():
+    """Il risultato atteso di §7.1, misurato invece che assunto.
+
+    Con un gradiente di illuminazione, la soglia globale di Otsu finisce per
+    classificare come inchiostro la carta scurita; Sauvola, che guarda una
+    finestra locale, non se ne accorge.
+    """
+    rng = np.random.default_rng(3)
+    gray = rng.integers(200, 240, size=(200, 200)).astype(np.uint8)
+    gray[::20, :] = 40  # tratto regolare
+    h, w = gray.shape
+    yy, xx = np.mgrid[0:h, 0:w]
+    scurito = np.clip(gray * (1.0 - 0.9 * (xx / (w - 1) + yy / (h - 1)) / 2), 0, 255).astype(
+        np.uint8
+    )
+
+    base = percentuale_inchiostro(sauvola(gray))
+    assert percentuale_inchiostro(otsu(scurito)) > 0.30, "atteso il collasso di Otsu"
+    assert abs(percentuale_inchiostro(sauvola(scurito)) - base) < 0.02, "Sauvola non è stabile"
 
 
 # ------------------------------------------------------------------ invarianti I3, I4

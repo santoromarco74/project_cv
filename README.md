@@ -35,7 +35,7 @@ python -m src.main --hist data/crops/ribba.png --modern data/crops/ribba_vec.png
 
 Elenco completo delle opzioni: `python -m src.main --help`.
 
-## Stato (M1 → M4)
+## Stato (M1 → M5)
 
 `src/main.py` arriverà con le milestone successive. Quello che gira oggi:
 
@@ -59,6 +59,10 @@ python -m src.prep.synth --crop data/crops/ribba.png --rot 15 --scala 1.2
 # M4 — E1: SIFT recupera H su un ventaglio di trasformazioni
 python -m experiments.m4_e1_smoke
 python -m experiments.m4_e1_smoke --crop tutti --matcher orb --modello affine
+
+# M5 — preprocessing: Otsu vs Sauvola vs CLAHE, morfologia
+python -m src.preprocess --crop data/crops/ribba.png --preprocess sauvola --morph-close 1
+python -m experiments.m5_preprocess --crop tutti
 
 # test
 python -m tests.test_smoke
