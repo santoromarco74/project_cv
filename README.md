@@ -35,7 +35,7 @@ python -m src.main --hist data/crops/ribba.png --modern data/crops/ribba_vec.png
 
 Elenco completo delle opzioni: `python -m src.main --help`.
 
-## Stato (M1, M2)
+## Stato (M1 → M6)
 
 `src/main.py` arriverà con le milestone successive. Quello che gira oggi:
 
@@ -48,6 +48,27 @@ python -m src.io_geo
 
 # M2 — figure di verifica (overview del vettoriale, inquadramento sul raster)
 python -m experiments.m2_cxf_check
+
+# M3 — trasformazione di riferimento fra due raster georeferenziati
+python -m src.groundtruth --jgw-hist data/crops/tassarole.jgw \
+                          --jgw-modern data/crops/ribba.jgw
+
+# M4 — coppia sintetica E1 con H nota
+python -m src.prep.synth --crop data/crops/ribba.png --rot 15 --scala 1.2
+
+# M4 — E1: SIFT recupera H su un ventaglio di trasformazioni
+python -m experiments.m4_e1_smoke
+python -m experiments.m4_e1_smoke --crop tutti --matcher orb --modello affine
+
+# M5 — preprocessing: Otsu vs Sauvola vs CLAHE, morfologia
+python -m src.preprocess --crop data/crops/ribba.png --preprocess sauvola --morph-close 1
+python -m experiments.m5_preprocess --crop tutti
+
+# M6 — E1 completo: la griglia intera, un CSV (~4 min)
+python -m experiments.m6_e1_completo --riparti
+
+# M6 — figure e tabelle, generate dal CSV
+python -m src.report --csv results/runs.csv
 
 # test
 python -m tests.test_smoke
