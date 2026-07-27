@@ -37,6 +37,11 @@ class Opzioni:
     ratio: float = 0.75
     ransac_thresh: float = 3.0
     seed: int = 42
+    # Parametri specifici di LoFTR. Stanno qui, e non dentro il matcher, per lo
+    # stesso motivo per cui ci sta `ratio`: sono variabili sperimentali, e una
+    # variabile sperimentale che non passa dalle opzioni non finisce nel CSV.
+    loftr_conf: float = 0.5
+    loftr_max_lato: int = 640
 
 
 @dataclass
@@ -58,9 +63,15 @@ class Risultato:
 
 
 def _costruisci_matcher(opz: Opzioni):
-    """Il ratio test è di SIFT: passarlo a ORB sarebbe un parametro finto."""
+    """Ogni matcher riceve i suoi parametri e nessun altro.
+
+    Il ratio test è di SIFT: passarlo a ORB sarebbe un parametro finto, che
+    finirebbe nel CSV come se avesse avuto un effetto.
+    """
     if opz.matcher == "sift":
         return crea_matcher("sift", ratio=opz.ratio)
+    if opz.matcher == "loftr":
+        return crea_matcher("loftr", soglia_conf=opz.loftr_conf, max_lato=opz.loftr_max_lato)
     return crea_matcher(opz.matcher)
 
 

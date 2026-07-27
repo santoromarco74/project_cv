@@ -21,7 +21,8 @@ docs/*.pdf
 *.zip
 
 # ── Pesi modelli: troppo grandi per GitHub, si riscaricano ──
-weights/
+weights/*
+!weights/README.md
 *.ckpt
 *.pth
 

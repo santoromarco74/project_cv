@@ -833,6 +833,49 @@ def test_i3_groundtruth_fuori_dalla_pipeline():
         assert not colpevoli, f"{path} importa {colpevoli}: viola I3"
 
 
+def test_i4_import_di_loftr_non_carica_torch():
+    """I4 in senso forte: importare il modulo non deve tirare dentro torch.
+
+    Il test statico controlla che l'import non sia in testa al file; questo
+    controlla il comportamento, in un processo pulito. Se un giorno qualcuno
+    aggiungesse un `import torch` dentro una costante o un decoratore, il test
+    statico passerebbe e questo no.
+    """
+    import subprocess
+
+    codice = (
+        "import sys; import src.matchers.loftr as m; "
+        "assert 'torch' not in sys.modules, 'torch importato al solo import del modulo'; "
+        "assert 'kornia' not in sys.modules, 'kornia importato al solo import del modulo'; "
+        "assert hasattr(m, 'LoftrMatcher'); print('ok')"
+    )
+    esito = subprocess.run(
+        [sys.executable, "-c", codice],
+        capture_output=True,
+        text=True,
+        cwd=os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+    )
+    assert esito.returncode == 0, esito.stderr or esito.stdout
+
+
+def test_loftr_rispetta_l_interfaccia_senza_pesi():
+    """Senza i pesi il matcher deve fallire in modo parlante, non con un
+    ImportError o uno stack di kornia: §3 vieta il download a runtime, quindi
+    l'assenza del file è una condizione prevista, non un incidente."""
+    from src.matchers.loftr import LoftrMatcher
+
+    matcher = LoftrMatcher(pesi=os.path.join("nessuna", "cartella", "loftr.ckpt"))
+    assert matcher.nome == "loftr" and hasattr(matcher, "match")
+    try:
+        matcher.match(np.zeros((64, 64, 3), np.uint8), np.zeros((64, 64, 3), np.uint8))
+    except FileNotFoundError as exc:
+        assert "scarica_pesi" in str(exc), exc
+    except ImportError:
+        raise Skip("torch/kornia non installati: il modulo B non è disponibile") from None
+    else:
+        raise AssertionError("atteso FileNotFoundError con i pesi assenti")
+
+
 def test_i4_torch_solo_in_loftr():
     """I4: nessun `import torch` (o kornia) fuori da matchers/loftr.py, dove
     l'import è comunque lazy — dentro una funzione, non a livello di modulo."""

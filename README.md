@@ -35,7 +35,7 @@ python -m src.main --hist data/crops/ribba.png --modern data/crops/ribba_vec.png
 
 Elenco completo delle opzioni: `python -m src.main --help`.
 
-## Stato (M1 → M8)
+## Stato (M1 → M9)
 
 `src/main.py` implementa il contratto di §9. Gli esperimenti passano dalla stessa
 pipeline: cambia solo `--matcher`. Quello che gira oggi:
@@ -83,6 +83,13 @@ python -m src.main --hist data/crops/ribba.png --modern data/crops/ribba_vec.png
 
 # M8 — la griglia cross-domain completa (~6 min), in append al CSV di E1
 python -m experiments.m8_e2_griglia
+python -m experiments.m8_e2_griglia --diagnosi-ratio   # perché SIFT cede su E2
+
+# M9 — LoFTR (modulo B). Serve torch+kornia e i pesi: vedi weights/README.md
+python -m scripts.scarica_pesi
+python -m src.main --hist data/crops/ribba.png --modern data/crops/ribba_vec.png \
+    --matcher loftr --preprocess sauvola --model similarity
+python -m experiments.m9_e3_loftr      # E1 + E2 con LoFTR (~40 min su CPU)
 
 # test
 python -m tests.test_smoke

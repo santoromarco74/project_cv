@@ -271,6 +271,82 @@ def figura_e2_dettaglio(df: pd.DataFrame, out_path: str) -> None:
     _salva(fig, out_path)
 
 
+def tabella_e3(df: pd.DataFrame, out_path: str | None = None) -> pd.DataFrame:
+    """Confronto classico contro neurale: per ogni esperimento e matcher, la
+    configurazione migliore.
+
+    "Migliore" = più prove riuscite; a parità, RMSE mediano più basso. Scegliere
+    la configurazione migliore per ciascun matcher è l'unico confronto onesto:
+    un matcher penalizzato dal preprocessing sbagliato non dice nulla sul
+    matcher.
+    """
+    d = df[df.esperimento.isin(("E1", "E2"))].copy()
+    if d.empty:
+        return d
+    d["rmse_ok"] = d.rmse_px.where(d.success)
+    d["config"] = d.preprocess.astype(str) + " / " + d.modello.astype(str)
+
+    per_config = (
+        d.groupby(["esperimento", "matcher", "config"])
+        .agg(
+            prove=("success", "size"),
+            successo_pct=("success", lambda s: round(100 * s.mean(), 1)),
+            rmse_m_mediano_ok=("rmse_m", lambda s: round(s.median(), 3)),
+            inlier_ratio=("inlier_ratio", lambda s: round(s.median(), 3)),
+            match_mediani=("n_matches", lambda s: int(s.median())),
+            t_ms=("t_match_ms", lambda s: int(s.median())),
+        )
+        .reset_index()
+    )
+    migliori = (
+        per_config.sort_values(
+            ["esperimento", "matcher", "successo_pct", "rmse_m_mediano_ok"],
+            ascending=[True, True, False, True],
+        )
+        .groupby(["esperimento", "matcher"])
+        .head(1)
+        .reset_index(drop=True)
+    )
+    if out_path:
+        os.makedirs(os.path.dirname(out_path) or ".", exist_ok=True)
+        with open(out_path, "w", encoding="utf-8") as fh:
+            fh.write(_markdown(migliori))
+        print(f"tabella: {out_path}")
+    return migliori
+
+
+def figura_e3(df: pd.DataFrame, out_path: str) -> None:
+    """Accuratezza e costo, affiancati. Il costo fa parte del risultato (§8)."""
+    import matplotlib
+
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    d = df[df.esperimento.isin(("E1", "E2"))]
+    if d.empty or d.matcher.nunique() < 2:
+        return
+    migliori = tabella_e3(df)
+
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(13, 5))
+    migliori.pivot(index="matcher", columns="esperimento", values="successo_pct").plot(
+        kind="bar", ax=ax1, rot=0
+    )
+    ax1.set_ylabel("prove riuscite (%)")
+    ax1.set_ylim(0, 105)
+    ax1.set_title("Configurazione migliore per matcher\n(E1: RMSE < 0.25 m · E2: RMSE < 2 m)")
+    ax1.grid(alpha=0.3, axis="y")
+
+    tempi = d.groupby("matcher").t_match_ms.median().sort_values()
+    ax2.bar(tempi.index, tempi.values, color="#7f7f7f")
+    ax2.set_yscale("log")
+    ax2.set_ylabel("tempo di matching (ms, scala logaritmica)")
+    ax2.set_title("Costo per registrazione, mediana su tutte le prove\n(CPU; LoFTR a lato 640, gli altri a piena risoluzione)")
+    ax2.grid(alpha=0.3, axis="y", which="both")
+    for x, y in zip(tempi.index, tempi.values):
+        ax2.text(x, y, f"{y:.0f}", ha="center", va="bottom", fontsize=9)
+    _salva(fig, out_path)
+
+
 def _markdown(df: pd.DataFrame) -> str:
     """Tabella Markdown senza `tabulate`.
 
@@ -321,6 +397,13 @@ def main(argv: list[str] | None = None) -> int:
         print()
         print("E2 — cross-domain reale")
         print(agg2.to_string(index=False))
+
+    if df.matcher.nunique() > 2:
+        figura_e3(df, os.path.join(args.out, "m9_e3_confronto.png"))
+        agg3 = tabella_e3(df, os.path.join(args.out, "m9_tabella.md"))
+        print()
+        print("E3 — classico contro neurale, configurazione migliore per matcher")
+        print(agg3.to_string(index=False))
     return 0
 
 

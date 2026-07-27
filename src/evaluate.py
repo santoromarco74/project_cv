@@ -43,6 +43,8 @@ COLONNE = (
     "ty",
     "prospettiva",
     "ratio",
+    "loftr_conf",
+    "loftr_max_lato",
     "seed",
     "n_kp_a",
     "n_kp_b",
