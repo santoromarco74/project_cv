@@ -35,7 +35,7 @@ python -m src.main --hist data/crops/ribba.png --modern data/crops/ribba_vec.png
 
 Elenco completo delle opzioni: `python -m src.main --help`.
 
-## Stato (M1 → M6)
+## Stato (M1 → M7)
 
 `src/main.py` arriverà con le milestone successive. Quello che gira oggi:
 
@@ -69,6 +69,10 @@ python -m experiments.m6_e1_completo --riparti
 
 # M6 — figure e tabelle, generate dal CSV
 python -m src.report --csv results/runs.csv
+
+# M7 — rasterizzazione del CXF sulla zona di un crop
+python -m src.prep.rasterize --crop ribba --codici 18
+python -m experiments.m7_rasterize_check --crop ribba
 
 # test
 python -m tests.test_smoke
