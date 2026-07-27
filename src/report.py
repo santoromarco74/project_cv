@@ -167,6 +167,110 @@ def tabella(df: pd.DataFrame, out_path: str | None = None) -> pd.DataFrame:
     return agg
 
 
+def tabella_e2(df: pd.DataFrame, out_path: str | None = None) -> pd.DataFrame:
+    """Aggregazione di E2. Riporta anche l'RMSE mediano su TUTTE le prove.
+
+    Su E2 il tasso di successo può essere zero, e allora "RMSE sulle prove
+    riuscite" non esiste. Serve comunque un numero che descriva quanto si
+    sbaglia: la mediana su tutte le prove, in metri, che è grande di proposito.
+    """
+    d = df[df.esperimento == "E2"].copy()
+    if d.empty:
+        return d
+    d["rmse_ok"] = d.rmse_px.where(d.success)
+    agg = (
+        d.groupby(["matcher", "preprocess", "modello"])
+        .agg(
+            prove=("success", "size"),
+            successo_pct=("success", lambda s: round(100 * s.mean(), 1)),
+            rmse_m_mediano=("rmse_m", lambda s: round(s.median(), 2)),
+            rmse_m_minimo=("rmse_m", lambda s: round(s.min(), 3)),
+            inlier_ratio=("inlier_ratio", lambda s: round(s.median(), 3)),
+            match_mediani=("n_matches", lambda s: int(s.median())),
+        )
+        .reset_index()
+    )
+    if out_path:
+        os.makedirs(os.path.dirname(out_path) or ".", exist_ok=True)
+        with open(out_path, "w", encoding="utf-8") as fh:
+            fh.write(_markdown(agg))
+        print(f"tabella: {out_path}")
+    return agg
+
+
+def figura_e1_vs_e2(df: pd.DataFrame, out_path: str) -> None:
+    """Il confronto che spiega il progetto: stesso dominio contro cross-domain.
+
+    L'inlier ratio è la misura più leggibile del divario. L'RMSE dice quanto si
+    sbaglia quando si sbaglia; l'inlier ratio dice se il matcher stava
+    guardando la stessa scena.
+    """
+    import matplotlib
+
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    e1 = df[(df.esperimento == "E1") & (df.degrado == 0)]
+    e2 = df[df.esperimento == "E2"]
+    if e1.empty or e2.empty:
+        print("servono sia E1 sia E2 per il confronto: figura saltata")
+        return
+
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(13, 5))
+    dati, etichette = [], []
+    for nome, gruppo in (("E1 (stesso dominio)", e1), ("E2 (cross-domain)", e2)):
+        for matcher in sorted(gruppo.matcher.unique()):
+            valori = gruppo[gruppo.matcher == matcher].inlier_ratio.dropna()
+            if len(valori):
+                dati.append(valori)
+                etichette.append(f"{matcher}\n{nome.split()[0]}")
+    ax1.boxplot(dati, tick_labels=etichette, showfliers=False)
+    ax1.set_ylabel("inlier ratio")
+    ax1.set_title("Inlier ratio: stesso dominio contro cross-domain\n(E1 senza degradazione)")
+    ax1.grid(alpha=0.3, axis="y")
+
+    successi = pd.DataFrame(
+        {
+            "E1": e1.groupby("matcher").success.mean() * 100,
+            "E2": e2.groupby("matcher").success.mean() * 100,
+        }
+    )
+    successi.plot(kind="bar", ax=ax2, rot=0)
+    ax2.set_ylabel("prove riuscite (%)")
+    ax2.set_ylim(0, 105)
+    ax2.set_title("Tasso di successo\n(E1: RMSE < 0.25 m · E2: RMSE < 2 m)")
+    ax2.grid(alpha=0.3, axis="y")
+    _salva(fig, out_path)
+
+
+def figura_e2_dettaglio(df: pd.DataFrame, out_path: str) -> None:
+    """Dove il cross-domain va meno peggio: preprocessing, modello, codici CXF."""
+    import matplotlib
+
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    d = df[df.esperimento == "E2"]
+    if d.empty:
+        return
+    fig, assi = plt.subplots(1, 3, figsize=(17, 4.8))
+    for ax, chiave, titolo in zip(
+        assi,
+        ("preprocess", "modello", "codici"),
+        ("preprocessing", "modello geometrico", "codici CXF rasterizzati"),
+    ):
+        if chiave not in d or d[chiave].isna().all():
+            continue
+        d.groupby([chiave, "matcher"]).inlier_ratio.median().unstack().plot(
+            kind="bar", ax=ax, rot=0
+        )
+        ax.set_ylabel("inlier ratio mediano")
+        ax.set_title(f"E2 — {titolo}")
+        ax.grid(alpha=0.3, axis="y")
+    fig.suptitle("E2 cross-domain — nessuna combinazione salva la registrazione, ma non tutte sono uguali")
+    _salva(fig, out_path)
+
+
 def _markdown(df: pd.DataFrame) -> str:
     """Tabella Markdown senza `tabulate`.
 
@@ -206,9 +310,17 @@ def main(argv: list[str] | None = None) -> int:
     curva_ampiezza(df, os.path.join(args.out, "m6_rmse_vs_ampiezza.png"))
     confronto_preprocess(df, os.path.join(args.out, "m6_preprocess.png"))
     agg = tabella(df, os.path.join(args.out, "m6_tabella.md"))
-
     print()
+    print("E1 — sintetico, stesso dominio")
     print(agg.to_string(index=False))
+
+    if (df.esperimento == "E2").any():
+        figura_e1_vs_e2(df, os.path.join(args.out, "m8_e1_vs_e2.png"))
+        figura_e2_dettaglio(df, os.path.join(args.out, "m8_e2_dettaglio.png"))
+        agg2 = tabella_e2(df, os.path.join(args.out, "m8_tabella.md"))
+        print()
+        print("E2 — cross-domain reale")
+        print(agg2.to_string(index=False))
     return 0
 
 

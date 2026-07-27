@@ -44,7 +44,10 @@ from src.groundtruth import (  # noqa: E402
 )
 from src.estimate import stima as stima_ransac  # noqa: E402
 from src.evaluate import COLONNE, append_csv, valuta  # noqa: E402
+from src.main import costruisci_parser  # noqa: E402
+from src.main import main as cli_main  # noqa: E402
 from src.matchers.classic import crea_matcher  # noqa: E402
+from src.pipeline import Opzioni, registra  # noqa: E402
 from src.preprocess import (  # noqa: E402
     applica,
     morfologia,
@@ -588,6 +591,20 @@ def test_csv_scrive_anche_i_fallimenti():
     assert "False" in contenuto[1], contenuto[1]
 
 
+def test_csv_rifiuta_schema_diverso():
+    """Se COLONNE cambia, appendere a un file vecchio metterebbe i valori sotto
+    le colonne sbagliate — senza che nessuna aggregazione se ne accorga."""
+    path = _csv_temporaneo()
+    with open(path, "w", encoding="utf-8") as fh:
+        fh.write("esperimento,crop,una_colonna_vecchia\nE1,ribba,7\n")
+    try:
+        append_csv(path, {"esperimento": "E1", "crop": "ribba"})
+    except ValueError as exc:
+        assert "schema" in str(exc).lower(), exc
+    else:
+        raise AssertionError("atteso un errore sullo schema del CSV")
+
+
 def test_csv_deterministico():
     """I9: stesso input e stessi parametri = stesso CSV, cifra per cifra."""
     img = _crop_di_prova(256)
@@ -667,6 +684,115 @@ def test_per_crop_stessa_griglia_e_identita():
     crop_jgw = os.path.join("data/crops", "ribba.jgw")
     _, W_vec = per_crop(_serve(CXF), _serve(crop_jgw), (1024, 1024), stessa_griglia=True)
     assert np.allclose(h_true(read_jgw(crop_jgw), W_vec), np.eye(3), atol=1e-12)
+
+
+# ------------------------------------------------------------------ M8: pipeline e CLI
+
+
+def test_pipeline_ritorna_h_e_metadati():
+    """La pipeline riceve due array e restituisce H_est: nessun world file in mezzo."""
+    img = _crop_di_prova(256)
+    b, _ = genera_coppia(img, Trasformazione(rot_deg=6, tx=8))
+    ris = registra(img, b, Opzioni(preprocess="clahe", matcher="sift"))
+    assert ris.success and ris.H is not None and ris.H.shape == (3, 3)
+    assert ris.pts_hist.shape == ris.pts_modern.shape
+    for chiave in ("t_prep_ms", "t_match_ms", "t_stima_ms", "n_matches"):
+        assert chiave in ris.meta, ris.meta
+
+
+def test_success_richiede_una_soglia_dichiarata():
+    """§7.4: success = stima riuscita E RMSE sotto soglia DICHIARATA.
+
+    Senza soglia la domanda non ha risposta, e la colonna resta vuota. Scriverci
+    True significherebbe marcare 'riuscito' un errore di 200 m, che è proprio il
+    numero che poi finisce in una tabella senza che nessuno lo riguardi.
+    """
+    img = _crop_di_prova(256)
+    b, H_true = genera_coppia(img, Trasformazione(rot_deg=6))
+    ris = registra(img, b, Opzioni(preprocess="none"))
+
+    senza = valuta(ris.stima, H_true, 256, 256)
+    assert senza["success"] == "", senza["success"]
+    con = valuta(ris.stima, H_true, 256, 256, W_hist=read_jgw(_serve(JGW)), soglia_m=1.0)
+    assert con["success"] is True, con
+    severa = valuta(ris.stima, H_true, 256, 256, W_hist=read_jgw(_serve(JGW)), soglia_m=1e-6)
+    assert severa["success"] is False, severa
+
+
+def test_cli_contratto_di_paragrafo_9():
+    """Tutte le opzioni di §9 esistono, con i default dichiarati."""
+    parser = costruisci_parser()
+    default = {a.dest: a.default for a in parser._actions}
+    for opzione in (
+        "hist", "modern", "matcher", "preprocess", "morph_close", "morph_open",
+        "model", "ratio", "ransac_thresh", "seed", "jgw_hist", "jgw_modern",
+        "out_csv", "out_figure", "verbose",
+    ):
+        assert opzione in default, f"manca --{opzione.replace('_', '-')} dal contratto §9"
+    assert default["matcher"] == "sift"
+    assert default["preprocess"] == "sauvola"
+    assert default["model"] == "homography"
+    assert default["ratio"] == 0.75
+    assert default["ransac_thresh"] == 3.0
+    assert default["seed"] == 42
+    assert default["morph_close"] == 0 and default["morph_open"] == 0
+    assert default["out_csv"] == "results/runs.csv"
+
+
+def test_cli_gira_senza_world_file():
+    """La prova architetturale di I3: senza --jgw-* la pipeline produce comunque
+    H_est, e il CSV non ha colonne di errore."""
+    import tempfile
+
+    tmp = tempfile.mkdtemp(prefix="histreg-cli-")
+    img = _crop_di_prova(256)
+    b, _ = genera_coppia(img, Trasformazione(rot_deg=5, tx=10))
+    hist_png, modern_png = os.path.join(tmp, "a.png"), os.path.join(tmp, "b.png")
+    csv_path = os.path.join(tmp, "runs.csv")
+    cv2.imwrite(hist_png, img)
+    cv2.imwrite(modern_png, b)
+
+    codice = cli_main(
+        ["--hist", hist_png, "--modern", modern_png, "--preprocess", "clahe",
+         "--out-csv", csv_path]
+    )
+    assert codice == 0
+    with open(csv_path, encoding="utf-8") as fh:
+        intestazione, riga = fh.read().strip().split("\n")
+    colonne = dict(zip(intestazione.split(","), riga.split(",")))
+    assert colonne["rmse_px"] == "" and colonne["rmse_m"] == "", colonne
+    assert colonne["success"] == "", colonne
+    assert int(colonne["n_matches"]) > 0, colonne
+
+
+def test_cli_con_world_file_calcola_rmse():
+    """Con i due world file la stessa invocazione produce anche l'RMSE."""
+    import tempfile
+
+    tmp = tempfile.mkdtemp(prefix="histreg-cli-")
+    hist_png = os.path.join("data/crops", "ribba.png")
+    csv_path = os.path.join(tmp, "runs.csv")
+    _serve(hist_png)
+    img = cv2.imread(hist_png, cv2.IMREAD_COLOR)[:256, :256]
+    b, _ = genera_coppia(img, Trasformazione(rot_deg=5))
+    a_png, b_png = os.path.join(tmp, "a.png"), os.path.join(tmp, "b.png")
+    cv2.imwrite(a_png, img)
+    cv2.imwrite(b_png, b)
+    # stesso world file per entrambe: H_true è l'identità, quindi l'RMSE misura
+    # esattamente di quanto la stima si discosta dalla rotazione applicata
+    jgw = os.path.join("data/crops", "ribba.jgw")
+
+    cli_main(
+        ["--hist", a_png, "--modern", b_png, "--preprocess", "none",
+         "--jgw-hist", _serve(jgw), "--jgw-modern", jgw,
+         "--out-csv", csv_path, "--soglia-m", "1000"]
+    )
+    with open(csv_path, encoding="utf-8") as fh:
+        intestazione, riga = fh.read().strip().split("\n")
+    colonne = dict(zip(intestazione.split(","), riga.split(",")))
+    assert colonne["rmse_px"] != "", colonne
+    assert float(colonne["rmse_m"]) > 0, colonne
+    assert colonne["success"] in ("True", "False"), colonne
 
 
 # ------------------------------------------------------------------ invarianti I3, I4

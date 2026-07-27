@@ -35,9 +35,10 @@ python -m src.main --hist data/crops/ribba.png --modern data/crops/ribba_vec.png
 
 Elenco completo delle opzioni: `python -m src.main --help`.
 
-## Stato (M1 → M7)
+## Stato (M1 → M8)
 
-`src/main.py` arriverà con le milestone successive. Quello che gira oggi:
+`src/main.py` implementa il contratto di §9. Gli esperimenti passano dalla stessa
+pipeline: cambia solo `--matcher`. Quello che gira oggi:
 
 ```bash
 # M1 — genera i 5 ritagli di CLAUDE.md §5.6 (PNG + world file affiancato)
@@ -73,6 +74,15 @@ python -m src.report --csv results/runs.csv
 # M7 — rasterizzazione del CXF sulla zona di un crop
 python -m src.prep.rasterize --crop ribba --codici 18
 python -m experiments.m7_rasterize_check --crop ribba
+
+# M8 — una singola registrazione dalla CLI di §9
+python -m src.main --hist data/crops/ribba.png --modern data/crops/ribba_vec.png \
+    --matcher sift --preprocess sauvola --model homography \
+    --jgw-hist data/crops/ribba.jgw --jgw-modern data/crops/ribba_vec.jgw \
+    --soglia-m 2.0 --out-figure results/figures/registrazione.png
+
+# M8 — la griglia cross-domain completa (~6 min), in append al CSV di E1
+python -m experiments.m8_e2_griglia
 
 # test
 python -m tests.test_smoke
