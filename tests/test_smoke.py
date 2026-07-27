@@ -41,7 +41,16 @@ from src.groundtruth import (  # noqa: E402
     residuo_andata_ritorno,
     transform,
 )
+from src.estimate import stima as stima_ransac  # noqa: E402
+from src.evaluate import valuta  # noqa: E402
+from src.matchers.classic import crea_matcher  # noqa: E402
 from src.prep.crop import CROPS, crop_world_file  # noqa: E402
+from src.prep.synth import (  # noqa: E402
+    Trasformazione,
+    genera_coppia,
+    matrice,
+    scala_degradazione,
+)
 
 RAW = "data/raw"
 JGW = os.path.join(RAW, "L675_004900.jgw")
@@ -298,6 +307,116 @@ def test_checkpoint_dentro_i_bordi():
     pts = checkpoints(1024, 1024, n=10, margine=0.05)
     assert pts.shape == (100, 2)
     assert pts.min() >= 0.05 * 1024 - 1e-9 and pts.max() <= 0.95 * 1024 + 1e-9
+
+
+# ------------------------------------------------------------------ M4: E1 sintetico
+
+
+def _crop_di_prova(lato: int = 512) -> np.ndarray:
+    """Un pezzo di crop reale, ridotto per tenere veloce la suite."""
+    import cv2
+
+    path = os.path.join("data/crops", "ribba.png")
+    img = cv2.imread(_serve(path), cv2.IMREAD_COLOR)
+    if img is None:
+        raise Skip(f"{path} illeggibile")
+    return img[:lato, :lato].copy()
+
+
+def test_synth_identita():
+    """Trasformazione neutra: H è l'identità e B è identica ad A."""
+    img = _crop_di_prova(128)
+    b, H = genera_coppia(img, Trasformazione())
+    assert np.allclose(H, np.eye(3), atol=1e-12), H
+    assert np.array_equal(b, img)
+
+
+def test_synth_h_coerente_con_i_parametri():
+    """Il centro resta il centro più la traslazione: rotazione e scala sono
+    centrate sull'immagine, non sull'origine."""
+    w = h = 200
+    t = Trasformazione(rot_deg=30, scala=1.4, tx=10, ty=-5)
+    H = matrice(t, w, h)
+    centro = np.array([[w / 2, h / 2]])
+    assert np.allclose(transform(H, centro)[0], [w / 2 + 10, h / 2 - 5], atol=1e-9)
+
+
+def test_synth_deterministico():
+    """I9: stesso seed, stessi pixel, bit per bit. Seed diverso, immagine diversa."""
+    img = _crop_di_prova(128)
+    t = Trasformazione(rot_deg=7, scala=1.1)
+    d = scala_degradazione(0.6)
+    a1, h1 = genera_coppia(img, t, d, seed=42)
+    a2, h2 = genera_coppia(img, t, d, seed=42)
+    a3, _ = genera_coppia(img, t, d, seed=43)
+    assert np.array_equal(a1, a2) and np.array_equal(h1, h2)
+    assert not np.array_equal(a1, a3), "seed diverso ma stessa immagine: il rumore non è seminato"
+
+
+def test_estimate_fallimento_pulito():
+    """§7.3: sotto i 4 match si ritorna success=False, non si solleva un'eccezione.
+    La riga del CSV va scritta comunque (I7)."""
+    pts = np.array([[0.0, 0.0], [1.0, 1.0], [2.0, 5.0]])
+    st = stima_ransac(pts, pts, modello="homography")
+    assert st.success is False and st.H is None
+    assert st.n_matches == 3 and "almeno 4" in st.motivo
+    assert st.inlier_ratio == 0.0
+
+
+def test_estimate_modello_sconosciuto():
+    pts = np.zeros((10, 2))
+    try:
+        stima_ransac(pts, pts, modello="proiettiva")
+    except ValueError as exc:
+        assert "proiettiva" in str(exc)
+    else:
+        raise AssertionError("atteso ValueError su modello sconosciuto")
+
+
+def test_estimate_deterministico():
+    """I9: RANSAC con lo stesso seed dà la stessa H, cifra per cifra."""
+    rng = np.random.default_rng(0)
+    pts_a = rng.uniform(0, 500, size=(200, 2))
+    H = matrice(Trasformazione(rot_deg=12, scala=1.1, tx=20), 500, 500)
+    pts_b = transform(H, pts_a)
+    s1 = stima_ransac(pts_a, pts_b, modello="homography", seed=42)
+    s2 = stima_ransac(pts_a, pts_b, modello="homography", seed=42)
+    assert np.array_equal(s1.H, s2.H), "stesso seed, H diversa"
+
+
+def test_matcher_rispettano_l_interfaccia():
+    """I4: la pipeline non deve sapere quale matcher sta usando. Entrambi
+    ritornano (N,2), (N,2), dict con le stesse chiavi minime."""
+    img = _crop_di_prova(256)
+    b, _ = genera_coppia(img, Trasformazione(rot_deg=5))
+    for nome in ("sift", "orb"):
+        pts_a, pts_b, meta = crea_matcher(nome).match(img, b)
+        assert pts_a.ndim == 2 and pts_a.shape[1] == 2, (nome, pts_a.shape)
+        assert pts_a.shape == pts_b.shape, (nome, pts_a.shape, pts_b.shape)
+        assert meta["matcher"] == nome and "n_matches" in meta, meta
+
+
+def test_m4_e1_sift_recupera_h():
+    """Criterio d'accettazione di M4: su E1, SIFT recupera H con RMSE ≈ 0.
+
+    Soglia a 0.5 px = 0.13 m, cioè un quarto del pavimento del riferimento reale
+    (§5.3). Se questo test fallisce, il bug è nel codice e ci si ferma (§8).
+    """
+    img = _crop_di_prova(512)
+    W_hist = read_jgw(_serve(JGW))
+    h, w = img.shape[:2]
+    for t in (
+        Trasformazione(tx=25, ty=-15),
+        Trasformazione(rot_deg=12, scala=1.15, tx=20, ty=10),
+        Trasformazione(rot_deg=8, scala=1.05, prospettiva=8e-5),
+    ):
+        b, H_true = genera_coppia(img, t)
+        pts_a, pts_b, _ = crea_matcher("sift").match(img, b)
+        st = stima_ransac(pts_a, pts_b, modello="homography", seed=42)
+        riga = valuta(st, H_true, w, h, W_hist=W_hist)
+        assert riga["success_stima"], (t, st.motivo)
+        assert riga["rmse_px"] < 0.5, (t, riga["rmse_px"])
+        assert riga["inlier_ratio"] > 0.5, (t, riga["inlier_ratio"])
 
 
 # ------------------------------------------------------------------ invarianti I3, I4

@@ -35,7 +35,7 @@ python -m src.main --hist data/crops/ribba.png --modern data/crops/ribba_vec.png
 
 Elenco completo delle opzioni: `python -m src.main --help`.
 
-## Stato (M1, M2, M3)
+## Stato (M1 → M4)
 
 `src/main.py` arriverà con le milestone successive. Quello che gira oggi:
 
@@ -52,6 +52,13 @@ python -m experiments.m2_cxf_check
 # M3 — trasformazione di riferimento fra due raster georeferenziati
 python -m src.groundtruth --jgw-hist data/crops/tassarole.jgw \
                           --jgw-modern data/crops/ribba.jgw
+
+# M4 — coppia sintetica E1 con H nota
+python -m src.prep.synth --crop data/crops/ribba.png --rot 15 --scala 1.2
+
+# M4 — E1: SIFT recupera H su un ventaglio di trasformazioni
+python -m experiments.m4_e1_smoke
+python -m experiments.m4_e1_smoke --crop tutti --matcher orb --modello affine
 
 # test
 python -m tests.test_smoke
