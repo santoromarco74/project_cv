@@ -54,6 +54,7 @@ from src.preprocess import (  # noqa: E402
     sauvola,
 )
 from src.prep.crop import CROPS, crop_world_file  # noqa: E402
+from src.prep.rasterize import griglia, per_crop, rasterizza  # noqa: E402
 from src.prep.synth import (  # noqa: E402
     Trasformazione,
     genera_coppia,
@@ -605,6 +606,67 @@ def test_csv_deterministico():
             return fh.read()
 
     assert una_passata() == una_passata(), "stesso input, CSV diverso"
+
+
+# ------------------------------------------------------------------ M7: rasterizzazione
+
+
+def test_griglia_copre_l_estensione():
+    """La griglia deve contenere l'estensione richiesta, alla risoluzione data."""
+    W, w, h = griglia(-100.0, -50.0, 0.0, 50.0, risoluzione=0.25)
+    assert w >= 100 / 0.25 and h >= 100 / 0.25, (w, h)
+    xmin, ymin, xmax, ymax = raster_extent(W, w, h)
+    assert xmin <= -100 + 1e-9 and xmax >= -1e-9, (xmin, xmax)
+    assert ymin <= -50 + 1e-9 and ymax >= 50 - 1e-9, (ymin, ymax)
+    assert np.allclose(pixel_size_m(W), (0.25, 0.25))
+    # riga che cresce verso sud, come nel JGW
+    assert W[1, 1] < 0
+
+
+def test_rasterizza_filtra_per_codice():
+    """Il filtro 18 / 12 è l'ablation di §5.4: deve cambiare davvero l'immagine."""
+    bordi = parse_cxf(_serve(CXF))
+    W, w, h = griglia(-30660.0, -11712.0, -30360.0, -11412.0, risoluzione=1.0)
+    solo18 = rasterizza(bordi, W, w, h, codici=(18,))
+    solo12 = rasterizza(bordi, W, w, h, codici=(12,))
+    insieme = rasterizza(bordi, W, w, h, codici=(18, 12))
+    for img in (solo18, solo12, insieme):
+        assert set(np.unique(img)) <= set(range(256)) and img.dtype == np.uint8
+        assert (img < 128).any(), "nessun tratto disegnato"
+        assert img[0, 0] == 255, "lo sfondo deve restare chiaro (polarità dello storico)"
+    assert not np.array_equal(solo18, solo12)
+    assert (insieme < 128).sum() > (solo18 < 128).sum(), "18+12 deve avere più tratto di 18"
+
+
+def test_rasterizza_deterministico():
+    bordi = parse_cxf(_serve(CXF))
+    W, w, h = griglia(-30660.0, -11712.0, -30360.0, -11412.0, risoluzione=1.0)
+    assert np.array_equal(rasterizza(bordi, W, w, h), rasterizza(bordi, W, w, h))
+
+
+def test_per_crop_h_true_non_degenere():
+    """Il raster moderno ha griglia propria: H_true è una similarità vera, non
+    l'identità. Altrimenti l'esperimento premierebbe il 'non muovere niente'."""
+    crop_jgw = os.path.join("data/crops", "ribba.jgw")
+    img, W_vec = per_crop(_serve(CXF), _serve(crop_jgw), (1024, 1024), risoluzione=0.20)
+    H = h_true(read_jgw(crop_jgw), W_vec)
+    assert not np.allclose(H, np.eye(3)), "H_true degenerata a identità"
+    # la scala è il rapporto delle due risoluzioni
+    assert abs(np.hypot(H[0, 0], H[1, 0]) - 0.254453 / 0.20) < 1e-6, H
+
+    # e gli angoli del crop cadono dentro il raster moderno, grazie al margine
+    angoli = np.array([[0, 0], [1023, 0], [0, 1023], [1023, 1023]], dtype=np.float64)
+    dentro = transform(H, angoli)
+    assert (dentro >= 0).all(), dentro
+    assert (dentro[:, 0] < img.shape[1]).all() and (dentro[:, 1] < img.shape[0]).all(), dentro
+
+
+def test_per_crop_stessa_griglia_e_identita():
+    """Il caso degenere esiste ed è esplicito: serve a documentare perché non è
+    il default."""
+    crop_jgw = os.path.join("data/crops", "ribba.jgw")
+    _, W_vec = per_crop(_serve(CXF), _serve(crop_jgw), (1024, 1024), stessa_griglia=True)
+    assert np.allclose(h_true(read_jgw(crop_jgw), W_vec), np.eye(3), atol=1e-12)
 
 
 # ------------------------------------------------------------------ invarianti I3, I4

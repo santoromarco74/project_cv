@@ -64,10 +64,49 @@ Y −12715.65 … −11278.76.
 > stanno tutti entro col 6624 / riga 3624 — e le loro estensioni tornano al metro.
 > La verifica di inquadramento è in `results/figures/m2_cornice.png` (M2).
 
+## Raster vettoriali (M7)
+
+```bash
+python -m src.prep.rasterize --crop ribba --codici 18      # -> ribba_vec.png/.jgw
+python -m src.prep.rasterize --crop ribba --codici 18,12   # -> ribba_vec1812.png/.jgw
+```
+
+Sono le immagini "moderne" di E2: i poligoni del CXF disegnati come polilinee
+(non campiture: sull'impianto il confine è un tratto), inchiostro scuro su fondo
+chiaro come lo storico.
+
+**La griglia non è quella del crop storico**, ed è una scelta. Il raster
+vettoriale ha risoluzione propria (0.20 m/px contro 0.254453) e un margine di
+20 m oltre il crop. Se le due griglie coincidessero, `H_true` sarebbe l'identità
+e l'esperimento premierebbe qualunque metodo con un bias verso il "non muovere
+niente"; con griglie diverse `H_true` è una similarità vera (fattore di scala
+1.272265). `--stessa-griglia` esiste per il caso degenere, documentato ma non
+usato.
+
+Il margine serve a dare una controparte anche al contenuto sul bordo del crop:
+senza, si misurerebbe il ritaglio invece del matching.
+
+Percentuale di tratto per crop:
+
+| crop | codice 18 | codici 18+12 |
+|---|---|---|
+| `tassarole` | 1.18% | 1.53% |
+| `cannei` | 1.44% | 1.90% |
+| `ribba` | 2.32% | 3.03% |
+| `vedra` | 0.80% | 1.12% |
+| `aspera` | 1.61% | 2.45% |
+
 ## Osservazioni sul contenuto (per E2)
 
 - `vedra` è il ritaglio più povero di tratto: pochi confini, un corso d'acqua,
   molta carta bianca. Utile come caso difficile, ma va tenuto presente quando se
-  ne leggono gli inlier ratio.
+  ne leggono gli inlier ratio. La verifica di M7 lo conferma: il rio e i
+  fabbricati 94/96/97 combaciano, ma diversi confini vettoriali attraversano
+  carta vuota.
 - `aspera` tocca la costa: il bordo destro contiene mare, che nel vettoriale non
   ha corrispondenza.
+- In generale, parte delle linee vettoriali non ha controparte nell'inchiostro:
+  è la divergenza di contenuto di CLAUDE.md §5.7 (il CXF è la cartografia
+  vigente, non la digitalizzazione dell'impianto), e si vede a occhio nelle
+  figure `results/figures/m7_*.png`. Non è disallineamento, è un secolo di
+  aggiornamenti.
