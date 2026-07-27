@@ -35,7 +35,7 @@ python -m src.main --hist data/crops/ribba.png --modern data/crops/ribba_vec.png
 
 Elenco completo delle opzioni: `python -m src.main --help`.
 
-## Stato (M1 → M9)
+## Stato (M1 → M10)
 
 `src/main.py` implementa il contratto di §9. Gli esperimenti passano dalla stessa
 pipeline: cambia solo `--matcher`. Quello che gira oggi:
@@ -90,6 +90,10 @@ python -m scripts.scarica_pesi
 python -m src.main --hist data/crops/ribba.png --modern data/crops/ribba_vec.png \
     --matcher loftr --preprocess sauvola --model similarity
 python -m experiments.m9_e3_loftr      # E1 + E2 con LoFTR (~40 min su CPU)
+
+# M10 — figure e tabelle dal CSV, poi la relazione con le tabelle iniettate
+python -m src.report --csv results/runs.csv
+python -m scripts.componi_relazione    # -> relazione/RELAZIONE.md
 
 # test
 python -m tests.test_smoke

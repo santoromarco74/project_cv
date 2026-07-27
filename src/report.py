@@ -19,6 +19,16 @@ import pandas as pd
 PAVIMENTO_M = 0.56
 
 
+def _mediana(s: pd.Series, cifre: int = 3) -> float:
+    """Mediana che non protesta su un gruppo interamente vuoto.
+
+    Una configurazione con zero prove riuscite ha una colonna "sulle riuscite"
+    tutta NaN: è un'informazione, non un errore, e va riportata come tale invece
+    di stampare un warning di numpy.
+    """
+    return float("nan") if s.isna().all() else round(s.median(), cifre)
+
+
 def carica(path: str) -> pd.DataFrame:
     df = pd.read_csv(path)
     for col in ("rmse_px", "rmse_m", "inlier_ratio", "err_max_px"):
@@ -283,7 +293,11 @@ def tabella_e3(df: pd.DataFrame, out_path: str | None = None) -> pd.DataFrame:
     d = df[df.esperimento.isin(("E1", "E2"))].copy()
     if d.empty:
         return d
-    d["rmse_ok"] = d.rmse_px.where(d.success)
+    # La colonna deve misurare quello che il suo nome dice: l'errore sulle sole
+    # prove riuscite. Calcolarla su tutte e chiamarla "_ok" metterebbe in
+    # tabella un numero gonfiato dagli errori grossolani con l'etichetta
+    # sbagliata — e nessuno se ne accorgerebbe leggendo la relazione.
+    d["rmse_m_ok"] = d.rmse_m.where(d.success)
     d["config"] = d.preprocess.astype(str) + " / " + d.modello.astype(str)
 
     per_config = (
@@ -291,7 +305,7 @@ def tabella_e3(df: pd.DataFrame, out_path: str | None = None) -> pd.DataFrame:
         .agg(
             prove=("success", "size"),
             successo_pct=("success", lambda s: round(100 * s.mean(), 1)),
-            rmse_m_mediano_ok=("rmse_m", lambda s: round(s.median(), 3)),
+            rmse_m_mediano_ok=("rmse_m_ok", _mediana),
             inlier_ratio=("inlier_ratio", lambda s: round(s.median(), 3)),
             match_mediani=("n_matches", lambda s: int(s.median())),
             t_ms=("t_match_ms", lambda s: int(s.median())),
@@ -345,6 +359,98 @@ def figura_e3(df: pd.DataFrame, out_path: str) -> None:
     for x, y in zip(tempi.index, tempi.values):
         ax2.text(x, y, f"{y:.0f}", ha="center", va="bottom", fontsize=9)
     _salva(fig, out_path)
+
+
+def tabella_e2_per_crop(df: pd.DataFrame, out_path: str | None = None) -> pd.DataFrame:
+    """E2 crop per crop, nella configurazione migliore (ORB / Sauvola / similarità).
+
+    L'aggregato nasconde che i crop non sono equivalenti: uno di essi fallisce
+    per una ragione precisa, ed è più istruttivo della media.
+    """
+    d = df[
+        (df.esperimento == "E2")
+        & (df.matcher == "orb")
+        & (df.preprocess == "sauvola")
+        & (df.modello == "similarity")
+    ]
+    if d.empty:
+        return d
+    agg = d[["crop", "codici", "n_matches", "inlier_ratio", "rmse_m", "success"]].copy()
+    agg["rmse_m"] = agg.rmse_m.round(3)
+    agg = agg.sort_values(["crop", "codici"]).reset_index(drop=True)
+    return _forse_scrivi(agg, out_path)
+
+
+def tabella_e2_fattori(df: pd.DataFrame, out_path: str | None = None) -> pd.DataFrame:
+    """Quanto pesano modello geometrico e scelta dei codici CXF, su tutti i matcher."""
+    d = df[df.esperimento == "E2"]
+    if d.empty:
+        return d
+    righe = []
+    for chiave, etichetta in (("modello", "modello geometrico"), ("codici", "codici CXF")):
+        for valore, gruppo in d.groupby(chiave):
+            righe.append(
+                {
+                    "fattore": etichetta,
+                    "valore": valore,
+                    "prove": len(gruppo),
+                    "successo_pct": round(100 * gruppo.success.mean(), 1),
+                    "rmse_m_mediano": round(gruppo.rmse_m.median(), 2),
+                    "inlier_ratio": round(gruppo.inlier_ratio.median(), 3),
+                }
+            )
+    return _forse_scrivi(pd.DataFrame(righe), out_path)
+
+
+def tabella_diagnosi_ratio(df: pd.DataFrame, out_path: str | None = None) -> pd.DataFrame:
+    """Sweep del ratio test di Lowe su E2 (esperimento E2-ratio)."""
+    d = df[df.esperimento == "E2-ratio"]
+    if d.empty:
+        return d
+    agg = (
+        d.groupby("ratio")
+        .agg(
+            match_mediani=("n_matches", lambda s: int(s.median())),
+            inlier_mediani=("n_inliers", lambda s: int(s.median())),
+            inlier_ratio=("inlier_ratio", lambda s: round(s.median(), 4)),
+            rmse_m_mediano=("rmse_m", lambda s: round(s.median(), 1)),
+            riuscite=("success", lambda s: f"{int(s.sum())}/{len(s)}"),
+        )
+        .reset_index()
+    )
+    return _forse_scrivi(agg, out_path)
+
+
+def tabella_crop(out_path: str | None = None) -> pd.DataFrame:
+    """I 5 ritagli di §5.6, letti dalla definizione nel codice e non ricopiati."""
+    from src.prep.crop import CROPS
+
+    return _forse_scrivi(
+        pd.DataFrame(
+            [
+                {
+                    "crop": c.nome,
+                    "x0": c.x0,
+                    "y0": c.y0,
+                    "larghezza": c.w,
+                    "altezza": c.h,
+                    "X (m)": f"{min(c.x_attesa)} … {max(c.x_attesa)}",
+                    "Y (m)": f"{min(c.y_attesa)} … {max(c.y_attesa)}",
+                }
+                for c in CROPS
+            ]
+        ),
+        out_path,
+    )
+
+
+def _forse_scrivi(df: pd.DataFrame, out_path: str | None) -> pd.DataFrame:
+    if out_path:
+        os.makedirs(os.path.dirname(out_path) or ".", exist_ok=True)
+        with open(out_path, "w", encoding="utf-8") as fh:
+            fh.write(_markdown(df))
+        print(f"tabella: {out_path}")
+    return df
 
 
 def _markdown(df: pd.DataFrame) -> str:

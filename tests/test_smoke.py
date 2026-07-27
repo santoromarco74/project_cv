@@ -48,6 +48,7 @@ from src.main import costruisci_parser  # noqa: E402
 from src.main import main as cli_main  # noqa: E402
 from src.matchers.classic import crea_matcher  # noqa: E402
 from src.pipeline import Opzioni, registra  # noqa: E402
+from scripts.componi_relazione import SEGNAPOSTO, TABELLE, componi  # noqa: E402
 from src.preprocess import (  # noqa: E402
     applica,
     morfologia,
@@ -793,6 +794,35 @@ def test_cli_con_world_file_calcola_rmse():
     assert colonne["rmse_px"] != "", colonne
     assert float(colonne["rmse_m"]) > 0, colonne
     assert colonne["success"] in ("True", "False"), colonne
+
+
+# ------------------------------------------------------------------ M10: relazione
+
+
+def test_relazione_tabelle_tutte_generate():
+    """Criterio di M10: le tabelle della relazione sono aggregazioni del CSV.
+
+    Verifica che ogni segnaposto abbia un generatore e che nel documento
+    composto non ne resti nessuno: se un segnaposto sopravvivesse, quel numero
+    sarebbe stato scritto a mano da qualche parte, o non ci sarebbe affatto.
+    """
+    sorgente = os.path.join("relazione", "relazione.md")
+    csv = os.path.join("results", "runs.csv")
+    _serve(sorgente)
+    _serve(csv)
+
+    testo = open(sorgente, encoding="utf-8").read()
+    nomi = SEGNAPOSTO.findall(testo)
+    assert nomi, "la relazione non contiene segnaposto di tabella"
+    sconosciuti = set(nomi) - set(TABELLE)
+    assert not sconosciuti, f"segnaposto senza generatore: {sorted(sconosciuti)}"
+
+    composto = componi(sorgente, csv)
+    assert not SEGNAPOSTO.search(composto), "segnaposto non sostituito"
+    for nome in set(nomi):
+        assert f"tabella `{nome}` non disponibile" not in composto, (
+            f"la tabella {nome} è vuota: il CSV non contiene le righe necessarie"
+        )
 
 
 # ------------------------------------------------------------------ invarianti I3, I4
