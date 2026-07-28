@@ -93,6 +93,7 @@ python -m experiments.m9_e3_loftr      # E1 + E2 con LoFTR (~40 min su CPU)
 
 # M10 — figure e tabelle dal CSV, poi la relazione con le tabelle iniettate
 python -m src.report --csv results/runs.csv
+python -m experiments.m10_passo_passo  # la figura guidata del capitolo 2
 python -m scripts.componi_relazione    # -> relazione/RELAZIONE.md
 
 # test
