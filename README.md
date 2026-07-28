@@ -95,6 +95,7 @@ python -m experiments.m9_e3_loftr      # E1 + E2 con LoFTR (~40 min su CPU)
 python -m src.report --csv results/runs.csv
 python -m experiments.m10_passo_passo  # la figura guidata del capitolo 2
 python -m scripts.componi_relazione    # -> relazione/RELAZIONE.md
+python -m scripts.relazione_html       # -> RELAZIONE.html, autonomo, da stampare in PDF
 
 # test
 python -m tests.test_smoke
