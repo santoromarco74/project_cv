@@ -6,7 +6,7 @@ Caso di studio: Comune di Varazze, foglio 49 (`L675_004900`), Originale di Impia
 > Questo documento è generato da `scripts/componi_relazione.py`: tutte le tabelle
 > sono aggregazioni di `results/runs.csv` calcolate al momento della
 > composizione, non numeri ricopiati a mano. Le figure si rigenerano con i
-> comandi indicati in §10.
+> comandi indicati in §11.
 
 ---
 
@@ -25,7 +25,7 @@ descrittori classici come SIFT e ORB nascono per agganciare blob e angoli in
 immagini fotografiche; su due reticoli di linee sottili hanno poco a cui
 aggrapparsi. A questo si aggiunge un divario di dominio brutale — inchiostro
 sbiadito su carta invecchiata contro linee vettoriali nere su fondo bianco — e
-il fatto che i due documenti, come si vedrà in §11, **non rappresentano
+il fatto che i due documenti, come si vedrà in §12, **non rappresentano
 esattamente la stessa realtà**.
 
 Il progetto affronta il problema in due componenti, secondo la traccia approvata:
@@ -38,9 +38,131 @@ Il progetto affronta il problema in due componenti, secondo la traccia approvata
 
 ---
 
-## 2. I dati
+## 2. Come funziona, in concreto
 
-### 2.1 Il foglio e il vettoriale
+Prima di entrare nei dettagli conviene vedere che cosa succede davvero quando si
+lancia il programma. Questo capitolo segue **una singola registrazione
+dall'inizio alla fine**. Tutti i termini tecnici usati qui sono spiegati nel
+glossario alla fine del capitolo, e ripresi più a fondo nei capitoli successivi.
+
+### 2.1 Il punto di partenza: due cose che non si possono confrontare
+
+Abbiamo due descrizioni della stessa zona di Varazze, ma di natura diversa:
+
+- la **scansione del foglio d'impianto**, che è un'immagine: una griglia di
+  pixel colorati, dove il programma non sa che cosa sia una particella;
+- il **file CXF**, che non è un'immagine ma un elenco di coordinate: *"il
+  poligono chiamato 63 ha i vertici nei punti (−30512.4, −11588.1), (…)"*.
+
+Non si possono sovrapporre direttamente, perché non parlano la stessa lingua.
+
+### 2.2 I sei passaggi
+
+![Una registrazione passo per passo](../results/figures/m10_passo_passo.png)
+
+**1 · La scansione storica.** L'immagine così come arriva: carta ingiallita,
+tratto a penna sbiadito, numeri di particella scritti a mano, macchie.
+
+**2 · La pulizia.** Il programma decide, per ogni singolo pixel, se è inchiostro
+o carta. Il risultato è un'immagine in bianco e nero puro. Non è un abbellimento:
+serve a togliere di mezzo il colore della carta, che è diverso in ogni punto del
+foglio e non ha niente a che vedere con il disegno.
+
+**3 · Il vettoriale, disegnato.** Le coordinate del CXF vengono tracciate come
+linee su un'immagine bianca. Adesso abbiamo **due immagini** della stessa zona, e
+il confronto è possibile.
+
+**4 · Gli abbinamenti.** Il programma cerca in entrambe le immagini dei punti
+"riconoscibili" — un incrocio di confini, l'angolo di un fabbricato — e per
+ciascuno calcola una specie di **impronta numerica** che riassume come appare il
+suo vicinato. Poi accoppia i punti di un'immagine con quelli dell'altra che hanno
+l'impronta più simile.
+
+Nel pannello 4 ogni linea rossa unisce due punti che il programma considera la
+stessa cosa. **Se fossero tutti giusti, le linee sarebbero parallele.** Non lo
+sono affatto: su un disegno al tratto moltissimi incroci si somigliano, e in
+questo esempio **solo il 6% degli abbinamenti risulta corretto**. Il resto è rumore.
+
+**5 · La votazione.** È il passaggio che salva tutto. Il programma prende a caso
+due abbinamenti, calcola quale spostamento-rotazione-ingrandimento
+implicherebbero, e poi **conta quanti altri abbinamenti sarebbero d'accordo** con
+quella stessa trasformazione. Ripete l'operazione migliaia di volte e tiene la
+trasformazione che ha raccolto più consensi.
+
+Gli abbinamenti d'accordo si chiamano *inlier*. Nel pannello 5 ne sono rimasti 54
+su 874, e questa volta **sono tutti paralleli**: descrivono tutti lo stesso
+movimento. Questa procedura si chiama RANSAC, ed è ciò che permette di trovare la
+risposta giusta quando il 94% dei dati è sbagliato.
+
+**6 · Il risultato.** La trasformazione trovata viene applicata all'immagine
+storica, che così si sovrappone al vettoriale. Nel pannello 6 il tratto storico
+deformato è in rosso sopra le linee nere del vettoriale: dove il rosso segue il
+nero, la registrazione è corretta.
+
+### 2.3 Come facciamo a sapere se ha funzionato
+
+Qui sta la particolarità di questo progetto. Entrambi i file portano con sé la
+propria **georeferenziazione**: sei numeri (il *world file*) che dicono a quali
+coordinate sul terreno corrisponde il pixel in alto a sinistra, e quanti metri
+misura il lato di un pixel. Da questi sei numeri si ricava per via puramente
+algebrica la trasformazione **esatta**, senza doverne indovinare nemmeno un
+pezzo.
+
+Quindi la risposta giusta la conosciamo già, e possiamo dire di **quanti metri**
+il programma ha sbagliato. Nell'esempio della figura: 0.47 m, su un riferimento
+che di suo ha un'incertezza di circa mezzo metro.
+
+**Il programma che stima non vede quei sei numeri.** Li vede solo il codice che
+corregge. È una separazione imposta per costruzione (§4.2): se l'informazione
+sulla posizione filtrasse nell'algoritmo, il risultato non significherebbe più
+nulla, come uno studente che risolve il problema avendo visto le soluzioni.
+
+### 2.4 Perché è difficile
+
+Se la procedura sembra ragionevole, resta da capire perché non funzioni sempre.
+Tre ragioni, tutte misurate nei capitoli §8-§10:
+
+1. **I due disegni sono fatti di linee sottili, non di texture.** I metodi
+   classici per riconoscere punti nascono per le fotografie, dove ogni zona ha un
+   aspetto diverso dalle altre. Su un reticolo di confini, un incrocio somiglia a
+   tutti gli altri incroci.
+2. **I due documenti non rappresentano la stessa realtà.** Il CXF è la mappa
+   *di oggi*, il foglio è quella *di un secolo fa*: alcuni confini sono cambiati,
+   e ci sono linee vettoriali che nell'inchiostro non esistono (§12.1).
+3. **L'aspetto è completamente diverso**: inchiostro sbiadito irregolare contro
+   linee nette uniformi. È quello che in letteratura si chiama *divario di
+   dominio*.
+
+### 2.5 Glossario
+
+| termine | significato |
+|---|---|
+| **registrazione** | sovrapporre due immagini della stessa zona, trovando la trasformazione che porta l'una sull'altra |
+| **raster / immagine** | griglia di pixel |
+| **vettoriale** | descrizione per coordinate (elenchi di vertici), non per pixel |
+| **rasterizzare** | disegnare un vettoriale su un'immagine |
+| **world file** (`.jgw`) | sei numeri che legano i pixel di un'immagine alle coordinate sul terreno |
+| **georeferenziazione** | il fatto che un'immagine sappia dove si trova sul terreno |
+| **keypoint** | un punto dell'immagine giudicato "riconoscibile" |
+| **descrittore** | l'impronta numerica che riassume l'aspetto attorno a un keypoint |
+| **SIFT, ORB** | due modi diversi di calcolare keypoint e descrittori |
+| **matching** | accoppiare i keypoint di un'immagine con quelli dell'altra |
+| **RANSAC** | la procedura a votazione del passo 5, che trova la risposta giusta anche con pochi dati buoni |
+| **inlier** | un abbinamento che concorda con la trasformazione scelta |
+| **inlier ratio** | la percentuale di inlier: quanto erano buoni i dati di partenza |
+| **omografia, affine, similarità** | famiglie di trasformazioni con 8, 6 e 4 parametri liberi (§7.2) |
+| **binarizzazione** | decidere, pixel per pixel, se è inchiostro o carta |
+| **Otsu, Sauvola** | due modi di scegliere quella soglia (§6.1) |
+| **CLAHE** | tecnica che non binarizza, ma aumenta il contrasto locale (§6.1) |
+| **LoFTR** | rete neurale che abbina due immagini senza cercare prima i keypoint (§7.3) |
+| **RMSE** | l'errore medio commesso, qui espresso in metri |
+| **E1, E2, E3** | i tre esperimenti: sintetico, reale, comparativo (§8, §9, §10) |
+
+---
+
+## 3. I dati
+
+### 3.1 Il foglio e il vettoriale
 
 Dal servizio "Consultazione dei fogli di mappa catastale" dell'Agenzia delle
 Entrate si ottengono, per il foglio 49 di Varazze:
@@ -56,7 +178,7 @@ Raster e vettoriale sono entrambi in **Cassini-Soldner zona G0007, origine Forte
 Diamante**. Non è un EPSG standard e non serve riproiettare nulla: le coordinate
 dei due file sono già confrontabili. Il progetto non usa `pyproj` né `geopandas`.
 
-### 2.2 La trappola dei due CXF
+### 3.2 La trappola dei due CXF
 
 Il servizio rilascia **due** file vettoriali per lo stesso foglio, e il file
 `_SistemaDiRappresentazione.txt` li distingue così:
@@ -72,7 +194,7 @@ una diagnosi che parte dal posto sbagliato. È un errore che costa un pomeriggio
 e che nessun messaggio d'errore segnala: i file si aprono entrambi senza
 problemi, semplicemente descrivono posti diversi.
 
-### 2.3 Il parser CXF e il campo che sfasa tutto
+### 3.3 Il parser CXF e il campo che sfasa tutto
 
 Il CXF è un formato testuale elementare: un campo per riga, CRLF, codifica
 latin-1. Il parser è scritto a mano in una trentina di righe, senza librerie.
@@ -113,7 +235,7 @@ il nome di un `BORDO` è testo libero, e nel foglio 49 esistono record chiamati
 stringa `BORDO` nel file invece di leggerlo sequenzialmente rischierebbe di
 scambiare un nome per una parola chiave.
 
-### 2.4 I ritagli
+### 3.4 I ritagli
 
 Il foglio intero è troppo grande per essere utile allo scopo: tiling e gestione
 della memoria non aggiungono nulla al tema. Si lavora su cinque ritagli di circa
@@ -143,7 +265,7 @@ C' = C + A·x0 + B·y0        F' = F + D·x0 + E·y0
 
 ---
 
-## 3. La ground truth: esatta e gratuita
+## 4. La ground truth: esatta e gratuita
 
 Questo è il punto metodologico su cui poggia tutto il resto.
 
@@ -176,7 +298,7 @@ metri su una griglia di checkpoint. La correttezza della composizione è
 verificata da un test: un punto trasformato avanti e indietro torna su sé stesso
 entro **1.1e-13 px**, contro la soglia dichiarata di 1e-9.
 
-### 3.1 L'incertezza del riferimento, dichiarata
+### 4.1 L'incertezza del riferimento, dichiarata
 
 Il JGW non è verità assoluta. I metadati del foglio dicono che la scansione è
 stata ricampionata su **76 coppie omologhe**, con:
@@ -189,9 +311,9 @@ stata ricampionata su **76 coppie omologhe**, con:
 
 Questo definisce un **pavimento**: un RMSE inferiore a ~0.5 m non misura più
 l'errore dell'algoritmo, misura il rumore del riferimento. Va tenuto presente
-ogni volta che si legge una cifra nelle tabelle di §8.
+ogni volta che si legge una cifra nelle tabelle di §9.
 
-### 3.2 Separazione fisica fra algoritmo e riferimento
+### 4.2 Separazione fisica fra algoritmo e riferimento
 
 Un rischio serio in un lavoro di questo tipo è che l'informazione di
 georeferenziazione filtri nella pipeline che dovrebbe stimarla — a quel punto il
@@ -208,7 +330,7 @@ risultato non significherebbe più nulla. Il progetto lo impedisce per costruzio
 
 ---
 
-## 4. La pipeline
+## 5. La pipeline
 
 ```
 storico (raster)  ─┐
@@ -234,27 +356,60 @@ su ogni colonna tranne i tempi.
 
 ---
 
-## 5. Preprocessing
+## 6. Preprocessing
 
-Il preprocessing è il cuore della componente classica. Ogni stadio è attivabile
-da riga di comando, perché l'ablazione è un risultato e non un parametro da
-fissare una volta per tutte.
+Il preprocessing è il cuore della componente classica: è il passo 2 del capitolo
+§2, quello che decide per ogni pixel se è inchiostro o carta. Ogni stadio è
+attivabile da riga di comando, perché confrontare le alternative *è* uno dei
+risultati, non un parametro da fissare una volta per tutte.
 
-- **Otsu** — soglia globale, la baseline.
-- **Sauvola** — soglia locale, `T = m·[1 + k·(s/R − 1)]` con R=128, k=0.2,
-  finestra 25, calcolata con immagini integrali: media e varianza di ogni
-  finestra costano O(1) per pixel, quindi la dimensione della finestra non incide
-  sul tempo. La correttezza dell'ottimizzazione è verificata confrontandola
-  pixel per pixel con una versione ingenua O(finestra²) — è il tipo di errore
-  che non si vedrebbe mai a occhio sull'immagine.
-- **CLAHE** — equalizzazione adattiva, **alternativa** alla binarizzazione e non
-  suo preludio: SIFT lavora su grayscale, e binarizzare potrebbe distruggere
-  proprio la texture su cui si basa. Quale delle due strade convenga è una
-  domanda sperimentale, non un dettaglio implementativo.
-- **Morfologia** — apertura (toglie il pepe) e chiusura (salda le interruzioni
-  del tratto, frequenti perché il pennino stacca), applicate all'inchiostro in
-  primo piano. L'ordine è apertura → chiusura: chiudere per primo salderebbe il
-  pepe al tratto rendendolo non più rimovibile.
+### 6.1 Le tre strade, spiegate
+
+**Il problema.** Su una fotografia normale si potrebbe scegliere un valore di
+grigio e dire: "più scuro di così è inchiostro, più chiaro è carta". Su un foglio
+d'archivio non funziona, perché la carta non ha un colore solo: è più gialla nelle
+zone ingiallite, più scura vicino alle pieghe, più chiara al centro. Una soglia
+che va bene in un angolo del foglio sbaglia nell'angolo opposto.
+
+**Otsu — una soglia sola per tutta l'immagine.** Guarda l'istogramma dei grigi e
+sceglie il valore che separa meglio le due popolazioni (scuri e chiari). È il
+metodo classico di riferimento, e serve qui come termine di paragone. Il suo
+limite è strutturale: se la carta cambia luminosità da una parte all'altra, una
+soglia sola non può andare bene ovunque.
+
+**Sauvola — una soglia diversa per ogni zona.** Per ogni pixel guarda solo un
+quadratino di 25×25 pixel attorno a sé e calcola lì la sua soglia, con la formula
+
+```
+T = m · [1 + k · (s/R − 1)]        m = media locale, s = deviazione locale
+```
+
+Dove la carta è uniforme, `s` è piccola e la soglia si abbassa, così le
+irregolarità di fondo non vengono scambiate per tratto. Dove c'è disegno, `s`
+cresce e la soglia si alza verso la media. In pratica: **si adatta alla carta,
+zona per zona**.
+
+Fatta ingenuamente costerebbe un ricalcolo per ogni pixel su tutta la finestra;
+qui è implementata con le *immagini integrali*, una tabella precalcolata che
+permette di ottenere media e varianza di qualunque riquadro con poche
+operazioni. Il risultato è identico, ma il costo non dipende più dalla dimensione
+della finestra. La correttezza dell'ottimizzazione è verificata confrontandola
+pixel per pixel con la versione ingenua — è il genere di errore che non si
+vedrebbe mai guardando l'immagine.
+
+**CLAHE — non binarizzare affatto.** È l'alternativa: invece di ridurre tutto a
+bianco e nero, aumenta il contrasto **localmente**, così i tratti sbiaditi
+diventano più leggibili senza buttare via le sfumature. La ragione per provarlo è
+concreta: SIFT lavora sulle sfumature di grigio, e binarizzare potrebbe
+distruggere proprio l'informazione su cui si basa. Quale delle due strade
+convenga non si può decidere a tavolino, ed è una delle domande sperimentali del
+progetto (§6.2 e §9).
+
+**Morfologia — ritoccare la forma del tratto.** Due operazioni elementari:
+l'*apertura* cancella i puntini isolati (la grana della carta scambiata per
+inchiostro), la *chiusura* ricongiunge i tratti interrotti, frequenti perché il
+pennino stacca. L'ordine conta: si apre prima e si chiude poi, perché chiudendo
+per primo si salderebbe la grana al tratto, rendendola poi non più rimovibile.
 
 ![Confronto dei preprocessing](../results/figures/m5_preprocess_ribba.png)
 
@@ -262,7 +417,7 @@ Le figure hanno una riga di dettagli **a piena risoluzione**, perché su una
 binarizzazione il ridimensionamento inganna sempre: un tratto interrotto e uno
 saldato diventano indistinguibili a un quarto di scala.
 
-### 5.1 Quanto costa binarizzare
+### 6.2 Quanto costa binarizzare
 
 Contando i keypoint SIFT rilevati su ciascuna variante, rapportati al grayscale:
 
@@ -275,9 +430,9 @@ Contando i keypoint SIFT rilevati su ciascuna variante, rapportati al grayscale:
 
 Il dato è consistente su tutti e cinque i ritagli: **binarizzare costa fra il 21
 e il 39% dei keypoint, CLAHE ne aggiunge fra il 17 e il 55%**. Non è ancora la
-risposta — quella è l'RMSE di §7 e §8 — ma indica la direzione.
+risposta — quella è l'RMSE di §8 e §9 — ma indica la direzione.
 
-### 5.2 Una previsione verificata invece che assunta
+### 6.3 Una previsione verificata invece che assunta
 
 L'impostazione del progetto prevedeva che Otsu fallisse "su carta ingiallita con
 gradiente di illuminazione". **Sui ritagli reali questo non accade**: sono
@@ -306,26 +461,77 @@ specifico quella robustezza non serve, e anche questo è un dato.
 
 ---
 
-## 6. Matching e stima
+## 7. Matching e stima
 
-L'interfaccia comune è minima: due immagini entrano, due insiemi di punti
-corrispondenti e un dizionario di metadati escono.
+Sono i passi 4 e 5 del capitolo §2. L'interfaccia è la stessa per tutti i
+metodi: due immagini entrano, due insiemi di punti corrispondenti escono.
 
-- **SIFT** + BFMatcher + **ratio test di Lowe** (0.75 di default).
-- **ORB** + BFMatcher Hamming + **cross-check**.
-- **LoFTR** (componente B) — matcher *detector-free*: non cerca keypoint
-  ripetibili per poi descriverli, ma mette in corrispondenza direttamente due
-  griglie dense di feature con attenzione incrociata. È esattamente ciò che
-  dovrebbe aiutare dove i rilevatori a blob soffrono.
+### 7.1 Trovare gli abbinamenti
 
-La stima usa RANSAC su tre modelli di complessità crescente: **similarità**
-(4 gradi di libertà), **affine** (6), **omografia** (8). Il confronto fra modelli
-non è un dettaglio: come si vedrà in §8, su questi dati è il fattore che decide
-fra successo e fallimento.
+**SIFT** cerca punti che restano riconoscibili anche se l'immagine viene
+ingrandita o ruotata, e per ognuno calcola un vettore di 128 numeri che riassume
+come sono orientati i contorni nell'intorno. Due punti che nelle due immagini
+hanno vettori simili sono candidati alla stessa cosa reale.
+
+Il problema è che un candidato "abbastanza simile" spesso non basta. Per questo
+si usa il **ratio test di Lowe**: per ogni punto si guardano i *due* candidati
+migliori nell'altra immagine, e l'abbinamento si accetta solo se il primo è
+nettamente più simile del secondo — di default, distante meno del 75%. L'idea è
+che se i due candidati migliori si somigliano fra loro, allora quel punto non è
+davvero distintivo, ed è meglio scartarlo che rischiare.
+
+**ORB** fa la stessa cosa in modo più rapido ed essenziale: descrive ogni punto
+con una stringa di bit invece che con 128 numeri, e confronta le stringhe
+contando i bit diversi. Al posto del ratio test usa il **cross-check**: tiene
+l'abbinamento solo se A sceglie B *e* B sceglie A.
+
+Questi due filtri hanno una conseguenza importante, che emergerà in §9.3: il
+ratio test è molto più selettivo del cross-check, e su dati difficili lascia
+molte meno corrispondenze.
+
+### 7.2 Scegliere quanto la trasformazione può deformare
+
+RANSAC — la votazione descritta al passo 5 — non cerca "una trasformazione
+qualsiasi": cerca la migliore all'interno di una **famiglia** che decidiamo noi.
+Ne sono previste tre, di libertà crescente:
+
+| famiglia | parametri | cosa può fare |
+|---|---|---|
+| **similarità** | 4 | spostare, ruotare, ingrandire — le forme restano simili a sé stesse |
+| **affine** | 6 | in più: stirare in una direzione, inclinare (un quadrato diventa un parallelogramma) |
+| **omografia** | 8 | in più: la deformazione prospettica di un piano visto di sbieco |
+
+Più parametri significa poter descrivere trasformazioni più complicate. Ma
+significa anche, e questo è il punto, **più modi di mettersi d'accordo con dati
+sbagliati**: con più libertà RANSAC può trovare un consenso anche fra
+abbinamenti casuali. Il confronto fra le tre famiglie non è un dettaglio
+implementativo: come si vedrà in §9.4, su questi dati è il fattore che decide fra
+successo e fallimento.
+
+Sotto le 4 corrispondenze la stima si ferma dichiarando il fallimento, invece di
+restituire un risultato che non avrebbe senso.
+
+### 7.3 Il matcher neurale (componente B)
+
+**LoFTR** affronta il problema da un'angolazione diversa. I metodi classici
+procedono in due tempi: prima *trovano* i punti notevoli, poi li descrivono. Se
+il primo passo fallisce — e su un disegno al tratto può fallire, perché non ci
+sono angoli e macchie ben definiti — il secondo non ha nulla su cui lavorare.
+
+LoFTR salta il primo passo: è *detector-free*. Divide entrambe le immagini in una
+griglia regolare e confronta ogni cella di una con tutte le celle dell'altra, con
+un meccanismo di attenzione che tiene conto anche del contesto circostante. È una
+rete neurale già addestrata su fotografie: qui viene usata così com'è, senza
+alcun riaddestramento.
+
+L'aspettativa che giustifica il confronto è precisa: **dovrebbe funzionare
+proprio dove i metodi classici soffrono**, cioè dove non ci sono punti notevoli
+da trovare. Se questa aspettativa si realizzi su mappe catastali è la domanda
+della componente comparativa, e la risposta è in §10.
 
 ---
 
-## 7. E1 — esperimento sintetico, stesso dominio
+## 8. E1 — esperimento sintetico, stesso dominio
 
 Il primo esperimento confronta un ritaglio con **sé stesso trasformato con una
 `H` nota**: rotazione, scala, traslazione, omografia lieve, più una degradazione
@@ -340,7 +546,7 @@ problema è nel codice.
 
 ![RMSE contro degradazione](../results/figures/m6_rmse_vs_degradazione.png)
 
-### 7.1 Il tetto di prestazione
+### 8.1 Il tetto di prestazione
 
 In assenza di degradazione tutti e tre i matcher recuperano la trasformazione
 con errore ampiamente sub-pixel — nel caso peggiore su 35 combinazioni di
@@ -352,7 +558,7 @@ Il caso geometricamente più difficile è sempre la **rotazione a 45°**, su tut
 ritagli: è il costo dell'interpolazione del warp e della quantizzazione
 dell'orientamento dei descrittori, non un difetto.
 
-### 7.2 La rottura è un precipizio, non una discesa
+### 8.2 La rottura è un precipizio, non una discesa
 
 La scala di degradazione è stata estesa oltre il valore nominale 1.0 proprio
 perché a quel livello nulla si rompeva ancora. Il comportamento reale è netto
@@ -369,7 +575,7 @@ perché a quel livello nulla si rompeva ancora. Il comportamento reale è netto
 Con passi di 0.2 fermi a 1.0, la curva avrebbe mostrato un degrado dolce che non
 esiste. Il campionamento è stato infittito sopra 1.0 per catturare la soglia.
 
-### 7.3 Nota sull'aggregazione
+### 8.3 Nota sull'aggregazione
 
 Oltre la soglia di rottura RANSAC **restituisce comunque una `H`**, ma sbagliata
 di migliaia di pixel: il massimo osservato è 12615 px. Una sola stima di questo
@@ -380,7 +586,7 @@ Per questo le tabelle riportano la **mediana** accompagnata dal **tasso di
 successo**, che è la grandezza che descrive i casi cattivi. Le curve usano
 mediana, banda interquartile e scala logaritmica.
 
-Le tabelle di §8 e §9 aggregano in due modi diversi, e le colonne lo dicono nel
+Le tabelle di §9 e §10 aggregano in due modi diversi, e le colonne lo dicono nel
 nome: `rmse_m_mediano` è la mediana su **tutte** le prove — grande di proposito,
 perché su E2 una configurazione può avere zero successi e allora "l'errore sulle
 riuscite" non esisterebbe — mentre `rmse_m_mediano_ok` è la mediana sulle sole
@@ -390,12 +596,12 @@ diverse.
 
 ---
 
-## 8. E2 — cross-domain reale
+## 9. E2 — cross-domain reale
 
 Il secondo esperimento è quello vero: ritaglio storico contro **raster del CXF**,
 nello stesso sistema di riferimento.
 
-### 8.1 La rasterizzazione e la sua verifica
+### 9.1 La rasterizzazione e la sua verifica
 
 I poligoni del CXF sono disegnati come **polilinee e non come campiture**: sul
 foglio d'impianto il confine è un tratto, e riempire i poligoni cambierebbe il
@@ -413,10 +619,10 @@ La verifica dell'allineamento è **visiva e a piena risoluzione**, non metrica.
 
 ![Vettoriale sul crop storico](../results/figures/m7_ribba_vec.png)
 
-Il motivo di questa scelta è documentato in §11.2: su questi dati le metriche
+Il motivo di questa scelta è documentato in §12.2: su questi dati le metriche
 indirette di allineamento producono falsi positivi convincenti.
 
-### 8.2 Risultati
+### 9.2 Risultati
 
 <!-- TABELLA: e2 -->
 
@@ -429,7 +635,7 @@ buona quanto questa ground truth consente di misurare.
 
 ![Verifica a piena risoluzione](../results/figures/m8_verifica_ribba.png)
 
-### 8.3 Perché ORB batte SIFT, contro ogni aspettativa
+### 9.3 Perché ORB batte SIFT, contro ogni aspettativa
 
 Su E1 SIFT domina; su E2 crolla al 30% di successo mentre ORB arriva al 90%. La
 causa non è la qualità dei descrittori ma il **numero di candidati**: il ratio
@@ -449,7 +655,7 @@ sposta il consenso di RANSAC su un modello sbagliato. Il limite di SIFT su quest
 dati è nei descrittori, non nel filtro che li seleziona — che è una conclusione
 diversa, e più forte.
 
-### 8.4 Il fattore che decide: il modello geometrico
+### 9.4 Il fattore che decide: il modello geometrico
 
 <!-- TABELLA: e2_fattori -->
 
@@ -468,7 +674,7 @@ La tabella mostra anche l'esito dell'ablazione sui codici CXF: rasterizzare
 27% di successo. Le strade e i corsi d'acqua aggiungono struttura proprio dove
 il tratto storico è più marcato.
 
-### 8.5 I ritagli non sono equivalenti
+### 9.5 I ritagli non sono equivalenti
 
 <!-- TABELLA: e2_per_crop -->
 
@@ -482,7 +688,7 @@ comunque: la struttura c'è, è solo poca.
 
 ---
 
-## 9. E3 — classico contro neurale
+## 10. E3 — classico contro neurale
 
 LoFTR entra nella pipeline dalla stessa porta degli altri: cambia solo il valore
 di `--matcher`. Stessi ritagli, stesse metriche, stesse soglie.
@@ -491,7 +697,7 @@ di `--matcher`. Stessi ritagli, stesse metriche, stesse soglie.
 
 ![Confronto classico/neurale](../results/figures/m9_e3_confronto.png)
 
-### 9.1 Due differenze da dichiarare
+### 10.1 Due differenze da dichiarare
 
 Il confronto è onesto solo se si dichiara ciò che non è simmetrico:
 
@@ -502,7 +708,7 @@ Il confronto è onesto solo se si dichiara ciò che non è simmetrico:
 2. **Il costo per registrazione è di un altro ordine di grandezza**: circa 5
    secondi contro 0.14 (ORB) e 0.71 (SIFT). Fa parte del risultato.
 
-### 9.2 LoFTR non ribalta il cross-domain
+### 10.2 LoFTR non ribalta il cross-domain
 
 Sul tasso di successo LoFTR **pareggia** ORB (90%), con RMSE mediano peggiore
 (0.593 contro 0.404 m) e circa 36 volte il tempo. La promessa del detector-free
@@ -515,7 +721,7 @@ strade opposte allo stesso risultato: LoFTR trova poche corrispondenze molto
 pulite, ORB ne trova una massa e lascia a RANSAC il lavoro di setacciarle. Il
 solo tasso di successo nasconde questa differenza.
 
-### 9.3 Anche LoFTR ha bisogno della binarizzazione
+### 10.3 Anche LoFTR ha bisogno della binarizzazione
 
 | preprocessing | corrispondenze mediane | successo | RMSE mediano |
 |---|---|---|---|
@@ -528,7 +734,7 @@ divario di dominio**: a colmarlo è la binarizzazione, non la rete. È forse il
 risultato più interessante della componente comparativa, perché suggerisce che
 su questo tipo di dati la leva efficace resti il preprocessing.
 
-### 9.4 Fragilità alla degradazione
+### 10.4 Fragilità alla degradazione
 
 Su E1, tasso di successo al crescere della degradazione (senza preprocessing):
 
@@ -544,9 +750,9 @@ rumore gaussiano non appartiene alla distribuzione su cui è stato addestrato.
 
 ---
 
-## 10. Modalità d'uso
+## 11. Modalità d'uso
 
-### 10.1 Installazione
+### 11.1 Installazione
 
 ```bash
 python3 -m venv .venv
@@ -567,7 +773,7 @@ python -m scripts.scarica_pesi          # pesi LoFTR + verifica del checksum
 I dati cartografici non sono versionati: `data/README.md` documenta come
 ricostruirli.
 
-### 10.2 La CLI
+### 11.2 La CLI
 
 ```
 python -m src.main --hist <crop.png> --modern <raster.png> [opzioni]
@@ -616,7 +822,7 @@ python -m src.main --hist data/crops/ribba.png --modern data/crops/ribba_vec.png
     --matcher loftr --preprocess sauvola --model similarity
 ```
 
-### 10.3 Preparazione dei dati ed esperimenti
+### 11.3 Preparazione dei dati ed esperimenti
 
 ```bash
 # ritagli dal foglio (PNG + world file affiancato)
@@ -650,9 +856,9 @@ python -m tests.test_smoke
 
 ---
 
-## 11. Limiti e onestà dei risultati
+## 12. Limiti e onestà dei risultati
 
-### 11.1 Il vettoriale non è la digitalizzazione dell'impianto
+### 12.1 Il vettoriale non è la digitalizzazione dell'impianto
 
 Il CXF è la **cartografia vigente**, non una trascrizione del foglio storico. La
 geometria discende dall'impianto, ma ha subito un secolo di frazionamenti e
@@ -664,7 +870,7 @@ si vede a occhio nelle sovrapposizioni a piena risoluzione. Non è disallineamen
 è storia. È anche una delle ragioni per cui gli inlier ratio di E2 sono
 strutturalmente bassi, e vanno letti con questa chiave.
 
-### 11.2 Le metriche indirette non funzionano su questi dati
+### 12.2 Le metriche indirette non funzionano su questi dati
 
 Durante la preparazione si è tentato di misurare l'allineamento con correlazione
 incrociata e chamfer matching su distance transform. **Entrambe hanno prodotto
@@ -683,7 +889,7 @@ l'RMSE su checkpoint contro `H_true`**; ogni claim di allineamento si verifica a
 piena risoluzione; ogni misura indiretta va accompagnata da una baseline casuale,
 e se il segnale non batte nettamente il caso, la misura si butta.
 
-### 11.3 Validazione, non applicazione
+### 12.3 Validazione, non applicazione
 
 Questo va detto prima che lo chieda chi legge. I dati dell'Agenzia delle Entrate
 forniscono una georeferenziazione **già nota**, e *proprio per questo*
@@ -695,14 +901,14 @@ alcun riferimento.
 "serve ad allineare mappe storiche disorientate" sarebbe falso *su questi dati*:
 qui il riferimento c'è, ed è quello che rende possibile la misura.
 
-### 11.4 Ampiezza del campione
+### 12.4 Ampiezza del campione
 
 Ogni punto delle curve di E1 è la mediana di 5 prove, una per ritaglio; ogni
 cella delle tabelle di E2 aggrega 10 prove. Le non-monotonie che compaiono qua e
 là — per esempio nel tasso di successo attorno a degradazione 1.1 — sono rumore
 di campionamento, non struttura, e non vanno raccontate come fenomeni.
 
-### 11.5 Un errore documentato nel materiale di partenza
+### 12.5 Un errore documentato nel materiale di partenza
 
 La specifica del progetto riportava il foglio come 8000×5322 px, con l'estensione
 corrispondente. Il file reale misura **8489×5648 px**: i pixel in più sono il
@@ -718,7 +924,7 @@ dimensione dal file, mai da una costante.
 
 ---
 
-## 12. Conclusioni
+## 13. Conclusioni
 
 Il lavoro misura, e spiega, dove i metodi classici cedono sul cross-domain — e
 dove invece reggono meglio del previsto.
@@ -738,7 +944,7 @@ dove invece reggono meglio del previsto.
    con errore maggiore e costo 36 volte superiore — ma con corrispondenze molto
    più pulite, il che indica che il collo di bottiglia è altrove.
 6. **Due ipotesi sono state smentite dai dati** e riportate come tali: il ratio
-   test troppo severo (§8.3) e il fallimento atteso di Otsu (§5.2).
+   test troppo severo (§9.3) e il fallimento atteso di Otsu (§6.3).
 
 Un progetto che misura e spiega perché un metodo cede vale più di uno che mostra
 solo il caso riuscito. Qui i casi riusciti ci sono, e i punti di rottura sono
