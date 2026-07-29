@@ -148,6 +148,89 @@ def figura_gradiente(nome_crop: str, img: np.ndarray, out_path: str, livelli=(0.
     return righe
 
 
+def _riquadro_piu_attivo(maschera: np.ndarray, lato: int = 200, passo: int = 25):
+    """Il riquadro dove la maschera ha più pixel accesi.
+
+    Un riquadro a coordinate fisse finisce quasi sempre dove il tratto era già
+    continuo, e la figura mostrerebbe due immagini identiche: non un effetto
+    assente, ma un campione mal scelto. La ricerca è deterministica.
+    """
+    integrale = cv2.integral(maschera.astype(np.uint8))
+    h, w = maschera.shape
+    migliore, massimo = (0, 0), -1
+    for y in range(0, h - lato + 1, passo):
+        for x in range(0, w - lato + 1, passo):
+            n = (
+                integrale[y + lato, x + lato]
+                - integrale[y, x + lato]
+                - integrale[y + lato, x]
+                + integrale[y, x]
+            )
+            if n > massimo:
+                migliore, massimo = (x, y), n
+    return (*migliore, lato, lato)
+
+
+def figura_chiusura(nome_crop: str, img: np.ndarray, out_path: str, riquadro=None):
+    """Che cosa aggiunge la chiusura, a piena risoluzione.
+
+    La variante "sauvola+chiusura" delle tabelle è esattamente questo: la stessa
+    binarizzazione, più un passaggio di morfologia che ricongiunge il tratto. Il
+    quarto pannello isola i pixel aggiunti, che è l'unico modo di vederli: sono
+    pochi e sottili, e su un'immagine intera non si notano.
+    """
+    import matplotlib
+
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    sauvola_intera = applica(img, modo="sauvola")
+    chiusa_intera = applica(img, modo="sauvola", morph_close=1)
+    aggiunti_interi = (sauvola_intera >= 128) & (chiusa_intera < 128)
+
+    x, y, w, h = riquadro or _riquadro_piu_attivo(aggiunti_interi)
+    gray = to_gray(img)[y : y + h, x : x + w]
+    sauvola = sauvola_intera[y : y + h, x : x + w]
+    chiuso = chiusa_intera[y : y + h, x : x + w]
+    aggiunti = aggiunti_interi[y : y + h, x : x + w]
+    evidenza = cv2.cvtColor(chiuso, cv2.COLOR_GRAY2RGB)
+    evidenza[aggiunti] = (200, 30, 30)
+
+    fig, assi = plt.subplots(1, 4, figsize=(15, 4.3))
+    for ax, (immagine, titolo) in zip(
+        assi,
+        (
+            (gray, "originale (grigio)"),
+            (sauvola, "Sauvola"),
+            (chiuso, "Sauvola + chiusura"),
+            (evidenza, f"in rosso: i {int(aggiunti.sum())} pixel aggiunti"),
+        ),
+    ):
+        ax.imshow(immagine, cmap=None if immagine.ndim == 3 else "gray", vmin=None if immagine.ndim == 3 else 0, vmax=None if immagine.ndim == 3 else 255)
+        ax.set_title(titolo, fontsize=10)
+        ax.set_xticks([])
+        ax.set_yticks([])
+    fig.suptitle(
+        f"Che cosa fa la chiusura — {nome_crop}, dettaglio {w}x{h} px a piena risoluzione, "
+        f"scelto dove l'effetto è massimo.\nSul ritaglio intero aggiunge "
+        f"{int(aggiunti_interi.sum())} pixel su {aggiunti_interi.size} "
+        f"({100 * aggiunti_interi.mean():.2f}%): salda le interruzioni senza ispessire il disegno.",
+        fontsize=11,
+    )
+    _salva(fig, out_path)
+    return int(aggiunti_interi.sum()), aggiunti_interi.size
+
+
+def _salva(fig, out_path: str) -> None:
+    import matplotlib.pyplot as plt
+
+    os.makedirs(os.path.dirname(out_path) or ".", exist_ok=True)
+    fig.tight_layout()
+    fig.savefig(out_path, dpi=130)
+    plt.close(fig)
+    print(f"figura: {out_path}")
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--crop", default="ribba", help="nome del crop, o 'tutti'")
@@ -162,6 +245,12 @@ def main(argv: list[str] | None = None) -> int:
         if img is None:
             raise FileNotFoundError(f"{path} — genera prima i crop (M1)")
         tutte += figura(nome, img, os.path.join(args.out, f"m5_preprocess_{nome}.png"))
+
+    aggiunti, totali = figura_chiusura(
+        nomi[0],
+        cv2.imread(f"data/crops/{nomi[0]}.png", cv2.IMREAD_COLOR),
+        os.path.join(args.out, f"m5_chiusura_{nomi[0]}.png"),
+    )
 
     gradiente = figura_gradiente(
         nomi[0],

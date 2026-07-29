@@ -411,6 +411,26 @@ inchiostro), la *chiusura* ricongiunge i tratti interrotti, frequenti perché il
 pennino stacca. L'ordine conta: si apre prima e si chiude poi, perché chiudendo
 per primo si salderebbe la grana al tratto, rendendola poi non più rimovibile.
 
+La variante che nelle tabelle compare come **`sauvola+chiusura`** è esattamente
+questo: la stessa binarizzazione, più un passaggio di chiusura con un elemento
+strutturante di 3×3 pixel. In pratica il tratto viene dilatato di un pixel e poi
+ristretto: le interruzioni più strette di quel pixel restano riempite, tutto il
+resto torna com'era.
+
+![Effetto della chiusura](../results/figures/m5_chiusura_ribba.png)
+
+Sull'intero ritaglio la chiusura aggiunge 2957 pixel su un milione, lo 0.28%: è
+un ritocco, non una trasformazione. Ma il quarto pannello mostra anche un effetto
+collaterale che non era previsto e che va detto: **dove due linee corrono
+parallele e vicine — il caso delle strade, disegnate a doppio bordo — la chiusura
+le fonde in una fascia piena.** La strada smette di essere due tratti sottili e
+diventa un nastro nero.
+
+Non è necessariamente un male: nel vettoriale le strade sono poligoni, quindi
+riempirle avvicina le due rappresentazioni. Ma cambia la natura di ciò che il
+matcher vede, ed è parte della ragione per cui questa variante si comporta
+diversamente dalle altre nei risultati di §9 e §10.
+
 ![Confronto dei preprocessing](../results/figures/m5_preprocess_ribba.png)
 
 Le figure hanno una riga di dettagli **a piena risoluzione**, perché su una

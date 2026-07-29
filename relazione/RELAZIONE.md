@@ -418,6 +418,26 @@ inchiostro), la *chiusura* ricongiunge i tratti interrotti, frequenti perché il
 pennino stacca. L'ordine conta: si apre prima e si chiude poi, perché chiudendo
 per primo si salderebbe la grana al tratto, rendendola poi non più rimovibile.
 
+La variante che nelle tabelle compare come **`sauvola+chiusura`** è esattamente
+questo: la stessa binarizzazione, più un passaggio di chiusura con un elemento
+strutturante di 3×3 pixel. In pratica il tratto viene dilatato di un pixel e poi
+ristretto: le interruzioni più strette di quel pixel restano riempite, tutto il
+resto torna com'era.
+
+![Effetto della chiusura](../results/figures/m5_chiusura_ribba.png)
+
+Sull'intero ritaglio la chiusura aggiunge 2957 pixel su un milione, lo 0.28%: è
+un ritocco, non una trasformazione. Ma il quarto pannello mostra anche un effetto
+collaterale che non era previsto e che va detto: **dove due linee corrono
+parallele e vicine — il caso delle strade, disegnate a doppio bordo — la chiusura
+le fonde in una fascia piena.** La strada smette di essere due tratti sottili e
+diventa un nastro nero.
+
+Non è necessariamente un male: nel vettoriale le strade sono poligoni, quindi
+riempirle avvicina le due rappresentazioni. Ma cambia la natura di ciò che il
+matcher vede, ed è parte della ragione per cui questa variante si comporta
+diversamente dalle altre nei risultati di §9 e §10.
+
 ![Confronto dei preprocessing](../results/figures/m5_preprocess_ribba.png)
 
 Le figure hanno una riga di dettagli **a piena risoluzione**, perché su una
@@ -640,35 +660,35 @@ indirette di allineamento producono falsi positivi convincenti.
 
 ### 9.2 Risultati
 
-| matcher | preprocess    | modello    | prove | successo_pct | rmse_m_mediano | rmse_m_minimo | inlier_ratio | match_mediani |
-|---------|---------------|------------|-------|--------------|----------------|---------------|--------------|---------------|
-| loftr   | clahe         | affine     | 10    | 0.0          | 242.41         | 124.979       | 0.354        | 7             |
-| loftr   | clahe         | homography | 10    | 0.0          | 487.91         | 152.008       | 0.472        | 7             |
-| loftr   | clahe         | similarity | 10    | 10.0         | 236.42         | 1.847         | 0.236        | 7             |
-| loftr   | sauvola       | affine     | 10    | 70.0         | 0.47           | 0.372         | 0.284        | 477           |
-| loftr   | sauvola       | homography | 10    | 60.0         | 0.85           | 0.448         | 0.293        | 477           |
-| loftr   | sauvola       | similarity | 10    | 80.0         | 0.5            | 0.23          | 0.276        | 477           |
-| loftr   | sauvola+close | affine     | 10    | 70.0         | 0.85           | 0.424         | 0.288        | 487           |
-| loftr   | sauvola+close | homography | 10    | 60.0         | 1.02           | 0.468         | 0.291        | 487           |
-| loftr   | sauvola+close | similarity | 10    | 90.0         | 0.63           | 0.375         | 0.276        | 487           |
-| orb     | clahe         | affine     | 10    | 0.0          | 156.05         | 16.954        | 0.009        | 737           |
-| orb     | clahe         | homography | 10    | 0.0          | 195.01         | 32.961        | 0.012        | 737           |
-| orb     | clahe         | similarity | 10    | 50.0         | 2.34           | 0.389         | 0.011        | 737           |
-| orb     | sauvola       | affine     | 10    | 50.0         | 2.09           | 0.365         | 0.028        | 732           |
-| orb     | sauvola       | homography | 10    | 10.0         | 84.94          | 0.701         | 0.016        | 732           |
-| orb     | sauvola       | similarity | 10    | 90.0         | 0.41           | 0.242         | 0.054        | 732           |
-| orb     | sauvola+close | affine     | 10    | 60.0         | 1.17           | 0.412         | 0.039        | 708           |
-| orb     | sauvola+close | homography | 10    | 20.0         | 25.12          | 0.612         | 0.021        | 708           |
-| orb     | sauvola+close | similarity | 10    | 70.0         | 0.48           | 0.209         | 0.045        | 708           |
-| sift    | clahe         | affine     | 10    | 0.0          | 243.94         | 94.165        | 0.095        | 74            |
-| sift    | clahe         | homography | 10    | 0.0          | 193.92         | 139.389       | 0.25         | 74            |
-| sift    | clahe         | similarity | 10    | 0.0          | 193.79         | 138.388       | 0.243        | 74            |
-| sift    | sauvola       | affine     | 10    | 30.0         | 85.03          | 0.277         | 0.097        | 120           |
-| sift    | sauvola       | homography | 10    | 10.0         | 189.96         | 0.587         | 0.132        | 120           |
-| sift    | sauvola       | similarity | 10    | 30.0         | 158.27         | 0.229         | 0.098        | 120           |
-| sift    | sauvola+close | affine     | 10    | 20.0         | 149.55         | 0.671         | 0.091        | 121           |
-| sift    | sauvola+close | homography | 10    | 0.0          | 177.55         | 2.492         | 0.124        | 121           |
-| sift    | sauvola+close | similarity | 10    | 30.0         | 163.66         | 0.302         | 0.088        | 121           |
+| matcher | preprocess       | modello    | prove | successo_pct | rmse_m_mediano | rmse_m_minimo | inlier_ratio | match_mediani |
+|---------|------------------|------------|-------|--------------|----------------|---------------|--------------|---------------|
+| loftr   | clahe            | affine     | 10    | 0.0          | 242.41         | 124.979       | 0.354        | 7             |
+| loftr   | clahe            | homography | 10    | 0.0          | 487.91         | 152.008       | 0.472        | 7             |
+| loftr   | clahe            | similarity | 10    | 10.0         | 236.42         | 1.847         | 0.236        | 7             |
+| loftr   | sauvola          | affine     | 10    | 70.0         | 0.47           | 0.372         | 0.284        | 477           |
+| loftr   | sauvola          | homography | 10    | 60.0         | 0.85           | 0.448         | 0.293        | 477           |
+| loftr   | sauvola          | similarity | 10    | 80.0         | 0.5            | 0.23          | 0.276        | 477           |
+| loftr   | sauvola+chiusura | affine     | 10    | 70.0         | 0.85           | 0.424         | 0.288        | 487           |
+| loftr   | sauvola+chiusura | homography | 10    | 60.0         | 1.02           | 0.468         | 0.291        | 487           |
+| loftr   | sauvola+chiusura | similarity | 10    | 90.0         | 0.63           | 0.375         | 0.276        | 487           |
+| orb     | clahe            | affine     | 10    | 0.0          | 156.05         | 16.954        | 0.009        | 737           |
+| orb     | clahe            | homography | 10    | 0.0          | 195.01         | 32.961        | 0.012        | 737           |
+| orb     | clahe            | similarity | 10    | 50.0         | 2.34           | 0.389         | 0.011        | 737           |
+| orb     | sauvola          | affine     | 10    | 50.0         | 2.09           | 0.365         | 0.028        | 732           |
+| orb     | sauvola          | homography | 10    | 10.0         | 84.94          | 0.701         | 0.016        | 732           |
+| orb     | sauvola          | similarity | 10    | 90.0         | 0.41           | 0.242         | 0.054        | 732           |
+| orb     | sauvola+chiusura | affine     | 10    | 60.0         | 1.17           | 0.412         | 0.039        | 708           |
+| orb     | sauvola+chiusura | homography | 10    | 20.0         | 25.12          | 0.612         | 0.021        | 708           |
+| orb     | sauvola+chiusura | similarity | 10    | 70.0         | 0.48           | 0.209         | 0.045        | 708           |
+| sift    | clahe            | affine     | 10    | 0.0          | 243.94         | 94.165        | 0.095        | 74            |
+| sift    | clahe            | homography | 10    | 0.0          | 193.92         | 139.389       | 0.25         | 74            |
+| sift    | clahe            | similarity | 10    | 0.0          | 193.79         | 138.388       | 0.243        | 74            |
+| sift    | sauvola          | affine     | 10    | 30.0         | 85.03          | 0.277         | 0.097        | 120           |
+| sift    | sauvola          | homography | 10    | 10.0         | 189.96         | 0.587         | 0.132        | 120           |
+| sift    | sauvola          | similarity | 10    | 30.0         | 158.27         | 0.229         | 0.098        | 120           |
+| sift    | sauvola+chiusura | affine     | 10    | 20.0         | 149.55         | 0.671         | 0.091        | 121           |
+| sift    | sauvola+chiusura | homography | 10    | 0.0          | 177.55         | 2.492         | 0.124        | 121           |
+| sift    | sauvola+chiusura | similarity | 10    | 30.0         | 163.66         | 0.302         | 0.088        | 121           |
 
 
 Su 180 prove, 47 raggiungono un RMSE sotto i 2 m. **Il cross-domain non fallisce
@@ -763,14 +783,14 @@ comunque: la struttura c'è, è solo poca.
 LoFTR entra nella pipeline dalla stessa porta degli altri: cambia solo il valore
 di `--matcher`. Stessi ritagli, stesse metriche, stesse soglie.
 
-| esperimento | matcher | config                     | prove | successo_pct | rmse_m_mediano_ok | inlier_ratio | match_mediani | t_ms |
-|-------------|---------|----------------------------|-------|--------------|-------------------|--------------|---------------|------|
-| E1          | loftr   | none / homography          | 80    | 46.2         | 0.056             | 0.562        | 861           | 5882 |
-| E1          | orb     | clahe / homography         | 80    | 62.5         | 0.113             | 0.691        | 2266          | 174  |
-| E1          | sift    | clahe / homography         | 80    | 75.0         | 0.046             | 0.873        | 1169          | 606  |
-| E2          | loftr   | sauvola+close / similarity | 10    | 90.0         | 0.593             | 0.276        | 487           | 4959 |
-| E2          | orb     | sauvola / similarity       | 10    | 90.0         | 0.404             | 0.054        | 732           | 138  |
-| E2          | sift    | sauvola+close / similarity | 10    | 30.0         | 0.466             | 0.088        | 121           | 708  |
+| esperimento | matcher | config                        | prove | successo_pct | rmse_m_mediano_ok | inlier_ratio | match_mediani | t_ms |
+|-------------|---------|-------------------------------|-------|--------------|-------------------|--------------|---------------|------|
+| E1          | loftr   | none / homography             | 80    | 46.2         | 0.056             | 0.562        | 861           | 5882 |
+| E1          | orb     | clahe / homography            | 80    | 62.5         | 0.113             | 0.691        | 2266          | 174  |
+| E1          | sift    | clahe / homography            | 80    | 75.0         | 0.046             | 0.873        | 1169          | 606  |
+| E2          | loftr   | sauvola+chiusura / similarity | 10    | 90.0         | 0.593             | 0.276        | 487           | 4959 |
+| E2          | orb     | sauvola / similarity          | 10    | 90.0         | 0.404             | 0.054        | 732           | 138  |
+| E2          | sift    | sauvola+chiusura / similarity | 10    | 30.0         | 0.466             | 0.088        | 121           | 708  |
 
 
 ![Confronto classico/neurale](../results/figures/m9_e3_confronto.png)
