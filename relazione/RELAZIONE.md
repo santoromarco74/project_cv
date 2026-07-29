@@ -143,8 +143,10 @@ Tre ragioni, tutte misurate nei capitoli §8-§10:
 | **rasterizzare** | disegnare un vettoriale su un'immagine |
 | **world file** (`.jgw`) | sei numeri che legano i pixel di un'immagine alle coordinate sul terreno |
 | **georeferenziazione** | il fatto che un'immagine sappia dove si trova sul terreno |
+| **luminosità** | il valore di grigio di un pixel: un solo numero, 0 (nero) – 255 (bianco) |
+| **gradiente** | quanto e in che direzione la luminosità cambia in UN pixel, confrontandolo coi vicini (§7.1) |
 | **keypoint** | un punto dell'immagine giudicato "riconoscibile" |
-| **descrittore** | l'impronta numerica che riassume l'aspetto attorno a un keypoint |
+| **descrittore** | l'impronta numerica che riassume l'aspetto attorno a un keypoint, costruita raccogliendo i gradienti di molti pixel vicini |
 | **SIFT, ORB** | due modi diversi di calcolare keypoint e descrittori |
 | **matching** | accoppiare i keypoint di un'immagine con quelli dell'altra |
 | **ratio test di Lowe** | il filtro di SIFT: tiene un abbinamento solo se il candidato migliore batte nettamente il secondo (§7.1) |
@@ -496,10 +498,31 @@ metodi: due immagini entrano, due insiemi di punti corrispondenti escono.
 
 ### 7.1 Trovare gli abbinamenti
 
+**Prima un chiarimento, perché qui si confondono facilmente tre livelli
+diversi.** Un pixel ha una **luminosità**: un solo numero, da 0 (nero) a 255
+(bianco). Il **gradiente** è un'altra cosa, ed è calcolato *per ogni singolo
+pixel* confrontandolo con i vicini immediati: è un vettore che dice di quanto e
+in quale direzione la luminosità cambia proprio lì. Dove la carta è uniforme il
+gradiente è quasi nullo; dove un pixel sta sul bordo di un tratto d'inchiostro,
+il gradiente è grande e punta perpendicolare al bordo.
+
+![Da un pixel al descrittore](../results/figures/m10_gradiente.png)
+
+Il pannello 2 mostra quanto è forte il gradiente in ogni punto di un dettaglio
+reale: è acceso solo lungo i contorni delle lettere, nero altrove — la carta
+uniforme non genera gradiente. Il pannello 3 mostra la sua direzione, colorata:
+lungo un bordo curvo il colore ruota con esso. Il pannello 4 raccoglie i
+gradienti di *tutta* la finestra in un istogramma a 8 direzioni, pesato da
+quanto è forte ciascuno: è la stessa identica aritmetica del descrittore SIFT.
+
 **SIFT** cerca punti che restano riconoscibili anche se l'immagine viene
-ingrandita o ruotata, e per ognuno calcola un vettore di 128 numeri che riassume
-come sono orientati i contorni nell'intorno. Due punti che nelle due immagini
-hanno vettori simili sono candidati alla stessa cosa reale.
+ingrandita o ruotata, e per ognuno costruisce il suo descrittore così: prende una
+finestra di 16×16 pixel attorno al punto, la divide in 16 sotto-finestre di 4×4,
+e per ciascuna calcola l'istogramma a 8 direzioni del pannello 4. Sedici
+istogrammi da 8 numeri, incollati uno dopo l'altro, fanno **128 numeri**: è il
+descrittore, un solo vettore per l'intero punto, non uno per pixel. Due punti che
+nelle due immagini hanno descrittori simili sono candidati alla stessa cosa
+reale.
 
 Il problema è che un candidato "abbastanza simile" spesso non basta. Per questo
 si usa il **ratio test di Lowe**: per ogni punto si guardano i *due* candidati
