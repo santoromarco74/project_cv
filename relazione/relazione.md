@@ -147,6 +147,7 @@ Tre ragioni, tutte misurate nei capitoli §8-§10:
 | **descrittore** | l'impronta numerica che riassume l'aspetto attorno a un keypoint |
 | **SIFT, ORB** | due modi diversi di calcolare keypoint e descrittori |
 | **matching** | accoppiare i keypoint di un'immagine con quelli dell'altra |
+| **ratio test di Lowe** | il filtro di SIFT: tiene un abbinamento solo se il candidato migliore batte nettamente il secondo (§7.1) |
 | **RANSAC** | la procedura a votazione del passo 5, che trova la risposta giusta anche con pochi dati buoni |
 | **inlier** | un abbinamento che concorda con la trasformazione scelta |
 | **inlier ratio** | la percentuale di inlier: quanto erano buoni i dati di partenza |
@@ -495,10 +496,34 @@ hanno vettori simili sono candidati alla stessa cosa reale.
 
 Il problema è che un candidato "abbastanza simile" spesso non basta. Per questo
 si usa il **ratio test di Lowe**: per ogni punto si guardano i *due* candidati
-migliori nell'altra immagine, e l'abbinamento si accetta solo se il primo è
-nettamente più simile del secondo — di default, distante meno del 75%. L'idea è
-che se i due candidati migliori si somigliano fra loro, allora quel punto non è
-davvero distintivo, ed è meglio scartarlo che rischiare.
+migliori nell'altra immagine, `d1` (distanza dal più simile) e `d2` (distanza dal
+secondo più simile), e l'abbinamento si accetta solo se
+
+```
+d1 < 0.75 · d2
+```
+
+cioè se il migliore è nettamente più vicino del secondo, non di poco. L'idea è
+che se i due candidati migliori si somigliano fra loro (`d1` e `d2` vicini),
+allora quel punto non è davvero distintivo — ci sono almeno due posti dove
+potrebbe stare — ed è meglio scartarlo che rischiare un abbinamento a caso.
+
+Due esempi con numeri: se `d1 = 50` e `d2 = 51`, il rapporto è 0.98, molto sopra
+la soglia — **scartato**, i due candidati sono quasi indistinguibili. Se `d1 = 50`
+e `d2 = 100`, il rapporto è 0.50 — **accettato**, il migliore si stacca
+nettamente.
+
+![Il ratio test, con i rapporti veri](../results/figures/m10_ratio_test.png)
+
+La figura mostra questo rapporto calcolato su ogni keypoint di un ritaglio reale,
+in due situazioni. **Contro sé stesso ruotato** (stesso dominio, come in E1) la
+distribuzione è ampia e un terzo abbondante dei punti supera la soglia: ci sono
+molti candidati chiaramente migliori degli altri. **Contro il vettoriale**
+(cross-domain, come in E2) la distribuzione si ammassa quasi tutta sopra 0.75, e
+**solo l'1.5% dei keypoint sopravvive**. È il numero dietro le poche decine di
+corrispondenze che SIFT trova su E2 (§9.3): non è che il ratio test sia mal
+tarato, è che nel cross-domain quasi nessun punto ha davvero un solo candidato
+migliore di tutti gli altri — sono tutti vagamente simili a molti altri punti.
 
 **ORB** fa la stessa cosa in modo più rapido ed essenziale: descrive ogni punto
 con una stringa di bit invece che con 128 numeri, e confronta le stringhe
