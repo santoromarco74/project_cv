@@ -828,7 +828,7 @@ def test_relazione_tabelle_tutte_generate():
     composto non ne resti nessuno: se un segnaposto sopravvivesse, quel numero
     sarebbe stato scritto a mano da qualche parte, o non ci sarebbe affatto.
     """
-    sorgente = os.path.join("relazione", "relazione.md")
+    sorgente = os.path.join("relazione", "relazione_sorgente.md")
     csv = os.path.join("results", "runs.csv")
     _serve(sorgente)
     _serve(csv)

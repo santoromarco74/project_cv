@@ -3,7 +3,7 @@
 CLAUDE.md §7.4: "Le tabelle della relazione sono aggregazioni del CSV, non
 numeri ricopiati a mano". Questo script rende quella frase verificabile.
 
-`relazione/relazione.md` è il testo, con segnaposto della forma
+`relazione/relazione_sorgente.md` è il testo, con segnaposto della forma
 
     <!-- TABELLA: e3 -->
 
@@ -60,7 +60,9 @@ def componi(sorgente: str, csv: str) -> str:
 
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("--sorgente", default=os.path.join("relazione", "relazione.md"))
+    # nome diverso da RELAZIONE.md non solo per maiuscole: su filesystem
+    # case-insensitive (NTFS) i due path collidono sullo stesso file fisico
+    ap.add_argument("--sorgente", default=os.path.join("relazione", "relazione_sorgente.md"))
     ap.add_argument("--csv", default=os.path.join("results", "runs.csv"))
     ap.add_argument("--out", default=os.path.join("relazione", "RELAZIONE.md"))
     args = ap.parse_args(argv)
