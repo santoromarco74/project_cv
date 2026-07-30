@@ -34,6 +34,11 @@ def carica(path: str) -> pd.DataFrame:
     for col in ("rmse_px", "rmse_m", "inlier_ratio", "err_max_px"):
         if col in df:
             df[col] = pd.to_numeric(df[col], errors="coerce")
+    # Le etichette del CSV nascono dai nomi dei parametri; nelle tabelle di una
+    # relazione in italiano "sauvola+close" è gergo inutile. La traduzione sta
+    # qui, al confine, così ogni tabella e ogni figura la eredita.
+    if "preprocess" in df:
+        df["preprocess"] = df.preprocess.replace({"sauvola+close": "sauvola+chiusura"})
     return df
 
 

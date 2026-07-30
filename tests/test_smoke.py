@@ -799,6 +799,28 @@ def test_cli_con_world_file_calcola_rmse():
 # ------------------------------------------------------------------ M10: relazione
 
 
+def test_ransac_iterazioni_coerente_con_i_default_veri():
+    """La formula k(w) illustrata in relazione usa confidence e max_iter come
+    costanti separate (experiments/m10_ransac_iterazioni.py): se i default di
+    stima() cambiassero, la figura mostrerebbe un tetto sbagliato senza che
+    nessuno se ne accorga. Questo test lega le due cose."""
+    import inspect
+
+    from src.estimate import stima as stima_ransac
+    from experiments.m10_ransac_iterazioni import CONFIDENCE, MAX_ITER, k_necessario
+
+    default = {
+        k: v.default
+        for k, v in inspect.signature(stima_ransac).parameters.items()
+        if v.default is not inspect.Parameter.empty
+    }
+    assert default["confidence"] == CONFIDENCE, (default["confidence"], CONFIDENCE)
+    assert default["max_iter"] == MAX_ITER, (default["max_iter"], MAX_ITER)
+
+    # e la formula stessa: con w=1 (nessun outlier) basta un solo campione
+    assert k_necessario(np.array([1.0 - 1e-9]), s=2)[0] < 2
+
+
 def test_relazione_tabelle_tutte_generate():
     """Criterio di M10: le tabelle della relazione sono aggregazioni del CSV.
 

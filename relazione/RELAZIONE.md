@@ -143,13 +143,17 @@ Tre ragioni, tutte misurate nei capitoli §8-§10:
 | **rasterizzare** | disegnare un vettoriale su un'immagine |
 | **world file** (`.jgw`) | sei numeri che legano i pixel di un'immagine alle coordinate sul terreno |
 | **georeferenziazione** | il fatto che un'immagine sappia dove si trova sul terreno |
+| **luminosità** | il valore di grigio di un pixel: un solo numero, 0 (nero) – 255 (bianco) |
+| **gradiente** | quanto e in che direzione la luminosità cambia in UN pixel, confrontandolo coi vicini (§7.1) |
 | **keypoint** | un punto dell'immagine giudicato "riconoscibile" |
-| **descrittore** | l'impronta numerica che riassume l'aspetto attorno a un keypoint |
+| **descrittore** | l'impronta numerica che riassume l'aspetto attorno a un keypoint, costruita raccogliendo i gradienti di molti pixel vicini |
 | **SIFT, ORB** | due modi diversi di calcolare keypoint e descrittori |
 | **matching** | accoppiare i keypoint di un'immagine con quelli dell'altra |
-| **RANSAC** | la procedura a votazione del passo 5, che trova la risposta giusta anche con pochi dati buoni |
+| **ratio test di Lowe** | il filtro di SIFT: tiene un abbinamento solo se il candidato migliore batte nettamente il secondo (§7.1) |
+| **RANSAC** | la procedura a votazione del passo 5, che trova la risposta giusta anche con pochi dati buoni (dettaglio matematico in §7.2) |
 | **inlier** | un abbinamento che concorda con la trasformazione scelta |
 | **inlier ratio** | la percentuale di inlier: quanto erano buoni i dati di partenza |
+| **campione minimo** | il numero di corrispondenze che bastano a calcolare esattamente una trasformazione (2, 3 o 4 a seconda della famiglia, §7.2) |
 | **omografia, affine, similarità** | famiglie di trasformazioni con 8, 6 e 4 parametri liberi (§7.2) |
 | **binarizzazione** | decidere, pixel per pixel, se è inchiostro o carta |
 | **Otsu, Sauvola** | due modi di scegliere quella soglia (§6.1) |
@@ -418,6 +422,26 @@ inchiostro), la *chiusura* ricongiunge i tratti interrotti, frequenti perché il
 pennino stacca. L'ordine conta: si apre prima e si chiude poi, perché chiudendo
 per primo si salderebbe la grana al tratto, rendendola poi non più rimovibile.
 
+La variante che nelle tabelle compare come **`sauvola+chiusura`** è esattamente
+questo: la stessa binarizzazione, più un passaggio di chiusura con un elemento
+strutturante di 3×3 pixel. In pratica il tratto viene dilatato di un pixel e poi
+ristretto: le interruzioni più strette di quel pixel restano riempite, tutto il
+resto torna com'era.
+
+![Effetto della chiusura](../results/figures/m5_chiusura_ribba.png)
+
+Sull'intero ritaglio la chiusura aggiunge 2957 pixel su un milione, lo 0.28%: è
+un ritocco, non una trasformazione. Ma il quarto pannello mostra anche un effetto
+collaterale che non era previsto e che va detto: **dove due linee corrono
+parallele e vicine — il caso delle strade, disegnate a doppio bordo — la chiusura
+le fonde in una fascia piena.** La strada smette di essere due tratti sottili e
+diventa un nastro nero.
+
+Non è necessariamente un male: nel vettoriale le strade sono poligoni, quindi
+riempirle avvicina le due rappresentazioni. Ma cambia la natura di ciò che il
+matcher vede, ed è parte della ragione per cui questa variante si comporta
+diversamente dalle altre nei risultati di §9 e §10.
+
 ![Confronto dei preprocessing](../results/figures/m5_preprocess_ribba.png)
 
 Le figure hanno una riga di dettagli **a piena risoluzione**, perché su una
@@ -475,17 +499,62 @@ metodi: due immagini entrano, due insiemi di punti corrispondenti escono.
 
 ### 7.1 Trovare gli abbinamenti
 
+**Prima un chiarimento, perché qui si confondono facilmente tre livelli
+diversi.** Un pixel ha una **luminosità**: un solo numero, da 0 (nero) a 255
+(bianco). Il **gradiente** è un'altra cosa, ed è calcolato *per ogni singolo
+pixel* confrontandolo con i vicini immediati: è un vettore che dice di quanto e
+in quale direzione la luminosità cambia proprio lì. Dove la carta è uniforme il
+gradiente è quasi nullo; dove un pixel sta sul bordo di un tratto d'inchiostro,
+il gradiente è grande e punta perpendicolare al bordo.
+
+![Da un pixel al descrittore](../results/figures/m10_gradiente.png)
+
+Il pannello 2 mostra quanto è forte il gradiente in ogni punto di un dettaglio
+reale: è acceso solo lungo i contorni delle lettere, nero altrove — la carta
+uniforme non genera gradiente. Il pannello 3 mostra la sua direzione, colorata:
+lungo un bordo curvo il colore ruota con esso. Il pannello 4 raccoglie i
+gradienti di *tutta* la finestra in un istogramma a 8 direzioni, pesato da
+quanto è forte ciascuno: è la stessa identica aritmetica del descrittore SIFT.
+
 **SIFT** cerca punti che restano riconoscibili anche se l'immagine viene
-ingrandita o ruotata, e per ognuno calcola un vettore di 128 numeri che riassume
-come sono orientati i contorni nell'intorno. Due punti che nelle due immagini
-hanno vettori simili sono candidati alla stessa cosa reale.
+ingrandita o ruotata, e per ognuno costruisce il suo descrittore così: prende una
+finestra di 16×16 pixel attorno al punto, la divide in 16 sotto-finestre di 4×4,
+e per ciascuna calcola l'istogramma a 8 direzioni del pannello 4. Sedici
+istogrammi da 8 numeri, incollati uno dopo l'altro, fanno **128 numeri**: è il
+descrittore, un solo vettore per l'intero punto, non uno per pixel. Due punti che
+nelle due immagini hanno descrittori simili sono candidati alla stessa cosa
+reale.
 
 Il problema è che un candidato "abbastanza simile" spesso non basta. Per questo
 si usa il **ratio test di Lowe**: per ogni punto si guardano i *due* candidati
-migliori nell'altra immagine, e l'abbinamento si accetta solo se il primo è
-nettamente più simile del secondo — di default, distante meno del 75%. L'idea è
-che se i due candidati migliori si somigliano fra loro, allora quel punto non è
-davvero distintivo, ed è meglio scartarlo che rischiare.
+migliori nell'altra immagine, `d1` (distanza dal più simile) e `d2` (distanza dal
+secondo più simile), e l'abbinamento si accetta solo se
+
+```
+d1 < 0.75 · d2
+```
+
+cioè se il migliore è nettamente più vicino del secondo, non di poco. L'idea è
+che se i due candidati migliori si somigliano fra loro (`d1` e `d2` vicini),
+allora quel punto non è davvero distintivo — ci sono almeno due posti dove
+potrebbe stare — ed è meglio scartarlo che rischiare un abbinamento a caso.
+
+Due esempi con numeri: se `d1 = 50` e `d2 = 51`, il rapporto è 0.98, molto sopra
+la soglia — **scartato**, i due candidati sono quasi indistinguibili. Se `d1 = 50`
+e `d2 = 100`, il rapporto è 0.50 — **accettato**, il migliore si stacca
+nettamente.
+
+![Il ratio test, con i rapporti veri](../results/figures/m10_ratio_test.png)
+
+La figura mostra questo rapporto calcolato su ogni keypoint di un ritaglio reale,
+in due situazioni. **Contro sé stesso ruotato** (stesso dominio, come in E1) la
+distribuzione è ampia e un terzo abbondante dei punti supera la soglia: ci sono
+molti candidati chiaramente migliori degli altri. **Contro il vettoriale**
+(cross-domain, come in E2) la distribuzione si ammassa quasi tutta sopra 0.75, e
+**solo l'1.5% dei keypoint sopravvive**. È il numero dietro le poche decine di
+corrispondenze che SIFT trova su E2 (§9.3): non è che il ratio test sia mal
+tarato, è che nel cross-domain quasi nessun punto ha davvero un solo candidato
+migliore di tutti gli altri — sono tutti vagamente simili a molti altri punti.
 
 **ORB** fa la stessa cosa in modo più rapido ed essenziale: descrive ogni punto
 con una stringa di bit invece che con 128 numeri, e confronta le stringhe
@@ -517,6 +586,53 @@ successo e fallimento.
 
 Sotto le 4 corrispondenze la stima si ferma dichiarando il fallimento, invece di
 restituire un risultato che non avrebbe senso.
+
+#### Come funziona il voto, con i numeri
+
+RANSAC non prova tutte le corrispondenze insieme: prova ripetutamente
+**sottoinsiemi minimi** presi a caso. Per ogni famiglia, il sottoinsieme minimo
+`s` è il numero di punti che bastano a calcolare la trasformazione
+*esattamente*, senza sovrabbondanza — ogni punto dà due equazioni (`x`, `y`),
+quindi `s` è la metà dei parametri: 2 per la similarità, 3 per l'affine, 4 per
+l'omografia.
+
+Un'iterazione fa quattro cose: **campiona** `s` corrispondenze a caso, **risolve**
+il sistema esatto per una `H` candidata, **applica** quella `H` a tutte le
+corrispondenze e conta quante cadono entro la soglia di 3 px (gli *inlier*),
+**ripete**. Alla fine tiene la `H` con più inlier fra tutte quelle provate.
+
+Quante iterazioni servono per essere ragionevolmente sicuri di pescare, prima o
+poi, un campione di `s` punti **tutti** corretti? Se `w` è la vera frazione di
+corrispondenze corrette, la probabilità che un singolo campione sia tutto pulito
+è `w^s`, quindi la probabilità che *tutti* i `k` tentativi falliscano è
+`(1 − w^s)^k`. Imponendo che questa probabilità di fallimento resti sotto
+`1 − p` (nel progetto `p = 0.995`, il parametro `confidence`) e risolvendo per
+`k`:
+
+```
+k ≥ ln(1 − p) / ln(1 − w^s)
+```
+
+![Iterazioni necessarie in funzione dell'inlier ratio](../results/figures/m10_ransac_iterazioni.png)
+
+La curva è per ogni famiglia, in scala logaritmica, con il tetto reale del
+codice (`max_iter = 5000`) e tre punti realmente misurati nelle griglie di M6 e
+M8. Si legge da destra a sinistra ed è brutale:
+
+- **E1, SIFT senza degrado** (`w = 0.938`): bastano **3** iterazioni. Con quasi
+  tutte le corrispondenze corrette, il primo campione a caso è già quasi
+  certamente pulito.
+- **E2, ORB+Sauvola, mediana** (`w = 0.054`): per la similarità servono **1805**
+  iterazioni — dentro il budget di 5000. Per l'**omografia**, con lo stesso `w`,
+  ne servirebbero **oltre 600 000**: enormemente fuori budget. È la ragione
+  algebrica, non solo empirica, del risultato di §9.4: con pochi inlier un
+  modello a più parametri non è "più difficile da stimare bene", è
+  strutturalmente **irraggiungibile** nel numero di tentativi concesso.
+- **E2, ritaglio `aspera` con il solo codice 18** (`w = 0.009`, il caso fallito
+  di §9.5): anche per la sola similarità servirebbero **oltre 65 000**
+  iterazioni. Il codice ne prova 5000 e si ferma lì: non è che RANSAC abbia
+  cercato bene e non abbia trovato niente, è che il budget di tentativi non gli
+  ha mai dato una possibilità realistica di pescare un campione pulito.
 
 ### 7.3 Il matcher neurale (componente B)
 
@@ -640,35 +756,35 @@ indirette di allineamento producono falsi positivi convincenti.
 
 ### 9.2 Risultati
 
-| matcher | preprocess    | modello    | prove | successo_pct | rmse_m_mediano | rmse_m_minimo | inlier_ratio | match_mediani |
-|---------|---------------|------------|-------|--------------|----------------|---------------|--------------|---------------|
-| loftr   | clahe         | affine     | 10    | 0.0          | 242.41         | 124.979       | 0.354        | 7             |
-| loftr   | clahe         | homography | 10    | 0.0          | 487.91         | 152.008       | 0.472        | 7             |
-| loftr   | clahe         | similarity | 10    | 10.0         | 236.42         | 1.847         | 0.236        | 7             |
-| loftr   | sauvola       | affine     | 10    | 70.0         | 0.47           | 0.372         | 0.284        | 477           |
-| loftr   | sauvola       | homography | 10    | 60.0         | 0.85           | 0.448         | 0.293        | 477           |
-| loftr   | sauvola       | similarity | 10    | 80.0         | 0.5            | 0.23          | 0.276        | 477           |
-| loftr   | sauvola+close | affine     | 10    | 70.0         | 0.85           | 0.424         | 0.288        | 487           |
-| loftr   | sauvola+close | homography | 10    | 60.0         | 1.02           | 0.468         | 0.291        | 487           |
-| loftr   | sauvola+close | similarity | 10    | 90.0         | 0.63           | 0.375         | 0.276        | 487           |
-| orb     | clahe         | affine     | 10    | 0.0          | 156.05         | 16.954        | 0.009        | 737           |
-| orb     | clahe         | homography | 10    | 0.0          | 195.01         | 32.961        | 0.012        | 737           |
-| orb     | clahe         | similarity | 10    | 50.0         | 2.34           | 0.389         | 0.011        | 737           |
-| orb     | sauvola       | affine     | 10    | 50.0         | 2.09           | 0.365         | 0.028        | 732           |
-| orb     | sauvola       | homography | 10    | 10.0         | 84.94          | 0.701         | 0.016        | 732           |
-| orb     | sauvola       | similarity | 10    | 90.0         | 0.41           | 0.242         | 0.054        | 732           |
-| orb     | sauvola+close | affine     | 10    | 60.0         | 1.17           | 0.412         | 0.039        | 708           |
-| orb     | sauvola+close | homography | 10    | 20.0         | 25.12          | 0.612         | 0.021        | 708           |
-| orb     | sauvola+close | similarity | 10    | 70.0         | 0.48           | 0.209         | 0.045        | 708           |
-| sift    | clahe         | affine     | 10    | 0.0          | 243.94         | 94.165        | 0.095        | 74            |
-| sift    | clahe         | homography | 10    | 0.0          | 193.92         | 139.389       | 0.25         | 74            |
-| sift    | clahe         | similarity | 10    | 0.0          | 193.79         | 138.388       | 0.243        | 74            |
-| sift    | sauvola       | affine     | 10    | 30.0         | 85.03          | 0.277         | 0.097        | 120           |
-| sift    | sauvola       | homography | 10    | 10.0         | 189.96         | 0.587         | 0.132        | 120           |
-| sift    | sauvola       | similarity | 10    | 30.0         | 158.27         | 0.229         | 0.098        | 120           |
-| sift    | sauvola+close | affine     | 10    | 20.0         | 149.55         | 0.671         | 0.091        | 121           |
-| sift    | sauvola+close | homography | 10    | 0.0          | 177.55         | 2.492         | 0.124        | 121           |
-| sift    | sauvola+close | similarity | 10    | 30.0         | 163.66         | 0.302         | 0.088        | 121           |
+| matcher | preprocess       | modello    | prove | successo_pct | rmse_m_mediano | rmse_m_minimo | inlier_ratio | match_mediani |
+|---------|------------------|------------|-------|--------------|----------------|---------------|--------------|---------------|
+| loftr   | clahe            | affine     | 10    | 0.0          | 242.41         | 124.979       | 0.354        | 7             |
+| loftr   | clahe            | homography | 10    | 0.0          | 487.91         | 152.008       | 0.472        | 7             |
+| loftr   | clahe            | similarity | 10    | 10.0         | 236.42         | 1.847         | 0.236        | 7             |
+| loftr   | sauvola          | affine     | 10    | 70.0         | 0.47           | 0.372         | 0.284        | 477           |
+| loftr   | sauvola          | homography | 10    | 60.0         | 0.85           | 0.448         | 0.293        | 477           |
+| loftr   | sauvola          | similarity | 10    | 80.0         | 0.5            | 0.23          | 0.276        | 477           |
+| loftr   | sauvola+chiusura | affine     | 10    | 70.0         | 0.85           | 0.424         | 0.288        | 487           |
+| loftr   | sauvola+chiusura | homography | 10    | 60.0         | 1.02           | 0.468         | 0.291        | 487           |
+| loftr   | sauvola+chiusura | similarity | 10    | 90.0         | 0.63           | 0.375         | 0.276        | 487           |
+| orb     | clahe            | affine     | 10    | 0.0          | 156.05         | 16.954        | 0.009        | 737           |
+| orb     | clahe            | homography | 10    | 0.0          | 195.01         | 32.961        | 0.012        | 737           |
+| orb     | clahe            | similarity | 10    | 50.0         | 2.34           | 0.389         | 0.011        | 737           |
+| orb     | sauvola          | affine     | 10    | 50.0         | 2.09           | 0.365         | 0.028        | 732           |
+| orb     | sauvola          | homography | 10    | 10.0         | 84.94          | 0.701         | 0.016        | 732           |
+| orb     | sauvola          | similarity | 10    | 90.0         | 0.41           | 0.242         | 0.054        | 732           |
+| orb     | sauvola+chiusura | affine     | 10    | 60.0         | 1.17           | 0.412         | 0.039        | 708           |
+| orb     | sauvola+chiusura | homography | 10    | 20.0         | 25.12          | 0.612         | 0.021        | 708           |
+| orb     | sauvola+chiusura | similarity | 10    | 70.0         | 0.48           | 0.209         | 0.045        | 708           |
+| sift    | clahe            | affine     | 10    | 0.0          | 243.94         | 94.165        | 0.095        | 74            |
+| sift    | clahe            | homography | 10    | 0.0          | 193.92         | 139.389       | 0.25         | 74            |
+| sift    | clahe            | similarity | 10    | 0.0          | 193.79         | 138.388       | 0.243        | 74            |
+| sift    | sauvola          | affine     | 10    | 30.0         | 85.03          | 0.277         | 0.097        | 120           |
+| sift    | sauvola          | homography | 10    | 10.0         | 189.96         | 0.587         | 0.132        | 120           |
+| sift    | sauvola          | similarity | 10    | 30.0         | 158.27         | 0.229         | 0.098        | 120           |
+| sift    | sauvola+chiusura | affine     | 10    | 20.0         | 149.55         | 0.671         | 0.091        | 121           |
+| sift    | sauvola+chiusura | homography | 10    | 0.0          | 177.55         | 2.492         | 0.124        | 121           |
+| sift    | sauvola+chiusura | similarity | 10    | 30.0         | 163.66         | 0.302         | 0.088        | 121           |
 
 
 Su 180 prove, 47 raggiungono un RMSE sotto i 2 m. **Il cross-domain non fallisce
@@ -763,14 +879,14 @@ comunque: la struttura c'è, è solo poca.
 LoFTR entra nella pipeline dalla stessa porta degli altri: cambia solo il valore
 di `--matcher`. Stessi ritagli, stesse metriche, stesse soglie.
 
-| esperimento | matcher | config                     | prove | successo_pct | rmse_m_mediano_ok | inlier_ratio | match_mediani | t_ms |
-|-------------|---------|----------------------------|-------|--------------|-------------------|--------------|---------------|------|
-| E1          | loftr   | none / homography          | 80    | 46.2         | 0.056             | 0.562        | 861           | 5882 |
-| E1          | orb     | clahe / homography         | 80    | 62.5         | 0.113             | 0.691        | 2266          | 174  |
-| E1          | sift    | clahe / homography         | 80    | 75.0         | 0.046             | 0.873        | 1169          | 606  |
-| E2          | loftr   | sauvola+close / similarity | 10    | 90.0         | 0.593             | 0.276        | 487           | 4959 |
-| E2          | orb     | sauvola / similarity       | 10    | 90.0         | 0.404             | 0.054        | 732           | 138  |
-| E2          | sift    | sauvola+close / similarity | 10    | 30.0         | 0.466             | 0.088        | 121           | 708  |
+| esperimento | matcher | config                        | prove | successo_pct | rmse_m_mediano_ok | inlier_ratio | match_mediani | t_ms |
+|-------------|---------|-------------------------------|-------|--------------|-------------------|--------------|---------------|------|
+| E1          | loftr   | none / homography             | 80    | 46.2         | 0.056             | 0.562        | 861           | 5882 |
+| E1          | orb     | clahe / homography            | 80    | 62.5         | 0.113             | 0.691        | 2266          | 174  |
+| E1          | sift    | clahe / homography            | 80    | 75.0         | 0.046             | 0.873        | 1169          | 606  |
+| E2          | loftr   | sauvola+chiusura / similarity | 10    | 90.0         | 0.593             | 0.276        | 487           | 4959 |
+| E2          | orb     | sauvola / similarity          | 10    | 90.0         | 0.404             | 0.054        | 732           | 138  |
+| E2          | sift    | sauvola+chiusura / similarity | 10    | 30.0         | 0.466             | 0.088        | 121           | 708  |
 
 
 ![Confronto classico/neurale](../results/figures/m9_e3_confronto.png)
