@@ -721,15 +721,25 @@ problema è nel codice.
 
 ### 8.1 Il tetto di prestazione
 
-In assenza di degradazione tutti e tre i matcher recuperano la trasformazione
-con errore ampiamente sub-pixel — nel caso peggiore su 35 combinazioni di
-ritaglio e trasformazione, SIFT si ferma a 0.276 px (0.070 m). Su un riferimento
-il cui pavimento è ~0.5 m, questo è due ordini di grandezza sotto: è il segnale
+In assenza di degradazione **SIFT** recupera la trasformazione con errore
+sub-pixel su tutte e 35 le combinazioni di ritaglio e trasformazione: nel caso
+peggiore 0.502 px, cioè 0.128 m. Su un riferimento il cui pavimento è ~0.5 m
+resta sotto di un fattore quattro anche là dove sbaglia di più, ed è il segnale
 che la pipeline è corretta.
 
-Il caso geometricamente più difficile è sempre la **rotazione a 45°**, su tutti i
-ritagli: è il costo dell'interpolazione del warp e della quantizzazione
-dell'orientamento dei descrittori, non un difetto.
+Gli altri due non reggono altrettanto uniformemente, e va detto invece che
+lasciato alla tabella: sempre senza degradazione, il caso peggiore è di 4.6 px
+per ORB e di alcune migliaia di pixel per LoFTR. A degradazione nulla l'unica
+variabile è la trasformazione geometrica, quindi quei fallimenti sono
+**geometrici e non radiometrici**: non dipendono dallo stato della carta, che è
+identico in tutte e 35 le prove, ma da quanto la trasformazione deforma.
+
+Il caso più difficile è sempre la **rotazione ampia**, su tutti i ritagli: è il
+costo dell'interpolazione del warp e della quantizzazione dell'orientamento dei
+descrittori. La differenza è che SIFT lo paga in centesimi di pixel, mentre
+LoFTR lo paga fallendo — coerente con il fatto che i matcher detector-free non
+sono invarianti alla rotazione per costruzione, ma la incontrano soltanto
+attraverso i dati di addestramento.
 
 ### 8.2 La rottura è un precipizio, non una discesa
 
@@ -739,7 +749,7 @@ perché a quel livello nulla si rompeva ancora. Il comportamento reale è netto
 
 | degradazione | RMSE mediano | successo | corrispondenze |
 |---|---|---|---|
-| 0.00 | 0.108 px | 100% | 2085 |
+| 0.00 | 0.108 px | 100% | 2084 |
 | 0.75 | 0.224 px | 60% | 487 |
 | 1.00 | 0.344 px | 60% | 389 |
 | 1.10 | 3.168 px | 40% | 215 |
@@ -878,10 +888,11 @@ diversa, e più forte.
 
 
 Sugli stessi identici insiemi di corrispondenze, il modello geometrico cambia
-tutto: la **similarità** (4 gradi di libertà) riesce nel 50% delle prove,
-l'affine nel 33%, l'**omografia** (8 gradi) nel 18%. Con inlier ratio dell'ordine
-del 2-5%, più gradi di libertà significano più modi di accordarsi con gli
-outlier: RANSAC trova un consenso, ma quello sbagliato.
+tutto: la **similarità** (4 gradi di libertà) riesce nel 53% delle prove,
+l'affine nel 32%, l'**omografia** (8 gradi) nel 19%. Con inlier ratio bassi —
+sotto il 5% per ORB, attorno al 10% per SIFT — più gradi di libertà significano
+più modi di accordarsi con gli outlier: RANSAC trova un consenso, ma quello
+sbagliato.
 
 È il risultato più trasferibile dell'intero lavoro: **su dati cross-domain con
 inlier ratio bassi, il modello più vincolato non è una semplificazione, è una
@@ -1004,13 +1015,21 @@ Su E1, tasso di successo al crescere della degradazione (senza preprocessing):
 
 | degradazione | LoFTR | ORB | SIFT |
 |---|---|---|---|
-| 0.00 | 100% | 90% | 100% |
-| 0.50 | 100% | 60% | 80% |
+| 0.00 | 100% | 70% | 100% |
+| 0.50 | 100% | 40% | 80% |
 | 1.00 | 20% | 60% | 60% |
-| 1.20 | 0% | 20% | 40% |
+| 1.20 | 0% | 60% | 40% |
+| 1.40 | 0% | 0% | 0% |
 
-LoFTR parte alla pari con SIFT e **crolla prima di entrambi i classici**. Il
-rumore gaussiano non appartiene alla distribuzione su cui è stato addestrato.
+LoFTR parte alla pari con SIFT — e sopra ORB — e **crolla prima di entrambi i
+classici**: a degradazione 1.1 è già a zero, dove SIFT tiene il 40% e ORB il
+60%. Il rumore gaussiano non appartiene alla distribuzione su cui è stato
+addestrato.
+
+La colonna di ORB non è monotona, e non va letta come se lo fosse: ogni cella
+aggrega **cinque prove**, una per ritaglio, quindi un solo successo in più o in
+meno vale venti punti percentuali. È il rumore di campionamento dichiarato in
+§12.4, non un fenomeno da raccontare.
 
 ---
 
