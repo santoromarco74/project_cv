@@ -247,16 +247,18 @@ def _manca(path: str) -> bool:
     return not os.path.exists(intero) or os.path.getsize(intero) == 0
 
 
-def verifica_ambiente(con_loftr: bool) -> tuple[list[str], list[str]]:
-    """Precondizioni, separate in (dipendenze, dati).
+def verifica_ambiente(con_loftr: bool) -> tuple[list[str], list[str], list[str]]:
+    """Precondizioni, separate in (dipendenze, dati, loftr).
 
-    La distinzione non è cosmetica: senza le dipendenze non si può fare nulla,
-    nemmeno elencare le fasi (i nomi dei crop vivono nel codice); senza i dati
-    si può ancora leggere che cosa lo script farebbe.
+    La distinzione non è cosmetica, perché la cura è diversa per ciascun gruppo:
+    le dipendenze si installano, i dati AdE si riscaricano dal servizio, il
+    materiale di LoFTR si prende con `scarica_pesi` **oppure** si evita
+    rilanciando senza `--con-loftr`. Tenerli insieme faceva stampare le
+    istruzioni per i dati catastali a chi aveva solo il checkpoint mancante.
     """
     import importlib.util
 
-    dipendenze, dati = [], []
+    dipendenze, dati, loftr = [], [], []
     for modulo in DIPENDENZE:
         if importlib.util.find_spec(modulo) is None:
             dipendenze.append(f"{modulo} — pip install -r requirements.txt")
@@ -270,13 +272,10 @@ def verifica_ambiente(con_loftr: bool) -> tuple[list[str], list[str]]:
     if con_loftr:
         for modulo in DIPENDENZE_LOFTR:
             if importlib.util.find_spec(modulo) is None:
-                dipendenze.append(f"{modulo} (fase e3)")
+                loftr.append(f"{modulo} non installato — pip install -r requirements.txt")
         if _manca(PESI_LOFTR):
-            dati.append(
-                f"{PESI_LOFTR} — python -m scripts.scarica_pesi "
-                "(§3 vieta il download a runtime)"
-            )
-    return dipendenze, dati
+            loftr.append(f"{PESI_LOFTR} assente — python -m scripts.scarica_pesi")
+    return dipendenze, dati, loftr
 
 
 RIFERIMENTO_FIGURA = re.compile(r"!\[[^\]]*\]\(\.\./(results/figures/[^)]+)\)")
@@ -372,12 +371,23 @@ def main(argv: list[str] | None = None) -> int:
     print(f"radice: {RADICE}\n")
 
     print("precondizioni:")
-    dipendenze, dati = verifica_ambiente(args.con_loftr)
+    dipendenze, dati, loftr = verifica_ambiente(args.con_loftr)
 
     if dipendenze:
         print("\n\033[31mdipendenze mancanti:\033[0m")
         for p in dipendenze:
             print(f"  ✗ {p}")
+        return 1
+
+    if loftr and not args.lista:
+        print("\n\033[31mmanca il materiale per E3 (LoFTR):\033[0m")
+        for p in loftr:
+            print(f"  ✗ {p}")
+        print(
+            "\nDue strade: procurarti quanto sopra, oppure rilanciare senza --con-loftr "
+            "\ne fare tutto il resto (la relazione esce completa tranne la figura del "
+            "\ncapitolo 10)."
+        )
         return 1
 
     if dati:
@@ -393,7 +403,7 @@ def main(argv: list[str] | None = None) -> int:
                 "\nutilizzabile è L675_004900, mai L675_00490Z."
             )
             return 1
-    else:
+    elif not loftr:
         print("  ✓ dipendenze e dati grezzi a posto")
 
     fasi = costruisci_fasi(args.con_loftr)
