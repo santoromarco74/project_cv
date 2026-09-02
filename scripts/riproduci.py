@@ -29,6 +29,7 @@ documentazione eseguibile che §12.10 chiede alla relazione.
 from __future__ import annotations
 
 import argparse
+import csv
 import os
 import re
 import subprocess
@@ -50,7 +51,10 @@ GREZZI_OPZIONALI = {
 }
 PESI_LOFTR = "weights/loftr_outdoor.ckpt"
 
-DIPENDENZE = ("cv2", "numpy", "pandas", "matplotlib", "scipy", "PIL")
+# `markdown` serve solo all'ultima fase, ma va controllato all'inizio: scoprirlo
+# dopo un'ora di esperimenti, con il CSV già scritto e la relazione a un passo
+# dalla fine, è il modo peggiore di venirlo a sapere.
+DIPENDENZE = ("cv2", "numpy", "pandas", "matplotlib", "scipy", "PIL", "markdown")
 DIPENDENZE_LOFTR = ("torch", "kornia")
 
 CSV = "results/runs.csv"
@@ -329,6 +333,21 @@ def verifica_relazione(con_loftr: bool) -> tuple[list[str], list[str]]:
 # ----------------------------------------------------------------- esecuzione
 
 
+def _csv_contiene_loftr() -> bool:
+    """Se E3 sia stato eseguito lo dice il CSV, non il flag di questa invocazione.
+
+    Riprendendo con `--da relazione` dopo una corsa `--con-loftr` completa, il
+    flag è assente ma le righe LoFTR ci sono: annunciare "E3 non è stato
+    eseguito" sarebbe falso proprio nel momento in cui l'utente ha finito.
+    """
+    percorso = os.path.join(RADICE, CSV)
+    if not os.path.exists(percorso):
+        return False
+    with open(percorso, newline="", encoding="utf-8") as fh:
+        lettore = csv.DictReader(fh)
+        return any(riga.get("matcher") == "loftr" for riga in lettore)
+
+
 def esegui(fase: Fase, prova_secca: bool) -> bool:
     print(f"\n\033[1m── {fase.nome} · {fase.titolo}\033[0m")
     if fase.nota:
@@ -463,8 +482,8 @@ def main(argv: list[str] | None = None) -> int:
     print(f"\n\033[32mfatto in {(time.perf_counter() - t0) / 60:.1f} minuti\033[0m")
     if not args.controlla:
         print("\nDa qui: relazione/RELAZIONE.html si apre nel browser e si stampa in PDF.")
-        if not args.con_loftr:
-            print("E3 (LoFTR) non è stato eseguito: rilancia con --con-loftr per la parte comparativa.")
+        if not _csv_contiene_loftr():
+            print("E3 (LoFTR) non è nel CSV: rilancia con --con-loftr per la parte comparativa.")
     return 0
 
 

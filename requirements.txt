@@ -8,6 +8,11 @@ Pillow==10.4.0
 pandas==2.2.2
 matplotlib==3.9.2
 
+# Relazione: da RELAZIONE.md all'HTML autonomo che si stampa in PDF
+# (scripts/relazione_html.py). Serve solo all'ultimo passo, ma la traccia
+# chiede che i pacchetti esterni siano presenti nella versione finale.
+markdown==3.6
+
 # Modulo B — matcher deep (LoFTR via kornia)
 # torch pesante: su WSL2 CPU-only va bene. Se serve GPU, installare la
 # build CUDA da https://pytorch.org al posto di questa riga.
