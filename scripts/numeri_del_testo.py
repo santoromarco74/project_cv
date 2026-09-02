@@ -50,15 +50,33 @@ def paragrafo_2(df) -> None:
 
 
 def paragrafo_8(df) -> None:
-    """§8.1 e §8.2 — tetto di prestazione e soglia di rottura di E1."""
+    """§8.1, §8.2 e §8.3 — tetto di prestazione, soglia di rottura, aggregazione."""
     print("\n§8.1 — il tetto di prestazione (E1, degradazione 0, senza preprocessing)")
     d = df[(df.esperimento == "E1") & (df.degrado == 0) & (df.preprocess == "none")]
     for matcher in sorted(d.matcher.unique()):
         m = d[(d.matcher == matcher) & d.success_stima]
         if m.empty or m.rmse_px.isna().all():
             continue
-        peggiore = m.rmse_px.max()
-        _riga(f"{matcher}: RMSE peggiore su {len(m)} combinazioni", f"{peggiore:.3f} px")
+        # Due tagli diversi, perché dicono cose diverse: il primo comprende le
+        # stime che RANSAC ha restituito pur essendo sbagliate di migliaia di
+        # pixel, il secondo solo quelle sotto la soglia dichiarata. Confonderli
+        # è il modo più facile di scrivere "sub-pixel" accanto a un fallimento.
+        riuscite = m[m.success == True]  # noqa: E712  (colonna, non booleano Python)
+        peggiore_ok = "—" if riuscite.empty else f"{riuscite.rmse_px.max():.3f} px"
+        _riga(
+            f"{matcher}: peggiore su {len(m)} combinazioni",
+            f"{m.rmse_px.max():>12.3f} px   ·  sulle sole riuscite: {peggiore_ok}",
+        )
+
+    print("\n  quale trasformazione fa più male (RMSE mediano per rotazione):")
+    intestazione = sorted(d.rot_deg.dropna().unique())
+    print("  " + "matcher".ljust(10) + "".join(f"{int(r):>10}°" for r in intestazione))
+    for matcher in sorted(d.matcher.unique()):
+        celle = []
+        for rot in intestazione:
+            g = d[(d.matcher == matcher) & (d.rot_deg == rot) & d.success_stima]
+            celle.append("—".rjust(11) if g.rmse_px.isna().all() else f"{g.rmse_px.median():>11.3f}")
+        print("  " + matcher.ljust(10) + "".join(celle))
 
     print("\n§8.2 — la rottura è un precipizio (SIFT, preprocess none, rot 15)")
     d = df[
@@ -75,6 +93,13 @@ def paragrafo_8(df) -> None:
             f"  {livello:>12.2f} {mediana:>14} "
             f"{100 * g.success.mean():>9.0f}% {int(g.n_matches.median()):>15}"
         )
+
+
+    print("\n§8.3 — nota sull'aggregazione")
+    e1 = df[df.esperimento == "E1"]
+    if not e1.rmse_px.isna().all():
+        _riga("RMSE massimo osservato su tutta E1", f"{e1.rmse_px.max():.0f} px")
+        _riga("(RANSAC restituisce una H anche quando è sbagliata così)", "")
 
 
 def paragrafo_9(df) -> None:
