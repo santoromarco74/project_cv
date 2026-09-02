@@ -45,6 +45,7 @@ COLONNE = (
     "ratio",
     "loftr_conf",
     "loftr_max_lato",
+    "ransac_thresh",
     "seed",
     "n_kp_a",
     "n_kp_b",
@@ -60,6 +61,30 @@ COLONNE = (
     "t_match_ms",
     "t_stima_ms",
 )
+
+
+def parametri_matcher(meta: dict) -> dict:
+    """I parametri del matcher che vanno nel CSV, letti dai suoi metadati.
+
+    Una variabile che influenza il risultato e non finisce nel CSV rende due
+    esperimenti diversi indistinguibili in tabella (I6, I9): con `--ratio 0.95`
+    la riga era identica a una con 0.75. Si legge da `meta`, cioè da quello che
+    il matcher dice di aver usato, e non dagli argomenti della CLI, che dicono
+    solo quello che è stato chiesto.
+
+    Ogni matcher riporta i suoi e nessun altro. Scrivere `ratio` accanto a una
+    riga di ORB significherebbe mettere a CSV un parametro finto, che nella
+    tabella sembra aver avuto un effetto: è la stessa ragione per cui la
+    pipeline non passa il ratio a ORB.
+    """
+    fuori = {}
+    if "ratio" in meta:  # SIFT
+        fuori["ratio"] = meta["ratio"]
+    if "soglia_conf" in meta:  # LoFTR
+        fuori["loftr_conf"] = meta["soglia_conf"]
+    if "max_lato" in meta:
+        fuori["loftr_max_lato"] = meta["max_lato"]
+    return fuori
 
 
 def errori_px(H_est: np.ndarray, H_true: np.ndarray, pts: np.ndarray) -> np.ndarray:
@@ -97,6 +122,11 @@ def valuta(
         "n_inliers": stima.n_inliers,
         "inlier_ratio": round(stima.inlier_ratio, 6),
         "motivo": stima.motivo,
+        # La soglia di RANSAC arriva dalla stima e non da chi chiama: così ogni
+        # esperimento la registra senza doversene ricordare. Resta vuota quando
+        # RANSAC non è mai partito (meno di 4 corrispondenze), perché in quel
+        # caso non c'è nessuna soglia che abbia agito.
+        "ransac_thresh": stima.meta.get("ransac_thresh"),
         "rmse_px": None,
         "rmse_m": None,
         "err_max_px": None,

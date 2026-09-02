@@ -22,7 +22,7 @@ import numpy as np
 from src.estimate import Stima
 from src.estimate import stima as stima_ransac
 from src.matchers.classic import crea_matcher
-from src.preprocess import applica
+from src.preprocess import applica, produce_binaria
 
 
 @dataclass(frozen=True)
@@ -102,6 +102,13 @@ def registra(img_hist: np.ndarray, img_modern: np.ndarray, opz: Opzioni | None =
     )
     t_stima = (time.perf_counter() - t0) * 1000
 
+    # Con `none` e `clahe` l'uscita del preprocessing non è binaria e `applica`
+    # ignora la morfologia. Riportare i valori richiesti darebbe righe di CSV che
+    # dichiarano una chiusura mai avvenuta: due configurazioni distinte in
+    # tabella, con risultati identici per forza, e nessun modo di accorgersene
+    # guardando il file. Si registra quello che è stato applicato.
+    morfologia_attiva = produce_binaria(opz.preprocess)
+
     return Risultato(
         stima=st,
         pts_hist=pts_a,
@@ -109,8 +116,10 @@ def registra(img_hist: np.ndarray, img_modern: np.ndarray, opz: Opzioni | None =
         meta=meta_match
         | {
             "preprocess": opz.preprocess,
-            "morph_open": opz.morph_open,
-            "morph_close": opz.morph_close,
+            "morph_open": opz.morph_open if morfologia_attiva else 0,
+            "morph_close": opz.morph_close if morfologia_attiva else 0,
+            "morfologia_ignorata": not morfologia_attiva
+            and bool(opz.morph_open or opz.morph_close),
             "modello": opz.model,
             "seed": opz.seed,
             "t_prep_ms": round(t_prep, 1),

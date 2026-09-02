@@ -119,6 +119,12 @@ def main(argv: list[str] | None = None) -> int:
         f"match {ris.stima.n_matches} · inlier {ris.stima.n_inliers} "
         f"({ris.stima.inlier_ratio:.3f}) · {ris.meta['t_match_ms']:.0f} ms"
     )
+    if ris.meta.get("morfologia_ignorata"):
+        print(
+            f"nota: --preprocess {args.preprocess} non produce un'immagine binaria, "
+            "--morph-open/--morph-close sono stati ignorati (e il CSV registra 0)",
+            file=sys.stderr,
+        )
     if args.verbose:
         for chiave, valore in sorted(ris.meta.items()):
             print(f"  {chiave}: {valore}")
@@ -159,10 +165,19 @@ def main(argv: list[str] | None = None) -> int:
             "n_inliers": ris.stima.n_inliers,
             "inlier_ratio": round(ris.stima.inlier_ratio, 6),
             "motivo": ris.stima.motivo,
+            # senza world file `valuta` non viene chiamato, ma la riga di CSV
+            # esiste lo stesso e deve descrivere l'esperimento per intero
+            "ransac_thresh": ris.stima.meta.get("ransac_thresh"),
         }
 
     riga |= {k: ris.meta.get(k) for k in ("preprocess", "morph_open", "morph_close", "seed")}
     riga |= {"t_match_ms": ris.meta["t_match_ms"], "t_stima_ms": ris.meta["t_stima_ms"]}
+    # I parametri del matcher: senza, `--ratio 0.95` e `--ratio 0.75` scrivono
+    # due righe identiche. `ransac_thresh` è già nella riga, da `valuta` o dal
+    # ramo senza world file.
+    from src.evaluate import parametri_matcher
+
+    riga |= parametri_matcher(ris.meta)
 
     if args.out_csv:
         from src.evaluate import append_csv

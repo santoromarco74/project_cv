@@ -27,6 +27,17 @@ import numpy as np
 MODI = ("none", "clahe", "otsu", "sauvola")
 DENOISE = ("none", "mediana", "bilaterale")
 
+# Modi che producono un'immagine binaria. Solo con questi la morfologia e la
+# rimozione delle componenti hanno un effetto: su un grayscale `applica` le
+# ignora. Sta qui, in un posto solo, perché serve anche a chi registra i
+# parametri nel CSV — vedi pipeline.registra.
+MODI_BINARI = ("otsu", "sauvola")
+
+
+def produce_binaria(modo: str) -> bool:
+    """Vero se `applica(..., modo=modo)` ritorna un'immagine binaria."""
+    return modo in MODI_BINARI
+
 
 def to_gray(img: np.ndarray) -> np.ndarray:
     return cv2.cvtColor(img, cv2.COLOR_BGR2GRAY) if img.ndim == 3 else img
@@ -199,7 +210,7 @@ def main(argv: list[str] | None = None) -> int:
         finestra=args.finestra,
         k=args.k,
     )
-    if args.modo in ("otsu", "sauvola"):
+    if produce_binaria(args.modo):
         print(f"inchiostro: {percentuale_inchiostro(out) * 100:.2f}% dei pixel")
     elif args.morph_open or args.morph_close or args.area_min:
         print("nota: morfologia e rimozione componenti ignorate, l'uscita non è binaria")

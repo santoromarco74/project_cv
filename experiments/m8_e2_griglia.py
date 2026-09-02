@@ -20,7 +20,7 @@ import time
 
 import cv2
 
-from src.evaluate import append_csv, valuta
+from src.evaluate import append_csv, parametri_matcher, valuta
 from src.groundtruth import h_true_from_jgw
 from src.io_geo import read_jgw
 from src.pipeline import Opzioni, registra
@@ -71,7 +71,7 @@ def _valuta_e_scrivi(args, nome, chiave_vec, codici, hist, ris, extra: dict) -> 
         "n_kp_b": ris.meta.get("n_kp_b"),
         "t_match_ms": ris.meta["t_match_ms"],
         "t_stima_ms": ris.meta["t_stima_ms"],
-    } | extra
+    } | parametri_matcher(ris.meta) | extra
     append_csv(args.out_csv, riga)
     return riga
 
@@ -219,7 +219,7 @@ def main(argv: list[str] | None = None) -> int:
             "n_kp_b": ris.meta.get("n_kp_b"),
             "t_match_ms": ris.meta["t_match_ms"],
             "t_stima_ms": ris.meta["t_stima_ms"],
-        }
+        } | parametri_matcher(ris.meta)
         append_csv(args.out_csv, riga)
         riusciti += bool(riga["success"])
         if i % 20 == 0 or i == len(prove):

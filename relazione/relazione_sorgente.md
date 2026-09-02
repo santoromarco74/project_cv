@@ -742,8 +742,9 @@ indirette di allineamento producono falsi positivi convincenti.
 
 <!-- TABELLA: e2 -->
 
-Su 180 prove, 47 raggiungono un RMSE sotto i 2 m. **Il cross-domain non fallisce
-del tutto**, ma il quadro ribalta E1 su ogni asse.
+Sulle 180 prove classiche — SIFT e ORB; le 90 righe LoFTR della tabella
+appartengono a E3 e si commentano in §10 — 47 raggiungono un RMSE sotto i 2 m.
+**Il cross-domain non fallisce del tutto**, ma il quadro ribalta E1 su ogni asse.
 
 **La migliore combinazione è ORB + Sauvola + similarità: 90% di successo, RMSE
 mediano 0.41 m.** È *sotto* il pavimento del riferimento: la registrazione è
@@ -831,11 +832,29 @@ Sul tasso di successo LoFTR **pareggia** ORB (90%), con RMSE mediano peggiore
 — funzionare dove i rilevatori a blob non hanno nulla da agganciare — **non si
 realizza su questi dati**.
 
-Dove è invece nettamente superiore è nella **qualità** delle corrispondenze: su
-E2 l'inlier ratio mediano è 0.288 contro 0.016 di ORB e 0.118 di SIFT. Sono due
-strade opposte allo stesso risultato: LoFTR trova poche corrispondenze molto
-pulite, ORB ne trova una massa e lascia a RANSAC il lavoro di setacciarle. Il
-solo tasso di successo nasconde questa differenza.
+Dove è invece nettamente superiore è nella **qualità** delle corrispondenze. Il
+confronto va però fatto sulle configurazioni che registrano davvero, e per una
+ragione che vale la pena esplicitare: le tre configurazioni LoFTR con CLAHE
+hanno gli inlier ratio più alti dell'intera griglia (0.354, 0.472, 0.236) e
+insieme sette corrispondenze mediane e un tasso di successo fra 0 e 10%. Un
+inlier ratio calcolato su sette corrispondenze non è confrontabile con uno
+calcolato su settecento: mediare sull'intera griglia **premia proprio le celle
+in cui il matcher non ha trovato niente**.
+
+Restringendo alle righe con Sauvola — quelle in cui tutti e tre i matcher
+registrano — il quadro è netto. Gli intervalli coprono i tre modelli geometrici
+e le due varianti di binarizzazione, e si leggono dalla tabella di §9.2:
+
+| matcher | inlier ratio | corrispondenze mediane |
+|---|---|---|
+| LoFTR | 0.276 – 0.293 | 477 – 487 |
+| SIFT  | 0.088 – 0.132 | 120 – 121 |
+| ORB   | 0.016 – 0.054 | 708 – 732 |
+
+Sono due strade opposte allo stesso risultato: LoFTR trova un numero moderato di
+corrispondenze quasi tutte utilizzabili, ORB ne trova una massa in cui gli inlier
+sono fra il 2% e il 5% e lascia a RANSAC il lavoro di setacciarle. Il solo tasso
+di successo nasconde questa differenza.
 
 ### 10.3 Anche LoFTR ha bisogno della binarizzazione
 
