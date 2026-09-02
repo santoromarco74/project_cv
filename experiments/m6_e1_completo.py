@@ -23,7 +23,7 @@ import cv2
 import numpy as np
 
 from src.estimate import stima as stima_ransac
-from src.evaluate import append_csv, valuta
+from src.evaluate import append_csv, parametri_matcher, valuta
 from src.io_geo import read_jgw
 from src.matchers.classic import crea_matcher
 from src.prep.crop import CROPS
@@ -84,7 +84,7 @@ def una_riga(
         "n_kp_b": meta.get("n_kp_b"),
         "t_match_ms": round(t_match, 1),
         "t_stima_ms": round(t_stima, 1),
-    }
+    } | parametri_matcher(meta)
     return riga
 
 

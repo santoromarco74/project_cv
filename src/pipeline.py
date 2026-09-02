@@ -22,7 +22,7 @@ import numpy as np
 from src.estimate import Stima
 from src.estimate import stima as stima_ransac
 from src.matchers.classic import crea_matcher
-from src.preprocess import applica
+from src.preprocess import applica, produce_binaria
 
 
 @dataclass(frozen=True)
@@ -62,17 +62,53 @@ class Risultato:
         return self.stima.success
 
 
+# Matcher già costruiti, riusati fra una registrazione e l'altra.
+#
+# `LoftrMatcher` tiene il modello in `self._modello`, ma finché l'istanza veniva
+# creata e buttata a ogni chiamata quella cache non serviva a niente: ogni
+# registrazione rifaceva `torch.load` del checkpoint da 90 MB, il
+# `load_state_dict` e il trasferimento sul device. In E3 sono 170 registrazioni,
+# quindi 170 caricamenti.
+#
+# Il riuso non cambia i risultati (I9): nessuno dei tre matcher porta stato da
+# una chiamata all'altra — gli oggetti di OpenCV sono riusabili per costruzione,
+# LoFTR gira in `eval()` dentro `inference_mode`. La chiave tiene separati
+# matcher con parametri diversi, che restano istanze distinte.
+_CACHE_MATCHER: dict[tuple, object] = {}
+
+
+def _chiave_matcher(opz: Opzioni) -> tuple:
+    """I parametri che definiscono un matcher: due opzioni diverse, due istanze."""
+    if opz.matcher == "sift":
+        return ("sift", opz.ratio)
+    if opz.matcher == "loftr":
+        return ("loftr", opz.loftr_conf, opz.loftr_max_lato)
+    return (opz.matcher,)
+
+
 def _costruisci_matcher(opz: Opzioni):
     """Ogni matcher riceve i suoi parametri e nessun altro.
 
     Il ratio test è di SIFT: passarlo a ORB sarebbe un parametro finto, che
     finirebbe nel CSV come se avesse avuto un effetto.
     """
-    if opz.matcher == "sift":
-        return crea_matcher("sift", ratio=opz.ratio)
-    if opz.matcher == "loftr":
-        return crea_matcher("loftr", soglia_conf=opz.loftr_conf, max_lato=opz.loftr_max_lato)
-    return crea_matcher(opz.matcher)
+    chiave = _chiave_matcher(opz)
+    if chiave not in _CACHE_MATCHER:
+        if opz.matcher == "sift":
+            costruito = crea_matcher("sift", ratio=opz.ratio)
+        elif opz.matcher == "loftr":
+            costruito = crea_matcher(
+                "loftr", soglia_conf=opz.loftr_conf, max_lato=opz.loftr_max_lato
+            )
+        else:
+            costruito = crea_matcher(opz.matcher)
+        _CACHE_MATCHER[chiave] = costruito
+    return _CACHE_MATCHER[chiave]
+
+
+def svuota_cache_matcher() -> None:
+    """Libera i matcher in cache. Utile nei test e per rilasciare il modello LoFTR."""
+    _CACHE_MATCHER.clear()
 
 
 def registra(img_hist: np.ndarray, img_modern: np.ndarray, opz: Opzioni | None = None) -> Risultato:
@@ -88,8 +124,20 @@ def registra(img_hist: np.ndarray, img_modern: np.ndarray, opz: Opzioni | None =
     b = applica(img_modern, modo=opz.preprocess, morph_open=opz.morph_open, morph_close=opz.morph_close)
     t_prep = (time.perf_counter() - t0) * 1000
 
+    # Costruzione e preparazione stanno FUORI dal cronometro del matching. Con
+    # LoFTR, includerle significava contare il caricamento del checkpoint dentro
+    # il tempo di inferenza — e quel tempo è uno dei risultati del confronto
+    # classico contro neurale (§10.1), non un dettaglio. Grazie alla cache il
+    # costo si paga alla prima registrazione e poi `t_init_ms` va a zero.
     t0 = time.perf_counter()
-    pts_a, pts_b, meta_match = _costruisci_matcher(opz).match(a, b)
+    matcher = _costruisci_matcher(opz)
+    prepara = getattr(matcher, "prepara", None)
+    if prepara is not None:
+        prepara()
+    t_init = (time.perf_counter() - t0) * 1000
+
+    t0 = time.perf_counter()
+    pts_a, pts_b, meta_match = matcher.match(a, b)
     t_match = (time.perf_counter() - t0) * 1000
 
     t0 = time.perf_counter()
@@ -102,6 +150,13 @@ def registra(img_hist: np.ndarray, img_modern: np.ndarray, opz: Opzioni | None =
     )
     t_stima = (time.perf_counter() - t0) * 1000
 
+    # Con `none` e `clahe` l'uscita del preprocessing non è binaria e `applica`
+    # ignora la morfologia. Riportare i valori richiesti darebbe righe di CSV che
+    # dichiarano una chiusura mai avvenuta: due configurazioni distinte in
+    # tabella, con risultati identici per forza, e nessun modo di accorgersene
+    # guardando il file. Si registra quello che è stato applicato.
+    morfologia_attiva = produce_binaria(opz.preprocess)
+
     return Risultato(
         stima=st,
         pts_hist=pts_a,
@@ -109,11 +164,14 @@ def registra(img_hist: np.ndarray, img_modern: np.ndarray, opz: Opzioni | None =
         meta=meta_match
         | {
             "preprocess": opz.preprocess,
-            "morph_open": opz.morph_open,
-            "morph_close": opz.morph_close,
+            "morph_open": opz.morph_open if morfologia_attiva else 0,
+            "morph_close": opz.morph_close if morfologia_attiva else 0,
+            "morfologia_ignorata": not morfologia_attiva
+            and bool(opz.morph_open or opz.morph_close),
             "modello": opz.model,
             "seed": opz.seed,
             "t_prep_ms": round(t_prep, 1),
+            "t_init_ms": round(t_init, 1),
             "t_match_ms": round(t_match, 1),
             "t_stima_ms": round(t_stima, 1),
         },

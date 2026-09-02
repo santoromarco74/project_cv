@@ -234,10 +234,18 @@ def _salva(fig, out_path: str) -> None:
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--crop", default="ribba", help="nome del crop, o 'tutti'")
+    # Le due figure di dettaglio (chiusura, gradiente) riguardano un crop solo:
+    # affiancare cinque volte lo stesso confronto non aggiunge nulla. Il crop va
+    # però nominato, non dedotto da `nomi[0]`: con `--crop tutti` quello è
+    # `tassarole`, e la relazione cita `m5_chiusura_ribba.png`. Dedurlo
+    # significava che il comando documentato nel README generava figure con un
+    # altro nome, e la relazione restava con due immagini rotte.
+    ap.add_argument("--dettaglio", default="ribba", help="crop delle figure chiusura/gradiente")
     ap.add_argument("--out", default="results/figures")
     args = ap.parse_args(argv)
 
     nomi = [c.nome for c in CROPS] if args.crop == "tutti" else [args.crop]
+    dettaglio = args.dettaglio if args.crop == "tutti" else nomi[0]
     tutte: list[dict] = []
     for nome in nomi:
         path = f"data/crops/{nome}.png"
@@ -246,16 +254,20 @@ def main(argv: list[str] | None = None) -> int:
             raise FileNotFoundError(f"{path} — genera prima i crop (M1)")
         tutte += figura(nome, img, os.path.join(args.out, f"m5_preprocess_{nome}.png"))
 
+    img_dettaglio = cv2.imread(f"data/crops/{dettaglio}.png", cv2.IMREAD_COLOR)
+    if img_dettaglio is None:
+        raise FileNotFoundError(f"data/crops/{dettaglio}.png — genera prima i crop (M1)")
+
     aggiunti, totali = figura_chiusura(
-        nomi[0],
-        cv2.imread(f"data/crops/{nomi[0]}.png", cv2.IMREAD_COLOR),
-        os.path.join(args.out, f"m5_chiusura_{nomi[0]}.png"),
+        dettaglio,
+        img_dettaglio,
+        os.path.join(args.out, f"m5_chiusura_{dettaglio}.png"),
     )
 
     gradiente = figura_gradiente(
-        nomi[0],
-        cv2.imread(f"data/crops/{nomi[0]}.png", cv2.IMREAD_COLOR),
-        os.path.join(args.out, f"m5_gradiente_{nomi[0]}.png"),
+        dettaglio,
+        img_dettaglio,
+        os.path.join(args.out, f"m5_gradiente_{dettaglio}.png"),
     )
 
     print()

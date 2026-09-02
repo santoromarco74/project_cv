@@ -742,8 +742,9 @@ indirette di allineamento producono falsi positivi convincenti.
 
 <!-- TABELLA: e2 -->
 
-Su 180 prove, 47 raggiungono un RMSE sotto i 2 m. **Il cross-domain non fallisce
-del tutto**, ma il quadro ribalta E1 su ogni asse.
+Sulle 180 prove classiche — SIFT e ORB; le 90 righe LoFTR della tabella
+appartengono a E3 e si commentano in §10 — 47 raggiungono un RMSE sotto i 2 m.
+**Il cross-domain non fallisce del tutto**, ma il quadro ribalta E1 su ogni asse.
 
 **La migliore combinazione è ORB + Sauvola + similarità: 90% di successo, RMSE
 mediano 0.41 m.** È *sotto* il pavimento del riferimento: la registrazione è
@@ -821,21 +822,47 @@ Il confronto è onesto solo se si dichiara ciò che non è simmetrico:
    risoluzione. LoFTR lavora su una griglia a 1/8 e il costo cresce col quadrato
    del lato: a 1024 px su CPU diventa proibitivo. I keypoint vengono riportati
    alle coordinate originali, quindi `H_est` resta nei pixel di partenza.
-2. **Il costo per registrazione è di un altro ordine di grandezza**: circa 5
-   secondi contro 0.14 (ORB) e 0.71 (SIFT). Fa parte del risultato.
+2. **Il costo per registrazione è di un altro ordine di grandezza**, e la
+   colonna `t_ms` della tabella lo riporta per la configurazione migliore di
+   ciascun matcher. Fa parte del risultato. Quel tempo misura la **sola
+   inferenza**: il caricamento del checkpoint di LoFTR — 90 MB — sta in una
+   colonna a parte del CSV (`t_init_ms`) e non viene attribuito al matching.
+   Tenerli separati è ciò che rende il confronto leggibile, perché sono due
+   costi di natura diversa: quello iniziale si paga una volta e si ammortizza
+   già alla seconda registrazione, quello ricorrente è ciò che conta davvero
+   quando i fogli da registrare sono molti.
 
 ### 10.2 LoFTR non ribalta il cross-domain
 
 Sul tasso di successo LoFTR **pareggia** ORB (90%), con RMSE mediano peggiore
-(0.593 contro 0.404 m) e circa 36 volte il tempo. La promessa del detector-free
+(0.593 contro 0.404 m) e un tempo per registrazione di un ordine di grandezza
+superiore, che si legge nella colonna `t_ms`. La promessa del detector-free
 — funzionare dove i rilevatori a blob non hanno nulla da agganciare — **non si
 realizza su questi dati**.
 
-Dove è invece nettamente superiore è nella **qualità** delle corrispondenze: su
-E2 l'inlier ratio mediano è 0.288 contro 0.016 di ORB e 0.118 di SIFT. Sono due
-strade opposte allo stesso risultato: LoFTR trova poche corrispondenze molto
-pulite, ORB ne trova una massa e lascia a RANSAC il lavoro di setacciarle. Il
-solo tasso di successo nasconde questa differenza.
+Dove è invece nettamente superiore è nella **qualità** delle corrispondenze. Il
+confronto va però fatto sulle configurazioni che registrano davvero, e per una
+ragione che vale la pena esplicitare: le tre configurazioni LoFTR con CLAHE
+hanno gli inlier ratio più alti dell'intera griglia (0.354, 0.472, 0.236) e
+insieme sette corrispondenze mediane e un tasso di successo fra 0 e 10%. Un
+inlier ratio calcolato su sette corrispondenze non è confrontabile con uno
+calcolato su settecento: mediare sull'intera griglia **premia proprio le celle
+in cui il matcher non ha trovato niente**.
+
+Restringendo alle righe con Sauvola — quelle in cui tutti e tre i matcher
+registrano — il quadro è netto. Gli intervalli coprono i tre modelli geometrici
+e le due varianti di binarizzazione, e si leggono dalla tabella di §9.2:
+
+| matcher | inlier ratio | corrispondenze mediane |
+|---|---|---|
+| LoFTR | 0.276 – 0.293 | 477 – 487 |
+| SIFT  | 0.088 – 0.132 | 120 – 121 |
+| ORB   | 0.016 – 0.054 | 708 – 732 |
+
+Sono due strade opposte allo stesso risultato: LoFTR trova un numero moderato di
+corrispondenze quasi tutte utilizzabili, ORB ne trova una massa in cui gli inlier
+sono fra il 2% e il 5% e lascia a RANSAC il lavoro di setacciarle. Il solo tasso
+di successo nasconde questa differenza.
 
 ### 10.3 Anche LoFTR ha bisogno della binarizzazione
 
@@ -909,6 +936,8 @@ python -m src.main --hist <crop.png> --modern <raster.png> [opzioni]
   --soglia-m <float>        soglia di successo in metri
   --out-csv <path>          default results/runs.csv (in append)
   --out-figure <path>       overlay del warp + corrispondenze
+  --esperimento <str>       etichetta nella colonna `esperimento` del CSV
+  --crop <str>              etichetta nella colonna `crop` del CSV
   --verbose
 ```
 
@@ -952,7 +981,7 @@ python -m src.prep.rasterize --crop ribba --codici 18,12
 python -m experiments.m7_rasterize_check --crop ribba
 
 # confronto dei preprocessing
-python -m experiments.m5_preprocess --crop tutti
+python -m experiments.m5_preprocess --crop tutti --dettaglio ribba
 
 # gli esperimenti: E1, E2, la diagnosi del ratio, E3
 python -m experiments.m6_e1_completo --riparti
@@ -969,6 +998,37 @@ python -m scripts.componi_relazione
 # i test
 python -m tests.test_smoke
 ```
+
+### 11.4 Riprodurre tutto in un comando
+
+I comandi di §11.3 vanno eseguiti in quest'ordine, e l'ordine non è arbitrario:
+i ritagli prima della rasterizzazione, la rasterizzazione prima di E2, gli
+esperimenti prima delle tabelle, le tabelle prima di questo documento. Eseguirli
+a mano funziona, ma un passo dimenticato non dà errore: produce un CSV parziale
+e tabelle che sembrano complete.
+
+```bash
+python -m scripts.riproduci --controlla   # verifica le precondizioni, non esegue
+python -m scripts.riproduci --lista       # le fasi, in ordine, con i tempi
+python -m scripts.riproduci               # tutto tranne E3      (~18 min)
+python -m scripts.riproduci --con-loftr   # tutto, E3 compreso   (~60 min)
+```
+
+Lo script stampa ogni comando prima di eseguirlo — il log di una corsa è la
+versione eseguita di §11.3 — e dopo ogni fase verifica che gli artefatti attesi
+esistano davvero: un comando che esce con codice 0 senza aver scritto quello che
+doveva ferma la corsa, che riprende con `--da <fase>`. In coda controlla che ogni
+figura citata da questa relazione sia stata prodotta e che nessun segnaposto di
+tabella sia rimasto vuoto.
+
+Il controllo delle precondizioni non è formalità. `m6_e1_completo` e
+`m9_e3_loftr` leggono il world file del foglio con
+`read_jgw(args.jgw) if os.path.exists(args.jgw) else None`: se quel file manca —
+e `data/raw/` non è versionata — l'errore in metri resta indefinito per ogni
+riga e `success` diventa False per tutte e quattrocento le prove. L'esperimento
+gira fino in fondo e conclude "0 riuscite", che si legge come un algoritmo che
+fallisce e invece è un file assente. È la stessa classe di falso positivo
+convincente di §12.2, e l'unica difesa è verificare prima.
 
 ---
 
@@ -1054,11 +1114,14 @@ dove invece reggono meglio del previsto.
 3. **Il modello geometrico conta più del matcher**: a parità di corrispondenze,
    passare da omografia a similarità porta il successo dal 18% al 50%. Con inlier
    ratio bassi, vincolare è necessario.
-4. **Il preprocessing conta più della rete**: su E2 tutti e tre i matcher, LoFTR
-   incluso, funzionano solo con Sauvola e falliscono con CLAHE.
+4. **Il preprocessing conta più della rete**: su E2 è la binarizzazione di
+   Sauvola a far funzionare tutti e tre i matcher, LoFTR incluso. Con CLAHE SIFT
+   non riesce mai e LoFTR quasi mai; ORB tiene solo se vincolato alla similarità
+   (50% di successo) e va a zero con affine e omografia.
 5. **Il matcher neurale non ribalta il risultato**: pareggia ORB sul successo,
-   con errore maggiore e costo 36 volte superiore — ma con corrispondenze molto
-   più pulite, il che indica che il collo di bottiglia è altrove.
+   con errore maggiore e un costo per registrazione di un ordine di grandezza
+   superiore — ma con corrispondenze molto più pulite, il che indica che il collo
+   di bottiglia è altrove.
 6. **Due ipotesi sono state smentite dai dati** e riportate come tali: il ratio
    test troppo severo (§9.3) e il fallimento atteso di Otsu (§6.3).
 

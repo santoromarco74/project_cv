@@ -97,6 +97,16 @@ class LoftrMatcher:
 
     # ------------------------------------------------------------------ interfaccia
 
+    def prepara(self) -> None:
+        """Carica il modello adesso, invece che alla prima `match`.
+
+        Metodo opzionale dell'interfaccia (matchers/base.py): la pipeline lo
+        chiama, se c'è, fuori dal cronometro del matching. Senza, il
+        caricamento del checkpoint finirebbe dentro il tempo di inferenza, che
+        è uno dei risultati del confronto classico/neurale (§10.1).
+        """
+        self._carica()
+
     def match(self, img_a: np.ndarray, img_b: np.ndarray) -> tuple[np.ndarray, np.ndarray, dict]:
         import torch  # noqa: PLC0415
 
