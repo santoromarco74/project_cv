@@ -1114,11 +1114,14 @@ dove invece reggono meglio del previsto.
 3. **Il modello geometrico conta più del matcher**: a parità di corrispondenze,
    passare da omografia a similarità porta il successo dal 18% al 50%. Con inlier
    ratio bassi, vincolare è necessario.
-4. **Il preprocessing conta più della rete**: su E2 tutti e tre i matcher, LoFTR
-   incluso, funzionano solo con Sauvola e falliscono con CLAHE.
+4. **Il preprocessing conta più della rete**: su E2 è la binarizzazione di
+   Sauvola a far funzionare tutti e tre i matcher, LoFTR incluso. Con CLAHE SIFT
+   non riesce mai e LoFTR quasi mai; ORB tiene solo se vincolato alla similarità
+   (50% di successo) e va a zero con affine e omografia.
 5. **Il matcher neurale non ribalta il risultato**: pareggia ORB sul successo,
-   con errore maggiore e costo 36 volte superiore — ma con corrispondenze molto
-   più pulite, il che indica che il collo di bottiglia è altrove.
+   con errore maggiore e un costo per registrazione di un ordine di grandezza
+   superiore — ma con corrispondenze molto più pulite, il che indica che il collo
+   di bottiglia è altrove.
 6. **Due ipotesi sono state smentite dai dati** e riportate come tali: il ratio
    test troppo severo (§9.3) e il fallimento atteso di Otsu (§6.3).
 
