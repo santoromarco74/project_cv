@@ -36,6 +36,47 @@ Il progetto affronta il problema in due componenti, secondo la traccia approvata
 - **B — Comparativo**: confronto quantitativo con un matcher *detector-free*
   di deep learning (LoFTR), nella stessa identica pipeline.
 
+### 1.1 Gli argomenti del corso che il progetto attraversa
+
+La registrazione di due immagini è un **metodo di allineamento**, che nel
+programma del corso compare fra i processi di riconoscimento accanto al
+confronto diretto e ai metodi basati su proprietà invarianti. Il progetto tocca
+tutte e tre queste voci: allinea, usa descrittori invarianti a scala e
+rotazione, e mette alla prova il confronto diretto — che su questi dati non
+funziona, per la ragione misurata in §12.2.
+
+Anche il preprocessing di §6 viene dal programma, e non da una scelta di comodo:
+le tre strade messe a confronto — soglia globale, contrasto locale, morfologia —
+sono tre lezioni distinte. Qui sotto, dove il progetto tocca il corso.
+
+| lezione | argomento | dove compare |
+|---|---|---|
+| CV02 | segmentazione, immagini binarie, distribuzione bimodale | Otsu come soglia globale, e Sauvola come sua versione locale (§6.1) |
+| CV03 | istogrammi, LUT, operazioni locali | CLAHE, l'alternativa che non binarizza (§6.1) |
+| CV04 | morfologia matematica binaria | apertura e chiusura con elemento strutturante (§6.1) |
+| CV06 | pattern recognition e ricerca visiva | la ricerca di corrispondenze fra le due immagini (§7.1) |
+| CV08 | analisi di regioni, componenti connesse | `rimuovi_componenti` in `preprocess.py`, che elimina le macchie più piccole di una soglia |
+
+Tre precisazioni, per non attribuirsi più di quanto ci sia.
+
+La morfologia usata è quella **binaria** di CV04: l'estensione ai toni di grigio
+di CV05 non serve, perché a valle della binarizzazione l'immagine è già a due
+livelli. L'analisi di componenti connesse di CV08 è implementata ma **resta
+fuori dalla griglia sperimentale**: eliminare le macchie piccole toglie anche i
+blob su cui SIFT trova i suoi punti, e misurare quel compromesso avrebbe
+aggiunto un asse a un piano già ampio. Della multirisoluzione di CV09 il
+progetto sfrutta solo l'invarianza di scala di SIFT, senza svilupparne il tema.
+
+Il corso tratta inoltre fotometria, compressione, visione tridimensionale e
+sintesi di immagini, che qui non compaiono: la traccia chiede la soluzione di
+*un* problema di visione, non una rassegna del programma.
+
+Un'ultima nota sulla forma. La traccia distingue fra l'implementazione di un
+algoritmo e la soluzione di un problema con librerie standard. Qui ci sono
+entrambe le cose: OpenCV fornisce SIFT, ORB e RANSAC, ma **Sauvola è scritto da
+zero** con le immagini integrali (§6.1), e con lui il parser del formato CXF
+(§3.3) e la composizione analitica della trasformazione di riferimento (§4).
+
 ---
 
 ## 2. Come funziona, in concreto
