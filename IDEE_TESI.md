@@ -22,7 +22,7 @@ percorse e già chiuse, e riaprirle sarebbe uno spreco.
 di successo fra 0 e 10%; con Sauvola ne ottiene 477 e sale al 60-80%, e con
 Sauvola più chiusura 487 e fino al 90%. La dipendenza dal preprocessing è
 condivisa: SIFT con CLAHE non riesce mai, in nessuno dei tre modelli, e ORB con
-CLAHE riesce solo con la similarità (50%) mentre affine e omografia vanno a zero.
+CLAHE riesce solo con la similarità (60%) mentre affine e omografia vanno a zero.
 Il risultato più interessante della componente comparativa non è che LoFTR vinca
 o perda, è che **tutti e tre i matcher dipendono dalla stessa cosa**, e quella
 cosa è il preprocessing.
@@ -88,7 +88,7 @@ una tesi intera, non un capitolo.
 ### 1.4 Il modello geometrico conta più del matcher
 
 **Il fatto.** Su E2, passando da omografia a similarità il tasso di successo va
-dal 17.8% al 50%, a parità di corrispondenze. L'affine sta in mezzo al 33.3%.
+dal 18.9% al 53.3%, a parità di corrispondenze. L'affine sta in mezzo al 32.2%.
 Con inlier ratio bassi, vincolare è necessario: gradi di libertà in più
 significano capacità di adattarsi anche alle corrispondenze sbagliate.
 
@@ -102,7 +102,29 @@ applicata a un caso in cui la penalizzazione per l'overfitting è misurabile.
 **Cosa servirebbe.** Poco: i dati ci sono già. È forse il proseguimento più
 economico dell'intero elenco.
 
-### 1.5 Fragilità del neurale alla degradazione
+### 1.5 Il muro della rotazione, e cosa ci sta dietro
+
+**Il fatto.** Su E1 senza degradazione, dove l'unica variabile è la
+trasformazione geometrica, l'RMSE mediano di LoFTR per ampiezza di rotazione è
+0.029 px a 0°, 0.200 a 15°, **1.111 a 30°, 3583 a 45° e 12047 a 90°**. SIFT e
+ORB, sulle stesse identiche prove, restano sotto il pixel fino a 90°.
+
+**La domanda.** La spiegazione strutturale è chiara — SIFT e ORB stimano un
+orientamento per keypoint e ruotano il descrittore, LoFTR non ha keypoint e
+l'invarianza può solo averla imparata — ma apre una domanda progettuale: la si
+può restituire dall'esterno, senza riaddestrare? Due strade testabili con i
+dati già in casa: stimare l'orientamento dominante dell'immagine (dalla
+distribuzione dei gradienti, o dall'orientamento prevalente del reticolo di
+confini) e pre-ruotare prima di dare in pasto a LoFTR; oppure lanciare LoFTR su
+un ventaglio di rotazioni e tenere l'ipotesi con più inlier. La seconda costa
+poco da scrivere e molto da eseguire, la prima il contrario.
+
+**Perché conta.** È il punto in cui il classico batte il neurale per una
+ragione di progetto e non di taratura, e su questi dati non si vede perché la
+rotazione fra storico e vettoriale è piccola. Su un archivio vero — fogli
+scansionati come capita — sarebbe il primo problema da risolvere.
+
+### 1.6 Fragilità del neurale alla degradazione
 
 **Il fatto.** Su E1 senza preprocessing, al crescere della degradazione il tasso
 di successo di LoFTR va 100% → 100% → 20% → 0%, mentre SIFT tiene 100% → 80% →
@@ -288,10 +310,12 @@ In ordine di costo crescente:
 
 1. **Selezione automatica del modello geometrico** (§1.4) — i dati ci sono già.
 2. **Sweep detezione/ratio a corrispondenze costanti** (§1.2) — un esperimento.
-3. **Metrica di confidenza senza riferimento, validata contro l'RMSE noto**
+3. **Restituire a LoFTR l'invarianza alla rotazione dall'esterno** (§1.5) — il
+   limite è già misurato, resta da provare se pre-ruotare basta a toglierlo.
+4. **Metrica di confidenza senza riferimento, validata contro l'RMSE noto**
    (§2.1) — è il contributo metodologico più difendibile, e questi dati sono il
    banco di prova giusto.
-4. **Decine di fogli** (§3.2) — soprattutto raccolta dati, ma senza non si dice
+5. **Decine di fogli** (§3.2) — soprattutto raccolta dati, ma senza non si dice
    nulla di generale.
-5. **Abbinamento topologico sul grafo delle particelle** (§1.3) — il filone più
+6. **Abbinamento topologico sul grafo delle particelle** (§1.3) — il filone più
    promettente, e da solo una tesi intera.

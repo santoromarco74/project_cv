@@ -721,25 +721,46 @@ problema è nel codice.
 
 ### 8.1 Il tetto di prestazione
 
-In assenza di degradazione **SIFT** recupera la trasformazione con errore
-sub-pixel su tutte e 35 le combinazioni di ritaglio e trasformazione: nel caso
-peggiore 0.502 px, cioè 0.128 m. Su un riferimento il cui pavimento è ~0.5 m
-resta sotto di un fattore quattro anche là dove sbaglia di più, ed è il segnale
-che la pipeline è corretta.
+In assenza di degradazione, **sulle prove che riescono**, tutti e tre i matcher
+recuperano la trasformazione con errore sub-pixel: nel caso peggiore 0.502 px
+per SIFT (0.128 m), 0.801 per LoFTR, 0.930 per ORB. Su un riferimento il cui
+pavimento è ~0.5 m questo sta sotto di un fattore quattro, ed è il segnale che
+la pipeline è corretta.
 
-Gli altri due non reggono altrettanto uniformemente, e va detto invece che
-lasciato alla tabella: sempre senza degradazione, il caso peggiore è di 4.6 px
-per ORB e di alcune migliaia di pixel per LoFTR. A degradazione nulla l'unica
-variabile è la trasformazione geometrica, quindi quei fallimenti sono
-**geometrici e non radiometrici**: non dipendono dallo stato della carta, che è
-identico in tutte e 35 le prove, ma da quanto la trasformazione deforma.
+La riserva conta però quanto l'affermazione, perché non tutte le prove
+riescono. Su tutte e 35 le combinazioni di ritaglio e trasformazione, sempre
+senza alcuna degradazione, il caso peggiore è 0.502 px per SIFT ma **4.6 px per
+ORB e 33128 px per LoFTR**. A degradazione nulla l'unica variabile è la
+trasformazione geometrica — la carta è identica in tutte le prove — quindi quei
+fallimenti sono **geometrici e non radiometrici**.
 
-Il caso più difficile è sempre la **rotazione ampia**, su tutti i ritagli: è il
-costo dell'interpolazione del warp e della quantizzazione dell'orientamento dei
-descrittori. La differenza è che SIFT lo paga in centesimi di pixel, mentre
-LoFTR lo paga fallendo — coerente con il fatto che i matcher detector-free non
-sono invarianti alla rotazione per costruzione, ma la incontrano soltanto
-attraverso i dati di addestramento.
+Scomponendo per ampiezza della rotazione si vede esattamente dove, e il quadro
+è netto (RMSE mediano in pixel, senza preprocessing):
+
+| matcher | 0° | 5° | 15° | 30° | 45° | 90° |
+|---|---|---|---|---|---|---|
+| SIFT | 0.000 | 0.033 | 0.108 | 0.187 | 0.269 | 0.501 |
+| ORB | 0.000 | 0.310 | 0.406 | 0.420 | 0.491 | 0.478 |
+| LoFTR | 0.029 | 0.073 | 0.200 | **1.111** | **3583** | **12047** |
+
+Per SIFT e ORB l'errore cresce con la rotazione ma resta sotto il pixel fino a
+90°: è il costo dell'interpolazione del warp e della quantizzazione
+dell'orientamento dei descrittori, non un difetto. **LoFTR invece regge fino a
+30° e poi si rompe**: a 45° l'errore mediano è di tremila pixel, a 90° di
+dodicimila.
+
+È il limite più netto emerso da E1, e ha una spiegazione strutturale. SIFT e ORB
+stimano un orientamento dominante per ogni keypoint e ruotano il descrittore di
+conseguenza: l'invarianza alla rotazione è costruita dentro il metodo, e vale
+per qualunque angolo. LoFTR non ha keypoint e non ha orientamenti — mette in
+corrispondenza due griglie dense di feature — quindi quell'invarianza può solo
+averla imparata dagli esempi di addestramento, che sono fotografie di scene
+naturali dove le rotazioni oltre i 30° sono rare. Fuori da quella distribuzione
+non c'è niente che la garantisca, e infatti non la garantisce.
+
+Vale la pena notare che su E2 la rotazione fra storico e vettoriale è modesta,
+ed è per questo che LoFTR lì compete: il suo punto debole non viene sollecitato.
+Su un foglio scansionato di traverso, invece, sarebbe il primo a cedere.
 
 ### 8.2 La rottura è un precipizio, non una discesa
 
@@ -761,9 +782,10 @@ esiste. Il campionamento è stato infittito sopra 1.0 per catturare la soglia.
 ### 8.3 Nota sull'aggregazione
 
 Oltre la soglia di rottura RANSAC **restituisce comunque una `H`**, ma sbagliata
-di migliaia di pixel: il massimo osservato è 12615 px. Una sola stima di questo
-tipo trascina la media dell'intero gruppo, producendo "RMSE medi" di centinaia di
-pixel che non descrivono né i casi buoni né i cattivi.
+di migliaia di pixel; lo stesso capita a LoFTR sulle rotazioni ampie di §8.1,
+dove nessuna degradazione è in gioco. Il massimo osservato su E1 è 33128 px. Una
+sola stima di questo tipo trascina la media dell'intero gruppo, producendo "RMSE
+medi" di centinaia di pixel che non descrivono né i casi buoni né i cattivi.
 
 Per questo le tabelle riportano la **mediana** accompagnata dal **tasso di
 successo**, che è la grandezza che descrive i casi cattivi. Le curve usano
@@ -1262,7 +1284,11 @@ dove invece reggono meglio del previsto.
 5. **Il matcher neurale non ribalta il risultato**: pareggia ORB sul successo,
    con errore maggiore e un costo per registrazione di un ordine di grandezza
    superiore — ma con corrispondenze molto più pulite, il che indica che il collo
-   di bottiglia è altrove.
+   di bottiglia è altrove. Ha però un limite che i classici non hanno: **oltre i
+   30° di rotazione si rompe** (§8.1), perché l'invarianza che SIFT e ORB
+   costruiscono per progetto lui può solo averla imparata dai dati di
+   addestramento. Su questi ritagli non si vede, perché la rotazione in gioco è
+   piccola; su un foglio scansionato di traverso sarebbe il primo a cedere.
 6. **Due ipotesi sono state smentite dai dati** e riportate come tali: il ratio
    test troppo severo (§9.3) e il fallimento atteso di Otsu (§6.3).
 
