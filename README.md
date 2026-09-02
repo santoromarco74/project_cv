@@ -35,10 +35,32 @@ python -m src.main --hist data/crops/ribba.png --modern data/crops/ribba_vec.png
 
 Elenco completo delle opzioni: `python -m src.main --help`.
 
+## Riprodurre tutto
+
+I dati AdE non stanno nel repository (§5.8), quindi vanno rimessi in `data/raw/`
+seguendo `data/README.md`. Fatto quello, l'intera catena — ritagli,
+rasterizzazione, esperimenti, figure, tabelle, relazione — sta in un comando:
+
+```bash
+python -m scripts.riproduci --controlla   # verifica le precondizioni, non esegue
+python -m scripts.riproduci --lista       # le fasi, in ordine, con i tempi
+python -m scripts.riproduci               # tutto tranne E3      (~18 min)
+python -m scripts.riproduci --con-loftr   # tutto, E3 compreso   (~60 min)
+```
+
+Ogni comando viene stampato prima di essere eseguito, e ogni fase dichiara gli
+artefatti che deve produrre: se un comando esce con codice 0 ma non ha scritto
+quello che doveva, la corsa si ferma lì e dice da dove riprendere
+(`--da <fase>`). In coda si verifica che ogni figura citata dalla relazione
+esista davvero e che nessun segnaposto di tabella sia rimasto vuoto.
+
+Senza `--con-loftr` la relazione esce completa tranne la figura del capitolo 10,
+e lo script lo dice invece di lasciarlo scoprire aprendo il PDF.
+
 ## Stato (M1 → M10)
 
 `src/main.py` implementa il contratto di §9. Gli esperimenti passano dalla stessa
-pipeline: cambia solo `--matcher`. Quello che gira oggi:
+pipeline: cambia solo `--matcher`. I singoli comandi, se servono uno alla volta:
 
 ```bash
 # M1 — genera i 5 ritagli di CLAUDE.md §5.6 (PNG + world file affiancato)
@@ -63,7 +85,7 @@ python -m experiments.m4_e1_smoke --crop tutti --matcher orb --modello affine
 
 # M5 — preprocessing: Otsu vs Sauvola vs CLAHE, morfologia
 python -m src.preprocess --crop data/crops/ribba.png --preprocess sauvola --morph-close 1
-python -m experiments.m5_preprocess --crop tutti
+python -m experiments.m5_preprocess --crop tutti --dettaglio ribba
 
 # M6 — E1 completo: la griglia intera, un CSV (~4 min)
 python -m experiments.m6_e1_completo --riparti

@@ -987,6 +987,8 @@ python -m src.main --hist <crop.png> --modern <raster.png> [opzioni]
   --soglia-m <float>        soglia di successo in metri
   --out-csv <path>          default results/runs.csv (in append)
   --out-figure <path>       overlay del warp + corrispondenze
+  --esperimento <str>       etichetta nella colonna `esperimento` del CSV
+  --crop <str>              etichetta nella colonna `crop` del CSV
   --verbose
 ```
 
@@ -1030,7 +1032,7 @@ python -m src.prep.rasterize --crop ribba --codici 18,12
 python -m experiments.m7_rasterize_check --crop ribba
 
 # confronto dei preprocessing
-python -m experiments.m5_preprocess --crop tutti
+python -m experiments.m5_preprocess --crop tutti --dettaglio ribba
 
 # gli esperimenti: E1, E2, la diagnosi del ratio, E3
 python -m experiments.m6_e1_completo --riparti
@@ -1047,6 +1049,37 @@ python -m scripts.componi_relazione
 # i test
 python -m tests.test_smoke
 ```
+
+### 11.4 Riprodurre tutto in un comando
+
+I comandi di §11.3 vanno eseguiti in quest'ordine, e l'ordine non è arbitrario:
+i ritagli prima della rasterizzazione, la rasterizzazione prima di E2, gli
+esperimenti prima delle tabelle, le tabelle prima di questo documento. Eseguirli
+a mano funziona, ma un passo dimenticato non dà errore: produce un CSV parziale
+e tabelle che sembrano complete.
+
+```bash
+python -m scripts.riproduci --controlla   # verifica le precondizioni, non esegue
+python -m scripts.riproduci --lista       # le fasi, in ordine, con i tempi
+python -m scripts.riproduci               # tutto tranne E3      (~18 min)
+python -m scripts.riproduci --con-loftr   # tutto, E3 compreso   (~60 min)
+```
+
+Lo script stampa ogni comando prima di eseguirlo — il log di una corsa è la
+versione eseguita di §11.3 — e dopo ogni fase verifica che gli artefatti attesi
+esistano davvero: un comando che esce con codice 0 senza aver scritto quello che
+doveva ferma la corsa, che riprende con `--da <fase>`. In coda controlla che ogni
+figura citata da questa relazione sia stata prodotta e che nessun segnaposto di
+tabella sia rimasto vuoto.
+
+Il controllo delle precondizioni non è formalità. `m6_e1_completo` e
+`m9_e3_loftr` leggono il world file del foglio con
+`read_jgw(args.jgw) if os.path.exists(args.jgw) else None`: se quel file manca —
+e `data/raw/` non è versionata — l'errore in metri resta indefinito per ogni
+riga e `success` diventa False per tutte e quattrocento le prove. L'esperimento
+gira fino in fondo e conclude "0 riuscite", che si legge come un algoritmo che
+fallisce e invece è un file assente. È la stessa classe di falso positivo
+convincente di §12.2, e l'unica difesa è verificare prima.
 
 ---
 
