@@ -55,6 +55,7 @@ def _riga_base(opz: Opzioni, ris) -> dict:
         "seed": opz.seed,
         "n_kp_a": ris.meta.get("n_kp_a"),
         "n_kp_b": ris.meta.get("n_kp_b"),
+        "t_init_ms": ris.meta["t_init_ms"],
         "t_match_ms": ris.meta["t_match_ms"],
         "t_stima_ms": ris.meta["t_stima_ms"],
     }

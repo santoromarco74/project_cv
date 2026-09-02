@@ -171,7 +171,7 @@ def main(argv: list[str] | None = None) -> int:
         }
 
     riga |= {k: ris.meta.get(k) for k in ("preprocess", "morph_open", "morph_close", "seed")}
-    riga |= {"t_match_ms": ris.meta["t_match_ms"], "t_stima_ms": ris.meta["t_stima_ms"]}
+    riga |= {k: ris.meta[k] for k in ("t_init_ms", "t_match_ms", "t_stima_ms")}
     # I parametri del matcher: senza, `--ratio 0.95` e `--ratio 0.75` scrivono
     # due righe identiche. `ransac_thresh` è già nella riga, da `valuta` o dal
     # ramo senza world file.

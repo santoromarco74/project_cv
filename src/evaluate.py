@@ -58,6 +58,12 @@ COLONNE = (
     "success_stima",
     "success",
     "motivo",
+    # Costo di inizializzazione del matcher, separato dall'inferenza. Per SIFT e
+    # ORB è trascurabile; per LoFTR è il caricamento del checkpoint, che prima
+    # stava dentro `t_match_ms` e ne gonfiava il confronto con i classici
+    # (§10.1). Con la cache dei matcher si paga alla prima registrazione e poi
+    # è zero: tenerlo in colonna a parte è ciò che rende leggibile la differenza.
+    "t_init_ms",
     "t_match_ms",
     "t_stima_ms",
 )

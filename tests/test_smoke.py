@@ -47,7 +47,12 @@ from src.evaluate import COLONNE, append_csv, valuta  # noqa: E402
 from src.main import costruisci_parser  # noqa: E402
 from src.main import main as cli_main  # noqa: E402
 from src.matchers.classic import crea_matcher  # noqa: E402
-from src.pipeline import Opzioni, registra  # noqa: E402
+from src.pipeline import (  # noqa: E402
+    Opzioni,
+    _costruisci_matcher,
+    registra,
+    svuota_cache_matcher,
+)
 from scripts.componi_relazione import SEGNAPOSTO, TABELLE, componi  # noqa: E402
 from src.preprocess import (  # noqa: E402
     applica,
@@ -697,8 +702,73 @@ def test_pipeline_ritorna_h_e_metadati():
     ris = registra(img, b, Opzioni(preprocess="clahe", matcher="sift"))
     assert ris.success and ris.H is not None and ris.H.shape == (3, 3)
     assert ris.pts_hist.shape == ris.pts_modern.shape
-    for chiave in ("t_prep_ms", "t_match_ms", "t_stima_ms", "n_matches"):
+    for chiave in ("t_prep_ms", "t_init_ms", "t_match_ms", "t_stima_ms", "n_matches"):
         assert chiave in ris.meta, ris.meta
+
+
+def _disegno_al_tratto(lato: int = 320, seme: int = 0) -> np.ndarray:
+    """Un finto disegno al tratto, senza bisogno dei dati AdE.
+
+    Serve ai test che riguardano il comportamento della pipeline e non il
+    contenuto delle mappe: così girano anche su un clone appena fatto.
+    """
+    rng = np.random.default_rng(seme)
+    img = np.full((lato, lato, 3), 255, np.uint8)
+    for _ in range(60):
+        p = rng.integers(10, lato - 10, size=4)
+        cv2.line(img, (int(p[0]), int(p[1])), (int(p[2]), int(p[3])), (20, 20, 20), 2)
+    return img
+
+
+def test_cache_matcher_non_cambia_i_risultati():
+    """I9 — riusare il matcher fra due registrazioni non sposta di una cifra.
+
+    La cache esiste perché LoftrMatcher tiene il modello nell'istanza: finché
+    l'istanza veniva creata e buttata a ogni chiamata, ogni registrazione
+    ricaricava il checkpoint da 90 MB. Il riuso è lecito solo se nessun matcher
+    porta stato da una chiamata all'altra, ed è questo che il test blocca.
+
+    Verificato qui su SIFT e ORB, che girano ovunque. Per LoFTR l'argomento è
+    strutturale — `eval()` dentro `inference_mode`, nessuno stato mutabile oltre
+    al modello caricato una volta — e il test corrispondente richiede torch.
+    """
+    a = _disegno_al_tratto()
+    b = cv2.warpAffine(
+        a, cv2.getRotationMatrix2D((160, 160), 11, 1.08), (320, 320), borderValue=(255, 255, 255)
+    )
+
+    for opz in (
+        Opzioni(matcher="sift", preprocess="sauvola"),
+        Opzioni(matcher="orb", preprocess="sauvola"),
+    ):
+        svuota_cache_matcher()
+        primo = registra(a, b, opz)
+        dalla_cache = registra(a, b, opz)  # stessa istanza di matcher
+        svuota_cache_matcher()
+        di_nuovo_nuovo = registra(a, b, opz)
+
+        for altro in (dalla_cache, di_nuovo_nuovo):
+            assert np.array_equal(primo.H, altro.H), (opz.matcher, primo.H, altro.H)
+            assert primo.stima.n_matches == altro.stima.n_matches, opz.matcher
+            assert primo.stima.n_inliers == altro.stima.n_inliers, opz.matcher
+
+
+def test_cache_matcher_separa_parametri_diversi():
+    """Due configurazioni diverse restano due matcher: la chiave sono i parametri.
+
+    Se la cache ignorasse il ratio, un esperimento con `--ratio 0.95` girerebbe
+    con il matcher costruito per 0.75 e il CSV registrerebbe un valore che non è
+    stato usato — l'errore opposto a quello che `parametri_matcher` evita.
+    """
+    svuota_cache_matcher()
+    stretto = _costruisci_matcher(Opzioni(matcher="sift", ratio=0.75))
+    largo = _costruisci_matcher(Opzioni(matcher="sift", ratio=0.95))
+    assert stretto is not largo
+    assert stretto.ratio == 0.75 and largo.ratio == 0.95
+    assert _costruisci_matcher(Opzioni(matcher="sift", ratio=0.75)) is stretto
+    assert _costruisci_matcher(Opzioni(matcher="orb")) is not stretto
+    svuota_cache_matcher()
+    assert _costruisci_matcher(Opzioni(matcher="sift", ratio=0.75)) is not stretto
 
 
 def test_success_richiede_una_soglia_dichiarata():

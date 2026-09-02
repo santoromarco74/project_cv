@@ -69,6 +69,7 @@ def _valuta_e_scrivi(args, nome, chiave_vec, codici, hist, ris, extra: dict) -> 
         "seed": args.seed,
         "n_kp_a": ris.meta.get("n_kp_a"),
         "n_kp_b": ris.meta.get("n_kp_b"),
+        "t_init_ms": ris.meta["t_init_ms"],
         "t_match_ms": ris.meta["t_match_ms"],
         "t_stima_ms": ris.meta["t_stima_ms"],
     } | parametri_matcher(ris.meta) | extra
@@ -217,6 +218,7 @@ def main(argv: list[str] | None = None) -> int:
             "seed": args.seed,
             "n_kp_a": ris.meta.get("n_kp_a"),
             "n_kp_b": ris.meta.get("n_kp_b"),
+            "t_init_ms": ris.meta["t_init_ms"],
             "t_match_ms": ris.meta["t_match_ms"],
             "t_stima_ms": ris.meta["t_stima_ms"],
         } | parametri_matcher(ris.meta)

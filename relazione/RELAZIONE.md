@@ -900,13 +900,21 @@ Il confronto è onesto solo se si dichiara ciò che non è simmetrico:
    risoluzione. LoFTR lavora su una griglia a 1/8 e il costo cresce col quadrato
    del lato: a 1024 px su CPU diventa proibitivo. I keypoint vengono riportati
    alle coordinate originali, quindi `H_est` resta nei pixel di partenza.
-2. **Il costo per registrazione è di un altro ordine di grandezza**: circa 5
-   secondi contro 0.14 (ORB) e 0.71 (SIFT). Fa parte del risultato.
+2. **Il costo per registrazione è di un altro ordine di grandezza**, e la
+   colonna `t_ms` della tabella lo riporta per la configurazione migliore di
+   ciascun matcher. Fa parte del risultato. Quel tempo misura la **sola
+   inferenza**: il caricamento del checkpoint di LoFTR — 90 MB — sta in una
+   colonna a parte del CSV (`t_init_ms`) e non viene attribuito al matching.
+   Tenerli separati è ciò che rende il confronto leggibile, perché sono due
+   costi di natura diversa: quello iniziale si paga una volta e si ammortizza
+   già alla seconda registrazione, quello ricorrente è ciò che conta davvero
+   quando i fogli da registrare sono molti.
 
 ### 10.2 LoFTR non ribalta il cross-domain
 
 Sul tasso di successo LoFTR **pareggia** ORB (90%), con RMSE mediano peggiore
-(0.593 contro 0.404 m) e circa 36 volte il tempo. La promessa del detector-free
+(0.593 contro 0.404 m) e un tempo per registrazione di un ordine di grandezza
+superiore, che si legge nella colonna `t_ms`. La promessa del detector-free
 — funzionare dove i rilevatori a blob non hanno nulla da agganciare — **non si
 realizza su questi dati**.
 
