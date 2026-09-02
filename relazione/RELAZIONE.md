@@ -122,7 +122,7 @@ l'impronta più simile.
 Nel pannello 4 ogni linea rossa unisce due punti che il programma considera la
 stessa cosa. **Se fossero tutti giusti, le linee sarebbero parallele.** Non lo
 sono affatto: su un disegno al tratto moltissimi incroci si somigliano, e in
-questo esempio **solo il 6% degli abbinamenti risulta corretto**. Il resto è rumore.
+questo esempio **solo il 5% degli abbinamenti risulta corretto**. Il resto è rumore.
 
 **5 · La votazione.** È il passaggio che salva tutto. Il programma prende a caso
 due abbinamenti, calcola quale spostamento-rotazione-ingrandimento
@@ -130,10 +130,10 @@ implicherebbero, e poi **conta quanti altri abbinamenti sarebbero d'accordo** co
 quella stessa trasformazione. Ripete l'operazione migliaia di volte e tiene la
 trasformazione che ha raccolto più consensi.
 
-Gli abbinamenti d'accordo si chiamano *inlier*. Nel pannello 5 ne sono rimasti 54
-su 874, e questa volta **sono tutti paralleli**: descrivono tutti lo stesso
+Gli abbinamenti d'accordo si chiamano *inlier*. Nel pannello 5 ne sono rimasti 44
+su 871, e questa volta **sono tutti paralleli**: descrivono tutti lo stesso
 movimento. Questa procedura si chiama RANSAC, ed è ciò che permette di trovare la
-risposta giusta quando il 94% dei dati è sbagliato.
+risposta giusta quando il 95% dei dati è sbagliato.
 
 **6 · Il risultato.** La trasformazione trovata viene applicata all'immagine
 storica, che così si sovrappone al vettoriale. Nel pannello 6 il tratto storico
@@ -150,7 +150,7 @@ algebrica la trasformazione **esatta**, senza doverne indovinare nemmeno un
 pezzo.
 
 Quindi la risposta giusta la conosciamo già, e possiamo dire di **quanti metri**
-il programma ha sbagliato. Nell'esempio della figura: 0.47 m, su un riferimento
+il programma ha sbagliato. Nell'esempio della figura: 0.67 m, su un riferimento
 che di suo ha un'incertezza di circa mezzo metro.
 
 **Il programma che stima non vede quei sei numeri.** Li vede solo il codice che
@@ -829,12 +829,14 @@ indirette di allineamento producono falsi positivi convincenti.
 
 
 Sulle 180 prove classiche — SIFT e ORB; le 90 righe LoFTR della tabella
-appartengono a E3 e si commentano in §10 — 47 raggiungono un RMSE sotto i 2 m.
+appartengono a E3 e si commentano in §10 — 50 raggiungono un RMSE sotto i 2 m.
 **Il cross-domain non fallisce del tutto**, ma il quadro ribalta E1 su ogni asse.
 
-**La migliore combinazione è ORB + Sauvola + similarità: 90% di successo, RMSE
-mediano 0.41 m.** È *sotto* il pavimento del riferimento: la registrazione è
-buona quanto questa ground truth consente di misurare.
+**La migliore combinazione è ORB + Sauvola con chiusura + similarità: 90% di
+successo, RMSE mediano 0.32 m.** È *sotto* il pavimento del riferimento: la
+registrazione è buona quanto questa ground truth consente di misurare. Anche
+Sauvola senza chiusura raggiunge il 90%, con errore mediano 0.57 m: a decidere
+non è la chiusura, è la coppia binarizzazione più modello vincolato.
 
 ![Verifica a piena risoluzione](../results/figures/m8_verifica_ribba.png)
 
@@ -954,7 +956,7 @@ Il confronto è onesto solo se si dichiara ciò che non è simmetrico:
 ### 10.2 LoFTR non ribalta il cross-domain
 
 Sul tasso di successo LoFTR **pareggia** ORB (90%), con RMSE mediano peggiore
-(0.593 contro 0.404 m) e un tempo per registrazione di un ordine di grandezza
+(0.593 contro 0.284 m) e un tempo per registrazione di un ordine di grandezza
 superiore, che si legge nella colonna `t_ms`. La promessa del detector-free
 — funzionare dove i rilevatori a blob non hanno nulla da agganciare — **non si
 realizza su questi dati**.
@@ -976,11 +978,11 @@ e le due varianti di binarizzazione, e si leggono dalla tabella di §9.2:
 |---|---|---|
 | LoFTR | 0.276 – 0.293 | 477 – 487 |
 | SIFT  | 0.088 – 0.132 | 120 – 121 |
-| ORB   | 0.016 – 0.054 | 708 – 732 |
+| ORB   | 0.018 – 0.048 | 709 – 733 |
 
 Sono due strade opposte allo stesso risultato: LoFTR trova un numero moderato di
 corrispondenze quasi tutte utilizzabili, ORB ne trova una massa in cui gli inlier
-sono fra il 2% e il 5% e lascia a RANSAC il lavoro di setacciarle. Il solo tasso
+stanno sotto il 5% e lascia a RANSAC il lavoro di setacciarle. Il solo tasso
 di successo nasconde questa differenza.
 
 ### 10.3 Anche LoFTR ha bisogno della binarizzazione
@@ -988,7 +990,7 @@ di successo nasconde questa differenza.
 | preprocessing | corrispondenze mediane | successo | RMSE mediano |
 |---|---|---|---|
 | CLAHE | 7 | 0 – 10% | 236 – 488 m |
-| Sauvola | 477 | 60 – 80% | 0.48 – 0.85 m |
+| Sauvola | 477 | 60 – 80% | 0.47 – 0.85 m |
 | Sauvola + chiusura | 487 | 60 – 90% | 0.63 – 1.02 m |
 
 Il vantaggio del pre-addestramento su immagini naturali **non sopravvive al
@@ -1228,15 +1230,16 @@ dove invece reggono meglio del previsto.
    sub-pixel (0.046 m mediani nella configurazione migliore), due ordini di grandezza sotto
    il pavimento del riferimento.
 2. **La registrazione cross-domain riesce**, ma non con la configurazione che ci
-   si aspetterebbe: ORB + Sauvola + similarità raggiunge il 90% di successo con
-   RMSE mediano 0.41 m, al limite di ciò che questa ground truth può misurare.
+   si aspetterebbe: ORB + Sauvola con chiusura + similarità raggiunge il 90% di
+   successo con RMSE mediano 0.32 m, al limite di ciò che questa ground truth
+   può misurare.
 3. **Il modello geometrico conta più del matcher**: a parità di corrispondenze,
-   passare da omografia a similarità porta il successo dal 18% al 50%. Con inlier
+   passare da omografia a similarità porta il successo dal 19% al 53%. Con inlier
    ratio bassi, vincolare è necessario.
 4. **Il preprocessing conta più della rete**: su E2 è la binarizzazione di
    Sauvola a far funzionare tutti e tre i matcher, LoFTR incluso. Con CLAHE SIFT
    non riesce mai e LoFTR quasi mai; ORB tiene solo se vincolato alla similarità
-   (50% di successo) e va a zero con affine e omografia.
+   (60% di successo) e va a zero con affine e omografia.
 5. **Il matcher neurale non ribalta il risultato**: pareggia ORB sul successo,
    con errore maggiore e un costo per registrazione di un ordine di grandezza
    superiore — ma con corrispondenze molto più pulite, il che indica che il collo
