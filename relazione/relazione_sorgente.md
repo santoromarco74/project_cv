@@ -223,6 +223,21 @@ Raster e vettoriale sono entrambi in **Cassini-Soldner zona G0007, origine Forte
 Diamante**. Non è un EPSG standard e non serve riproiettare nulla: le coordinate
 dei due file sono già confrontabili. Il progetto non usa `pyproj` né `geopandas`.
 
+Vale la pena essere espliciti sulla differenza fra `.cxf` e `.jgw`, perché il
+nome fa pensare a due varianti dello stesso tipo di file, e non lo sono. Il CXF
+**è** un contenuto: un elenco di coordinate che disegnano i confini delle
+particelle, cioè la mappa moderna stessa scritta come numeri invece che come
+disegno. Il JGW **non è** un contenuto, ma un'istruzione di conversione:
+soli sei numeri, che dicono a quale coordinata reale sul terreno corrisponde
+il pixel in alto a sinistra della scansione e quanti metri misura il lato di
+un pixel — non contiene nessun confine, nessuna particella. Senza il JGW la
+scansione storica sarebbe un'immagine priva di qualunque legame con il
+territorio; senza il CXF non ci sarebbe una mappa moderna con cui
+confrontarla. Servono entrambi, e per ragioni complementari: il primo dà il
+contenuto da confrontare, il secondo dà la posizione sul terreno di ciò che
+si vede nella scansione — quest'ultima è anche l'ingrediente della ground
+truth (§4).
+
 ### 3.2 La trappola dei due CXF
 
 Il servizio rilascia **due** file vettoriali per lo stesso foglio, e il file
