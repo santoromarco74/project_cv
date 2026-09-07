@@ -339,9 +339,24 @@ H_true = W_moderno⁻¹ ∘ W_storico
 
 **Non è stato annotato un solo punto di controllo a mano.** La ground truth è
 analitica, esatta per costruzione, e `evaluate.py` la usa per produrre l'RMSE in
-metri su una griglia di checkpoint. La correttezza della composizione è
-verificata da un test: un punto trasformato avanti e indietro torna su sé stesso
-entro **1.1e-13 px**, contro la soglia dichiarata di 1e-9.
+metri su una griglia regolare di checkpoint nell'immagine storica (10×10 punti,
+bordi esclusi):
+
+```
+RMSE_m = √( media( ‖H_est·p − H_true·p‖² ) ) × 0.254453
+```
+
+cioè: si applicano entrambe le trasformazioni — quella stimata e quella vera —
+agli stessi 100 punti `p`, si misura la distanza in pixel fra le due immagini
+di ciascun punto, se ne fa la radice della media dei quadrati, e si converte in
+metri con la risoluzione del pixel (§4). È l'unico numero su cui si giudica
+l'intera pipeline: ogni tabella delle sezioni successive è, in ultima analisi,
+un'aggregazione di questa formula su combinazioni diverse di matcher,
+preprocessing e modello.
+
+La correttezza della composizione di `H_true` è verificata da un test: un
+punto trasformato avanti e indietro torna su sé stesso entro **1.1e-13 px**,
+contro la soglia dichiarata di 1e-9.
 
 ### 4.1 L'incertezza del riferimento, dichiarata
 
