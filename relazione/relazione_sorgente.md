@@ -864,9 +864,9 @@ appartengono a E3 e si commentano in §10 — 50 raggiungono un RMSE sotto i 2 m
 **Il cross-domain non fallisce del tutto**, ma il quadro ribalta E1 su ogni asse.
 
 **La migliore combinazione è ORB + Sauvola con chiusura + similarità: 90% di
-successo, RMSE mediano 0.32 m.** È *sotto* il pavimento del riferimento: la
+successo, RMSE mediano 0.42 m.** È *sotto* il pavimento del riferimento: la
 registrazione è buona quanto questa ground truth consente di misurare. Anche
-Sauvola senza chiusura raggiunge il 90%, con errore mediano 0.57 m: a decidere
+Sauvola senza chiusura raggiunge il 90%, con errore mediano 0.48 m: a decidere
 non è la chiusura, è la coppia binarizzazione più modello vincolato.
 
 ![Verifica a piena risoluzione](../results/figures/m8_verifica_ribba.png)
@@ -1238,7 +1238,7 @@ dove invece reggono meglio del previsto.
    il pavimento del riferimento.
 2. **La registrazione cross-domain riesce**, ma non con la configurazione che ci
    si aspetterebbe: ORB + Sauvola con chiusura + similarità raggiunge il 90% di
-   successo con RMSE mediano 0.32 m, al limite di ciò che questa ground truth
+   successo con RMSE mediano 0.42 m, al limite di ciò che questa ground truth
    può misurare.
 3. **Il modello geometrico conta più del matcher**: a parità di corrispondenze,
    passare da omografia a similarità porta il successo dal 19% al 53%. Con inlier
