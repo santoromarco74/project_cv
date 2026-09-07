@@ -737,13 +737,13 @@ problema è nel codice.
 
 | matcher | preprocess | prove | successo_pct | rmse_px_mediano_ok | rmse_px_max_ok | inlier_ratio | match_medi | t_ms |
 |---------|------------|-------|--------------|--------------------|----------------|--------------|------------|------|
-| loftr   | none       | 80    | 42.5         | 0.208              | 0.963          | 0.619        | 1909       | 4692 |
+| loftr   | none       | 80    | 42.5         | 0.208              | 0.963          | 0.619        | 1909       | 4587 |
 | orb     | clahe      | 80    | 68.8         | 0.499              | 1.0            | 0.619        | 2503       | 152  |
 | orb     | none       | 80    | 67.5         | 0.438              | 0.999          | 0.608        | 2377       | 138  |
-| orb     | sauvola    | 80    | 55.0         | 0.479              | 0.995          | 0.486        | 1945       | 132  |
-| sift    | clahe      | 80    | 82.5         | 0.186              | 0.927          | 0.752        | 2289       | 466  |
-| sift    | none       | 80    | 80.0         | 0.182              | 0.969          | 0.691        | 1709       | 400  |
-| sift    | sauvola    | 80    | 73.8         | 0.206              | 0.927          | 0.614        | 974        | 459  |
+| orb     | sauvola    | 80    | 55.0         | 0.479              | 0.995          | 0.486        | 1945       | 133  |
+| sift    | clahe      | 80    | 82.5         | 0.186              | 0.927          | 0.752        | 2289       | 469  |
+| sift    | none       | 80    | 80.0         | 0.182              | 0.969          | 0.691        | 1709       | 409  |
+| sift    | sauvola    | 80    | 73.8         | 0.206              | 0.927          | 0.614        | 974        | 463  |
 
 
 ![RMSE contro degradazione](../results/figures/m6_rmse_vs_degradazione.png)
@@ -987,12 +987,12 @@ di `--matcher`. Stessi ritagli, stesse metriche, stesse soglie.
 
 | esperimento | matcher | config                        | prove | successo_pct | rmse_m_mediano_ok | inlier_ratio | match_mediani | t_ms |
 |-------------|---------|-------------------------------|-------|--------------|-------------------|--------------|---------------|------|
-| E1          | loftr   | none / homography             | 80    | 42.5         | 0.053             | 0.622        | 1033          | 4491 |
-| E1          | orb     | clahe / homography            | 80    | 68.8         | 0.127             | 0.705        | 2511          | 151  |
-| E1          | sift    | clahe / homography            | 80    | 82.5         | 0.047             | 0.873        | 1497          | 460  |
-| E2          | loftr   | sauvola / similarity          | 10    | 90.0         | 0.435             | 0.288        | 385           | 4060 |
-| E2          | orb     | sauvola+chiusura / similarity | 10    | 90.0         | 0.362             | 0.049        | 743           | 115  |
-| E2          | sift    | sauvola / affine              | 10    | 40.0         | 1.096             | 0.07         | 146           | 479  |
+| E1          | loftr   | none / homography             | 80    | 42.5         | 0.053             | 0.622        | 1033          | 4391 |
+| E1          | orb     | clahe / homography            | 80    | 68.8         | 0.127             | 0.705        | 2511          | 152  |
+| E1          | sift    | clahe / homography            | 80    | 82.5         | 0.047             | 0.873        | 1497          | 462  |
+| E2          | loftr   | sauvola / similarity          | 10    | 90.0         | 0.435             | 0.288        | 385           | 3949 |
+| E2          | orb     | sauvola+chiusura / similarity | 10    | 90.0         | 0.362             | 0.049        | 743           | 117  |
+| E2          | sift    | sauvola / affine              | 10    | 40.0         | 1.096             | 0.07         | 146           | 487  |
 
 
 ![Confronto classico/neurale](../results/figures/m9_e3_confronto.png)
