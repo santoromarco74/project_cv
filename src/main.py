@@ -1,4 +1,4 @@
-"""CLI. Contratto completo delle opzioni in CLAUDE.md §9.
+"""CLI. Contratto completo delle opzioni.
 
     python -m src.main --hist <crop.png> --modern <raster.png> [opzioni]
 
@@ -26,7 +26,7 @@ MODELLI = ("similarity", "affine", "homography")
 def costruisci_parser() -> argparse.ArgumentParser:
     ap = argparse.ArgumentParser(
         prog="python -m src.main",
-        description="Registrazione di una mappa storica su cartografia moderna (CLAUDE.md §9)",
+        description="Registrazione di una mappa storica su cartografia moderna ",
     )
     ap.add_argument("--hist", required=True, help="immagine storica")
     ap.add_argument("--modern", required=True, help="immagine di riferimento")

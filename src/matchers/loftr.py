@@ -1,4 +1,4 @@
-"""LoftrMatcher (kornia). Import di torch/kornia LAZY e confinato qui (CLAUDE.md I4).
+"""LoftrMatcher (kornia). Import di torch/kornia LAZY e confinato qui .
 
 LoFTR è un matcher *detector-free*: non cerca keypoint ripetibili per poi
 descriverli, ma mette in corrispondenza direttamente due griglie di feature

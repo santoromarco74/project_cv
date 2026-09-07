@@ -461,8 +461,7 @@ def _forse_scrivi(df: pd.DataFrame, out_path: str | None) -> pd.DataFrame:
 def _markdown(df: pd.DataFrame) -> str:
     """Tabella Markdown senza `tabulate`.
 
-    `DataFrame.to_markdown` esiste ma richiede una dipendenza in più, e lo stack
-    di CLAUDE.md §3 è volutamente stretto: non vale una nuova riga in
+    `DataFrame.to_markdown` esiste ma richiede una dipendenza in più, e lo stack è volutamente stretto: non vale una nuova riga in
     requirements.txt per formattare sei colonne.
     """
     colonne = list(df.columns)

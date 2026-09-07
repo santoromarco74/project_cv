@@ -1,7 +1,7 @@
 """Lettura dei dati georeferenziati: world file (JGW), metadati (TXT), vettoriale (CXF).
 
 Nessuna dipendenza geospaziale: raster e vettoriale sono già nello stesso
-sistema (Cassini-Soldner Forte Diamante), non serve riproiettare. Vedi CLAUDE.md §5.
+sistema (Cassini-Soldner Forte Diamante), non serve riproiettare. 
 """
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ from dataclasses import dataclass
 
 import numpy as np
 
-# Convenzione world file (CLAUDE.md §5.3): le sei righe sono A, D, B, E, C, F e
+# Convenzione world file : le sei righe sono A, D, B, E, C, F e
 #   X = A*col + B*row + C ,  Y = D*col + E*row + F
 # dove (C, F) è il CENTRO del pixel (0,0), non il suo spigolo. La differenza è
 # mezzo pixel (0.127 m a questa risoluzione): irrilevante per il matching,
@@ -187,7 +187,7 @@ def read_cxf(path: str) -> CxfFile:
     i newline: lo stesso file passato per git (che converte in LF) deve dare lo
     stesso risultato dell'originale.
 
-    ⚠ CLAUDE.md §5.4 — il layout di un BORDO è:
+    Il layout di un BORDO è:
 
         BORDO / nome / codice / angolo / x_etichetta / y_etichetta /
         x_etichetta / y_etichetta / nflag / N / [nflag interi] / (x, y) x N
@@ -266,7 +266,7 @@ def _read_bordo(righe: list[str], i: int) -> tuple[BordoRecord, int]:
 def parse_cxf(path: str) -> list[BordoRecord]:
     """Parser del formato CXF (testuale AdE). Ritorna la lista dei record BORDO.
 
-    ATTENZIONE (CLAUDE.md §5.4): dopo i due punti di etichetta c'è <nflag>,
+    Dopo i due punti di etichetta c'è <nflag>,
     numero di indici extra che PRECEDONO il blocco coordinate. Ignorarlo sfasa
     il parser su 33 record su 871 e fa esplodere l'estensione. Dopo il parsing,
     ASSERIRE che ogni coordinata cada dentro l'estensione del JGW.
@@ -308,14 +308,14 @@ def assert_dentro_estensione(bordi, extent, tolleranza_m: float = 0.0) -> None:
                 f"BORDO {b.nome!r} (codice {b.codice}, nflag {b.nflag}): vertice {k} = "
                 f"({x[k]:.3f}, {y[k]:.3f}) fuori dall'estensione del raster "
                 f"X [{xmin:.3f}, {xmax:.3f}] Y [{ymin:.3f}, {ymax:.3f}]. "
-                f"Sintomo tipico di nflag ignorato, vedi CLAUDE.md §5.4."
+                f"Sintomo tipico di nflag ignorato, che sfasa il parser."
             )
 
 
 def main(argv: list[str] | None = None) -> int:
     import argparse
 
-    ap = argparse.ArgumentParser(description="Ispeziona un CXF (CLAUDE.md §5.4)")
+    ap = argparse.ArgumentParser(description="Ispeziona un CXF e verifica che i BORDO siano dentro l'estensione del JGW")
     ap.add_argument("--cxf", default="data/raw/L675_004900.cxf")
     ap.add_argument("--jgw", default="data/raw/L675_004900.jgw")
     ap.add_argument("--sheet", default="data/raw/L675_004900.jpg", help="serve solo per le dimensioni")

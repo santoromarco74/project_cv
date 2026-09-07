@@ -1,7 +1,6 @@
 # Ritagli del foglio 49
 
-I PNG **non sono versionati** (derivano dal raster AdE, vedi `../README.md` e
-CLAUDE.md §5.8). Questo file documenta come rigenerarli identici.
+I PNG **non sono versionati** (derivano dal raster AdE, vedi `../README.md`). Questo file documenta come rigenerarli identici.
 
 ## Comando
 
@@ -35,7 +34,7 @@ uniformità con i flag `--jgw-hist` / `--jgw-modern` del contratto CLI (§9).
 
 ## Ritagli
 
-Offset e dimensioni da CLAUDE.md §5.6. Le estensioni sono quelle **ricalcolate dal
+Le estensioni sono quelle **ricalcolate dal
 JGW** e verificate contro la tabella di §5.6 con tolleranza 1 m (`check_extent`):
 se un giorno non tornano, il crop o il world file sono sbagliati e il comando
 fallisce invece di scrivere dati mal georeferenziati.
@@ -70,7 +69,7 @@ differenza rispetto a come le riporta QGIS).
 >
 > Conseguenza: `cannei.png`/`ribba.png`/`vedra.png` e i rispettivi `.jgw`, i
 > raster vettoriali (`*_vec*.png`) e ogni riga di `results/runs.csv` con
-> `crop` in questi tre vanno **rigenerati** — checklist §11.4 di CLAUDE.md. I
+> `crop` in questi tre vanno **rigenerati**. I
 > numeri già pubblicati in relazione per questi crop (comprese le percentuali
 > di tratto qui sotto) si riferiscono ai box vecchi.
 
@@ -80,7 +79,7 @@ differenza rispetto a come le riporta QGIS).
 Con il JGW (0.254453 m/px) l'estensione è X −31480.04 … −29320.25,
 Y −12715.65 … −11278.76.
 
-> **Nota.** CLAUDE.md §5.2 e I10 riportano 8000×5322 px e un'estensione
+> **Nota.** I10 riporta 8000×5322 px e un'estensione
 > corrispondente. Non coincide con il file: i 489 px in più in larghezza e 326 in
 > altezza sono i margini di carta della scansione. I ritagli non ne risentono —
 > stanno tutti entro col 6624 / riga 3624 — e le loro estensioni tornano al metro.
@@ -132,8 +131,8 @@ diverso e non sono più validi.
   carta vuota.
 - `aspera` tocca la costa: il bordo destro contiene mare, che nel vettoriale non
   ha corrispondenza.
-- In generale, parte delle linee vettoriali non ha controparte nell'inchiostro:
-  è la divergenza di contenuto di CLAUDE.md §5.7 (il CXF è la cartografia
+- In generale, parte delle linee vettoriali non ha controparte nell'inchiostro,
+   (il CXF è la cartografia
   vigente, non la digitalizzazione dell'impianto), e si vede a occhio nelle
   figure `results/figures/m7_*.png`. Non è disallineamento, è un secolo di
   aggiornamenti.

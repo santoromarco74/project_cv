@@ -88,7 +88,7 @@ def _dimensioni_foglio() -> tuple[int, int]:
     with Image.open(_serve(JPG)) as im:
         return im.size
 
-# Valori dichiarati in CLAUDE.md §5.3, usati come riferimento indipendente dal file.
+# Valori dichiarati e usati come riferimento indipendente dal file.
 JGW_ATTESO = (0.254453, 0.0, 0.0, -0.254453, -31480.044315, -11278.758056)
 
 

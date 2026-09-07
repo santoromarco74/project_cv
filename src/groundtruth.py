@@ -2,7 +2,7 @@
 
     H_true = W_moderno⁻¹ ∘ W_storico
 
-Entrambe le affini sono note dai world file (CLAUDE.md §5.3): la ground truth è
+Entrambe le affini sono note dai world file: la ground truth è
 esatta, senza un solo GCP annotato (I2). `H_true` porta un pixel dell'immagine
 storica sul pixel corrispondente dell'immagine moderna.
 

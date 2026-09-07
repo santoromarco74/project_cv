@@ -1,7 +1,7 @@
 # Pesi dei modelli
 
-**Non versionati** (`.gitignore`): 46 MB sono troppi per il repository. CLAUDE.md
-§3 prevede questa alternativa esplicita — script di download più checksum — e la
+**Non versionati** (`.gitignore`): 46 MB sono troppi per il repository, quindi si 
+prevede questa alternativa esplicita — script di download più checksum — e la
 ragione per cui non basta lasciar fare a kornia è che un peso scaricato a runtime
 può cambiare, e con lui i risultati in `results/runs.csv`.
 

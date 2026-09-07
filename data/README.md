@@ -30,18 +30,18 @@ Dalla funzione **Fogli Originali di Impianto**, sistema **ORIGINARIO**:
 - `L675_004900.cxf`  — vettoriale della mappa vigente, stesso sistema
 
 **ATTENZIONE**: NON usare `L675_00490Z.cxf`. È un allegato in Roma40-Gauss
-Boaga (EPSG:3003), sistema diverso: non si allinea al raster. Vedi CLAUDE.md §5.1.
+Boaga (EPSG:3003), sistema diverso: non si allinea al raster. 
 
 Il codice legge sempre la dimensione del raster dal file, mai da una costante:
-CLAUDE.md §5.2 e I10 riportano 8000×5322 px, che non corrisponde alla scansione
+I10 riportano 8000×5322 px, che non corrisponde alla scansione
 (i px in più sono margine di carta). Vedi la nota in `crops/README.md`.
 
 ## Ricampionamento (dai metadati)
 
 76 coppie omologhe · scarto max 1.28 m · scarto medio 0.56 m · dev. std 0.25 m.
 Questo definisce il **pavimento** dell'RMSE: sotto ~0.5 m si misura il rumore
-del riferimento, non l'errore dell'algoritmo. Vedi CLAUDE.md §5.3.
+del riferimento, non l'errore dell'algoritmo. 
 
 ## Crop (generati da `src/prep/crop.py`, non versionati)
 
-Coordinate in CLAUDE.md §5.6.
+

@@ -2,7 +2,7 @@
 
     python -m scripts.verifica_determinismo
 
-CLAUDE.md I9 dichiara il determinismo come invariante, ma finora nessuno lo
+I9 dichiara il determinismo come invariante, ma finora nessuno lo
 verificava end-to-end: i test controllano il seme di RANSAC su dati sintetici,
 non l'esperimento intero sui dati veri. Questo script lo fa: esegue la stessa
 fetta di E1 più volte, in **processi separati**, e confronta i CSV.

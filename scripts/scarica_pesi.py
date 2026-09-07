@@ -1,6 +1,7 @@
 """Scarica una volta sola i pesi LoFTR in `weights/`, verificandone il checksum.
 
-CLAUDE.md §3 chiede che i pesi siano presenti nella versione finale del progetto
+Il file è il file ufficiale di kornia, e non deve essere modificato a mano.
+Si richiede che i pesi siano presenti nella versione finale del progetto
 e **non scaricati a runtime**: un peso che arriva dalla rete al momento
 dell'esecuzione può cambiare, e con lui i risultati. Sono ~45 MB, troppo per il
 repository, quindi si versiona questo script più il checksum — che è la

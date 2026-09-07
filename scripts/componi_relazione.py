@@ -1,6 +1,6 @@
 """Compone la relazione iniettando le tabelle generate dal CSV.
 
-CLAUDE.md §7.4: "Le tabelle della relazione sono aggregazioni del CSV, non
+"Le tabelle della relazione sono aggregazioni del CSV, non
 numeri ricopiati a mano". Questo script rende quella frase verificabile.
 
 `relazione/relazione_sorgente.md` è il testo, con segnaposto della forma

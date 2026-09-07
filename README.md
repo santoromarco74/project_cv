@@ -63,7 +63,7 @@ e lo script lo dice invece di lasciarlo scoprire aprendo il PDF.
 pipeline: cambia solo `--matcher`. I singoli comandi, se servono uno alla volta:
 
 ```bash
-# M1 — genera i 5 ritagli di CLAUDE.md §5.6 (PNG + world file affiancato)
+# M1 — genera i 5 ritagli (PNG + world file affiancato)
 python -m src.prep.crop
 
 # M2 — statistiche e verifiche del parser CXF
@@ -126,7 +126,4 @@ python -m scripts.relazione_html       # -> RELAZIONE.html, autonomo, da stampar
 python -m tests.test_smoke
 ```
 
-## Struttura
 
-Vedere `CLAUDE.md` per la specifica completa del progetto (architettura,
-invarianti, milestone, design sperimentale).

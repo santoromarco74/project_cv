@@ -1,8 +1,7 @@
 """M4 — E1 sintetico: SIFT deve recuperare una H nota con RMSE ≈ 0.
 
 È il controllo di correttezza della pipeline (§8): la ground truth è esatta per
-costruzione, il domain gap non c'è. Se qui non torna, il bug è nel codice — e
-CLAUDE.md dice di fermarsi.
+costruzione, il domain gap non c'è. 
 
 Non è ancora M6: niente CSV, niente curva, niente ORB su tutta la griglia. Qui
 si risponde a una domanda sola, e la risposta è un numero.

@@ -1,4 +1,4 @@
-"""Ritagli dal foglio intero. Coordinate dei 5 crop in CLAUDE.md §5.6.
+"""Ritagli dal foglio intero. Coordinate dei 5 crop .
 
 Ogni crop viene salvato come PNG (lossless, colore originale) accompagnato dal
 proprio world file: la georeferenziazione resta un metadato ACCANTO al dato, che
@@ -37,7 +37,7 @@ class CropSpec:
     y_attesa: tuple[float, float]
 
 
-# CLAUDE.md §5.6: fascia collinare, dove il vettoriale copre a pieno. Fuori restano
+# Fascia collinare, dove il vettoriale copre a pieno. Fuori restano
 # Celle Ligure (vuoto in entrambi) e l'ente urbano (non coperto dal catasto terreni).
 CROPS: tuple[CropSpec, ...] = (
     CropSpec("tassarole", 1500, 300, 1024, 1024, (-31098, -30838), (-11616, -11355)),
@@ -206,7 +206,7 @@ def contact_sheet(sheet: np.ndarray, out_path: str, scala: int = 8) -> None:
 
 
 def main(argv: list[str] | None = None) -> int:
-    ap = argparse.ArgumentParser(description="Genera i ritagli del foglio (CLAUDE.md §5.6)")
+    ap = argparse.ArgumentParser(description="Genera i ritagli del foglio intero")
     ap.add_argument("--sheet", default="data/raw/L675_004900.jpg", help="raster del foglio")
     ap.add_argument("--jgw", default="data/raw/L675_004900.jgw", help="world file del foglio")
     ap.add_argument("--out", default="data/crops", help="cartella di destinazione")
