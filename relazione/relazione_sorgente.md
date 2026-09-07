@@ -873,7 +873,7 @@ non è la chiusura, è la coppia binarizzazione più modello vincolato.
 
 ### 9.3 Perché ORB batte SIFT, contro ogni aspettativa
 
-Su E1 SIFT domina; su E2 crolla al 30% di successo mentre ORB arriva al 90%. La
+Su E1 SIFT domina; su E2 crolla al 40% di successo mentre ORB arriva al 90%. La
 causa non è la qualità dei descrittori ma il **numero di candidati**: il ratio
 test di Lowe lascia a SIFT 74-121 corrispondenze, il cross-check di ORB ne lascia
 circa 730. Con inlier ratio dell'1-5%, RANSAC ha bisogno di candidati, non di
@@ -955,7 +955,7 @@ Il confronto è onesto solo se si dichiara ciò che non è simmetrico:
 ### 10.2 LoFTR non ribalta il cross-domain
 
 Sul tasso di successo LoFTR **pareggia** ORB (90%), con RMSE mediano peggiore
-(0.593 contro 0.284 m) e un tempo per registrazione di un ordine di grandezza
+(0.435 contro 0.362 m) e un tempo per registrazione di un ordine di grandezza
 superiore, che si legge nella colonna `t_ms`. La promessa del detector-free
 — funzionare dove i rilevatori a blob non hanno nulla da agganciare — **non si
 realizza su questi dati**.
