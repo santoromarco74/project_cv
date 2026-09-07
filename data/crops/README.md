@@ -43,14 +43,36 @@ fallisce invece di scrivere dati mal georeferenziati.
 | nome | x0 | y0 | w | h | X (m) | Y (m) | dimensione |
 |---|---|---|---|---|---|---|---|
 | `tassarole` | 1500 | 300 | 1024 | 1024 | −31098.36 … −30838.06 | −11615.40 … −11355.09 | 260×260 m |
-| `cannei` | 2900 | 200 | 1200 | 1000 | −30742.13 … −30437.04 | −11583.85 … −11329.65 | 305×254 m |
-| `ribba` | 3300 | 600 | 1024 | 1024 | −30640.35 … −30380.04 | −11691.74 … −11431.43 | 260×260 m |
-| `vedra` | 4200 | 2000 | 1024 | 1024 | −30411.34 … −30151.04 | −12047.97 … −11787.66 | 260×260 m |
+| `cannei` | 3100 | 420 | 1024 | 1024 | −30691.24 … −30430.93 | −11645.93 … −11385.63 | 260×260 m |
+| `ribba` | 3850 | 700 | 1024 | 1024 | −30500.40 … −30240.09 | −11717.18 … −11456.88 | 260×260 m |
+| `vedra` | 4200 | 1450 | 1024 | 1024 | −30411.34 … −30151.04 | −11908.02 … −11647.72 | 260×260 m |
 | `aspera` | 5600 | 2600 | 1024 | 1024 | −30055.11 … −29794.80 | −12200.64 … −11940.34 | 260×260 m |
 
 Le estensioni sono espresse nella convenzione del world file: gli estremi sono i
 **centri** dei pixel d'angolo, non gli spigoli (mezzo pixel = 0.127 m di
 differenza rispetto a come le riporta QGIS).
+
+> **Correzione (offset di `cannei`, `ribba`, `vedra`).** Verificati contro le
+> etichette di testo reali nel CXF (record `TESTO`), convertite in pixel col
+> JGW:
+>
+> | crop | punto reale (X,Y) | pixel | box vecchio | problema |
+> |---|---|---|---|---|
+> | `cannei` | -30561.997, -11516.857 | 3609, 936 | 2900,200,1200×1000 | dentro ma sbilanciato al 59%/74%, margine superfluo verso Tassarole/Piano |
+> | `ribba` | -30392.563, -11604.184 | 4274, 1279 | 3300,600,1024×1024 | a 50 px dal bordo destro — inquadrava perlopiù Cannei |
+> | `vedra` | -30276.945, -11728.872 | 4728, 1769 | 4200,2000,1024×1024 | **fuori dal box**, 231 px sopra il bordo superiore |
+>
+> Cannei e Ribba distano ~190 m nella realtà, Ribba e Vedra ~170 m — meno della
+> larghezza di un box (260 m): una sovrapposizione residua fra crop adiacenti
+> (`cannei`/`ribba` ~19%, `ribba`/`vedra` ~18% dell'area) è quindi geografia, non
+> un difetto della correzione. `cannei` è stato anche uniformato a 1024×1024
+> come gli altri quattro (prima era 1200×1000).
+>
+> Conseguenza: `cannei.png`/`ribba.png`/`vedra.png` e i rispettivi `.jgw`, i
+> raster vettoriali (`*_vec*.png`) e ogni riga di `results/runs.csv` con
+> `crop` in questi tre vanno **rigenerati** — checklist §11.4 di CLAUDE.md. I
+> numeri già pubblicati in relazione per questi crop (comprese le percentuali
+> di tratto qui sotto) si riferiscono ai box vecchi.
 
 ## Foglio di partenza
 
@@ -91,10 +113,15 @@ Percentuale di tratto per crop:
 | crop | codice 18 | codici 18+12 |
 |---|---|---|
 | `tassarole` | 1.18% | 1.53% |
-| `cannei` | 1.44% | 1.90% |
-| `ribba` | 2.32% | 3.03% |
-| `vedra` | 0.80% | 1.12% |
+| `cannei` | *da ricalcolare* | *da ricalcolare* |
+| `ribba` | *da ricalcolare* | *da ricalcolare* |
+| `vedra` | *da ricalcolare* | *da ricalcolare* |
 | `aspera` | 1.61% | 2.45% |
+
+`cannei`, `ribba` e `vedra` sono *da ricalcolare* perché il loro offset è stato
+corretto (vedi nota sopra): i valori misurati sui box vecchi — 1.44%/1.90%,
+2.32%/3.03%, 0.80%/1.12% rispettivamente — si riferiscono a territorio in parte
+diverso e non sono più validi.
 
 ## Osservazioni sul contenuto (per E2)
 

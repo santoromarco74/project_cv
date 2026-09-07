@@ -41,9 +41,22 @@ class CropSpec:
 # Celle Ligure (vuoto in entrambi) e l'ente urbano (non coperto dal catasto terreni).
 CROPS: tuple[CropSpec, ...] = (
     CropSpec("tassarole", 1500, 300, 1024, 1024, (-31098, -30838), (-11616, -11355)),
-    CropSpec("cannei", 2900, 200, 1200, 1000, (-30742, -30437), (-11584, -11330)),
-    CropSpec("ribba", 3300, 600, 1024, 1024, (-30640, -30380), (-11692, -11431)),
-    CropSpec("vedra", 4200, 2000, 1024, 1024, (-30411, -30151), (-12048, -11788)),
+    # Recentrato sul punto reale dell'etichetta "Cannei" nel CXF (TESTO,
+    # X=-30561.997 Y=-11516.857 -> pixel 3609,936): il box originario
+    # (2900,200,1200x1000) conteneva il punto ma sbilanciato al 59%/74%,
+    # con margine superfluo verso Tassarole/Piano. Uniformato a 1024x1024
+    # come gli altri crop.
+    CropSpec("cannei", 3100, 420, 1024, 1024, (-30691, -30431), (-11646, -11386)),
+    # x0/y0 corretti sul punto reale dell'etichetta "Ribba" nel CXF (TESTO,
+    # X=-30392.563 Y=-11604.184 -> pixel 4274,1279): l'offset originario
+    # inquadrava perlopiù Cannei, con "Ribba" tagliata a 50 px dal bordo destro.
+    CropSpec("ribba", 3850, 700, 1024, 1024, (-30500, -30240), (-11717, -11457)),
+    # y0 corretto sul punto reale dell'etichetta "Vedra'" nel CXF (TESTO,
+    # X=-30276.945 Y=-11728.872 -> pixel 4728,1769): l'offset originario
+    # (y0=2000) escludeva il punto, che cadeva 231 px SOPRA il bordo
+    # superiore del box -- non sfiorato, proprio fuori. x0 invariato: sul
+    # quell'asse il punto era già ben posizionato (51.6% dal bordo sinistro).
+    CropSpec("vedra", 4200, 1450, 1024, 1024, (-30411, -30151), (-11908, -11648)),
     CropSpec("aspera", 5600, 2600, 1024, 1024, (-30055, -29795), (-12201, -11940)),
 )
 
