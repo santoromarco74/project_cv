@@ -223,6 +223,21 @@ Raster e vettoriale sono entrambi in **Cassini-Soldner zona G0007, origine Forte
 Diamante**. Non è un EPSG standard e non serve riproiettare nulla: le coordinate
 dei due file sono già confrontabili. Il progetto non usa `pyproj` né `geopandas`.
 
+Vale la pena essere espliciti sulla differenza fra `.cxf` e `.jgw`, perché il
+nome fa pensare a due varianti dello stesso tipo di file, e non lo sono. Il CXF
+**è** un contenuto: un elenco di coordinate che disegnano i confini delle
+particelle, cioè la mappa moderna stessa scritta come numeri invece che come
+disegno. Il JGW **non è** un contenuto, ma un'istruzione di conversione:
+soli sei numeri, che dicono a quale coordinata reale sul terreno corrisponde
+il pixel in alto a sinistra della scansione e quanti metri misura il lato di
+un pixel — non contiene nessun confine, nessuna particella. Senza il JGW la
+scansione storica sarebbe un'immagine priva di qualunque legame con il
+territorio; senza il CXF non ci sarebbe una mappa moderna con cui
+confrontarla. Servono entrambi, e per ragioni complementari: il primo dà il
+contenuto da confrontare, il secondo dà la posizione sul terreno di ciò che
+si vede nella scansione — quest'ultima è anche l'ingrediente della ground
+truth (§4).
+
 ### 3.2 La trappola dei due CXF
 
 Il servizio rilascia **due** file vettoriali per lo stesso foglio, e il file
@@ -849,9 +864,9 @@ appartengono a E3 e si commentano in §10 — 50 raggiungono un RMSE sotto i 2 m
 **Il cross-domain non fallisce del tutto**, ma il quadro ribalta E1 su ogni asse.
 
 **La migliore combinazione è ORB + Sauvola con chiusura + similarità: 90% di
-successo, RMSE mediano 0.32 m.** È *sotto* il pavimento del riferimento: la
+successo, RMSE mediano 0.42 m.** È *sotto* il pavimento del riferimento: la
 registrazione è buona quanto questa ground truth consente di misurare. Anche
-Sauvola senza chiusura raggiunge il 90%, con errore mediano 0.57 m: a decidere
+Sauvola senza chiusura raggiunge il 90%, con errore mediano 0.48 m: a decidere
 non è la chiusura, è la coppia binarizzazione più modello vincolato.
 
 ![Verifica a piena risoluzione](../results/figures/m8_verifica_ribba.png)
@@ -1223,7 +1238,7 @@ dove invece reggono meglio del previsto.
    il pavimento del riferimento.
 2. **La registrazione cross-domain riesce**, ma non con la configurazione che ci
    si aspetterebbe: ORB + Sauvola con chiusura + similarità raggiunge il 90% di
-   successo con RMSE mediano 0.32 m, al limite di ciò che questa ground truth
+   successo con RMSE mediano 0.42 m, al limite di ciò che questa ground truth
    può misurare.
 3. **Il modello geometrico conta più del matcher**: a parità di corrispondenze,
    passare da omografia a similarità porta il successo dal 19% al 53%. Con inlier
