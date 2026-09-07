@@ -465,6 +465,20 @@ distruggere proprio l'informazione su cui si basa. Quale delle due strade
 convenga non si può decidere a tavolino, ed è una delle domande sperimentali del
 progetto (§6.2 e §9).
 
+**Due domande sperimentali indipendenti, non una in cascata all'altra.** Vale
+la pena renderlo esplicito, perché le due motivazioni sopra rispondono a
+domande diverse e non a passi successivi di un unico ragionamento. Otsu contro
+Sauvola confronta **soglia globale contro soglia locale**: qui Otsu cede
+perché una soglia sola non regge un'illuminazione non uniforme, e Sauvola
+risolve restando comunque una binarizzazione, solo calcolata zona per zona.
+{Otsu, Sauvola} contro CLAHE confronta invece **binarizzare contro non
+binarizzare**, ed è un asse a sé: la motivazione è la perdita del gradiente
+continuo su cui SIFT costruisce il descrittore, non l'uniformità
+dell'illuminazione. Non a caso CLAHE è anch'esso un metodo **locale** (lavora
+per tessere, come Sauvola): non è "il globale che torna in gioco", condivide
+con Sauvola l'adattività e si differenzia da entrambi gli altri solo
+sull'asse binarizza/non binarizza.
+
 **Morfologia — ritoccare la forma del tratto.** Due operazioni elementari:
 l'*apertura* cancella i puntini isolati (la grana della carta scambiata per
 inchiostro), la *chiusura* ricongiunge i tratti interrotti, frequenti perché il
