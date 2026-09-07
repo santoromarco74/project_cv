@@ -44,13 +44,23 @@ fallisce invece di scrivere dati mal georeferenziati.
 |---|---|---|---|---|---|---|---|
 | `tassarole` | 1500 | 300 | 1024 | 1024 | −31098.36 … −30838.06 | −11615.40 … −11355.09 | 260×260 m |
 | `cannei` | 2900 | 200 | 1200 | 1000 | −30742.13 … −30437.04 | −11583.85 … −11329.65 | 305×254 m |
-| `ribba` | 3300 | 600 | 1024 | 1024 | −30640.35 … −30380.04 | −11691.74 … −11431.43 | 260×260 m |
+| `ribba` | 3850 | 700 | 1024 | 1024 | −30500.40 … −30240.09 | −11717.18 … −11456.88 | 260×260 m |
 | `vedra` | 4200 | 2000 | 1024 | 1024 | −30411.34 … −30151.04 | −12047.97 … −11787.66 | 260×260 m |
 | `aspera` | 5600 | 2600 | 1024 | 1024 | −30055.11 … −29794.80 | −12200.64 … −11940.34 | 260×260 m |
 
 Le estensioni sono espresse nella convenzione del world file: gli estremi sono i
 **centri** dei pixel d'angolo, non gli spigoli (mezzo pixel = 0.127 m di
 differenza rispetto a come le riporta QGIS).
+
+> **Correzione (offset di `ribba`).** L'offset originario (x0=3300, y0=600)
+> inquadrava perlopiù il territorio di Cannei: l'etichetta "Ribba" nel CXF
+> (record TESTO, X=-30392.563 Y=-11604.184) cadeva in pixel a col=4274, cioè a
+> soli 50 px dal bordo destro del box (3300..4324). Il nuovo offset (3850, 700)
+> centra il punto reale di Ribba nel ritaglio (41%/57% dai bordi). Conseguenza:
+> `ribba.png`/`.jgw`, il suo raster vettoriale (`ribba_vec*.png`) e ogni riga di
+> `results/runs.csv` con `crop=ribba` vanno **rigenerati** — vedi checklist §11.4
+> di CLAUDE.md. I numeri già pubblicati in relazione per `ribba` (compresa la
+> percentuale di tratto qui sotto) si riferiscono al box vecchio.
 
 ## Foglio di partenza
 
@@ -92,9 +102,13 @@ Percentuale di tratto per crop:
 |---|---|---|
 | `tassarole` | 1.18% | 1.53% |
 | `cannei` | 1.44% | 1.90% |
-| `ribba` | 2.32% | 3.03% |
+| `ribba` | *da ricalcolare* | *da ricalcolare* |
 | `vedra` | 0.80% | 1.12% |
 | `aspera` | 1.61% | 2.45% |
+
+`ribba` è *da ricalcolare* perché il suo offset è stato corretto (vedi nota sopra):
+i valori misurati sul box vecchio erano 2.32% / 3.03%, ma si riferiscono a un
+territorio in gran parte diverso (Cannei, non Ribba) e non sono più validi.
 
 ## Osservazioni sul contenuto (per E2)
 

@@ -42,7 +42,10 @@ class CropSpec:
 CROPS: tuple[CropSpec, ...] = (
     CropSpec("tassarole", 1500, 300, 1024, 1024, (-31098, -30838), (-11616, -11355)),
     CropSpec("cannei", 2900, 200, 1200, 1000, (-30742, -30437), (-11584, -11330)),
-    CropSpec("ribba", 3300, 600, 1024, 1024, (-30640, -30380), (-11692, -11431)),
+    # x0/y0 corretti sul punto reale dell'etichetta "Ribba" nel CXF (TESTO,
+    # X=-30392.563 Y=-11604.184 -> pixel 4274,1279): l'offset originario
+    # inquadrava perlopiù Cannei, con "Ribba" tagliata a 50 px dal bordo destro.
+    CropSpec("ribba", 3850, 700, 1024, 1024, (-30500, -30240), (-11717, -11457)),
     CropSpec("vedra", 4200, 2000, 1024, 1024, (-30411, -30151), (-12048, -11788)),
     CropSpec("aspera", 5600, 2600, 1024, 1024, (-30055, -29795), (-12201, -11940)),
 )
