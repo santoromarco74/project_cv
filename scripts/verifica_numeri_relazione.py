@@ -191,35 +191,29 @@ def sezione_95_per_crop(df: pd.DataFrame) -> None:
         print("   di preprocess/modello nel tuo CSV, es. 'similarity' vs 'similarita')")
         return
 
-    aspera = d[d.crop == "aspera"]
-    if not aspera.empty:
-        print("  righe grezze per aspera (crop, codici, n_matches, inlier_ratio, rmse_m, success):")
-        print(
-            aspera[["codici", "n_matches", "inlier_ratio", "rmse_m", "success"]]
-            .sort_values("codici")
-            .to_string(index=False)
-        )
-        _riga(
-            "aspera: 125.9 m (solo 18) -> 0.98 m (18+12)",
-            "vedi righe sopra -- confronta rmse_m per codici=18 e codici=18+12",
-        )
-    else:
-        print("  (nessuna riga per crop=aspera in questa configurazione)")
+    print("  tutte le righe (5 crop x 2 codici), stessa configurazione:")
+    print(
+        d[["crop", "codici", "n_matches", "inlier_ratio", "rmse_m", "success"]]
+        .sort_values(["crop", "codici"])
+        .to_string(index=False)
+    )
 
-    vedra = d[d.crop == "vedra"]
-    if not vedra.empty:
-        print("  righe grezze per vedra:")
+    riusciti = d[d.success]
+    if not riusciti.empty:
+        riga_min = riusciti.loc[riusciti.inlier_ratio.idxmin()]
+        print()
         print(
-            vedra[["codici", "n_matches", "inlier_ratio", "rmse_m", "success"]]
-            .sort_values("codici")
-            .to_string(index=False)
+            f"  fra le prove RIUSCITE, l'inlier ratio piu' basso e': crop={riga_min.crop}, "
+            f"codici={riga_min.codici}, inlier_ratio={riga_min.inlier_ratio:.4f}, "
+            f"rmse_m={riga_min.rmse_m:.3f}"
         )
-        _riga(
-            "vedra: inlier ratio minimo 0.024, ma riesce comunque",
-            "vedi righe sopra -- controlla inlier_ratio e success per ogni riga",
-        )
-    else:
-        print("  (nessuna riga per crop=vedra in questa configurazione)")
+        print("  -- e' questo il crop/codici da citare in \"il piu' basso, ma riesce comunque\",")
+        print("     non necessariamente vedra: controllalo contro quanto scritto nel testo.")
+
+    _riga(
+        "aspera: 125.9 m (solo 18) -> 0.98 m (18+12); vedra: inlier ratio minimo 0.024, ma riesce comunque",
+        "vedi la tabella e la riga segnalata sopra",
+    )
 
 
 def sezione_104_degradazione_matcher(df: pd.DataFrame) -> None:
