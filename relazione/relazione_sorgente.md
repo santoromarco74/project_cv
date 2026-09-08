@@ -902,8 +902,8 @@ diversa, e più forte.
 <!-- TABELLA: e2_fattori -->
 
 Sugli stessi identici insiemi di corrispondenze, il modello geometrico cambia
-tutto: la **similarità** (4 gradi di libertà) riesce nel 53% delle prove,
-l'affine nel 32%, l'**omografia** (8 gradi) nel 19%. Con inlier ratio bassi —
+tutto: la **similarità** (4 gradi di libertà) riesce nel 52% delle prove,
+l'affine nel 36%, l'**omografia** (8 gradi) nel 23%. Con inlier ratio bassi —
 sotto il 5% per ORB, attorno al 10% per SIFT — più gradi di libertà significano
 più modi di accordarsi con gli outlier: RANSAC trova un consenso, ma quello
 sbagliato.
@@ -913,8 +913,8 @@ inlier ratio bassi, il modello più vincolato non è una semplificazione, è una
 necessità.**
 
 La tabella mostra anche l'esito dell'ablazione sui codici CXF: rasterizzare
-**particelle + acque/strade** (18+12) batte le sole particelle (18), 40% contro
-27% di successo. Le strade e i corsi d'acqua aggiungono struttura proprio dove
+**particelle + acque/strade** (18+12) batte le sole particelle (18), 41% contro
+33% di successo. Le strade e i corsi d'acqua aggiungono struttura proprio dove
 il tratto storico è più marcato.
 
 ### 9.5 I ritagli non sono equivalenti
