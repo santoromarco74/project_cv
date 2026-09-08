@@ -4,7 +4,7 @@ Serve a consegnare o stampare il documento: un file solo, che si apre in
 qualunque browser e non ha bisogno della cartella `results/figures`. Da lì si
 ottiene il PDF con la stampa del browser.
 
-    python -m scripts.relazione_html                    # -> relazione/RELAZIONE.html
+    python -m scripts.relazione_html                    # -> relazione/relazione.html
     python -m scripts.relazione_html --frammento        # senza <html>/<head>/<body>
 
 Richiede il pacchetto `markdown`, che **non** è una dipendenza del progetto: la
@@ -272,8 +272,8 @@ def costruisci(sorgente: str, frammento: bool = False) -> str:
 
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("--sorgente", default=os.path.join("relazione", "RELAZIONE.md"))
-    ap.add_argument("--out", default=os.path.join("relazione", "RELAZIONE.html"))
+    ap.add_argument("--sorgente", default=os.path.join("relazione", "relazione.md"))
+    ap.add_argument("--out", default=os.path.join("relazione", "relazione.html"))
     ap.add_argument("--frammento", action="store_true", help="senza wrapper html/head/body")
     args = ap.parse_args(argv)
 

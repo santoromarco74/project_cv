@@ -237,7 +237,7 @@ def costruisci_fasi(con_loftr: bool = False) -> list[Fase]:
             "relazione",
             "M10 — relazione con le tabelle iniettate dal CSV, più l'HTML da stampare",
             (("scripts.componi_relazione",), ("scripts.relazione_html",)),
-            ("relazione/RELAZIONE.md", "relazione/RELAZIONE.html"),
+            ("relazione/relazione.md", "relazione/relazione.html"),
             minuti=0.5,
         ),
     ]
@@ -316,7 +316,7 @@ def verifica_relazione(con_loftr: bool) -> tuple[list[str], list[str]]:
         else:
             problemi.append(f"figura citata dalla relazione ma mai generata: {f}")
 
-    composta = os.path.join(RADICE, "relazione", "RELAZIONE.md")
+    composta = os.path.join(RADICE, "relazione", "relazione.md")
     if os.path.exists(composta):
         with open(composta, encoding="utf-8") as fh:
             testo = fh.read()
@@ -326,7 +326,7 @@ def verifica_relazione(con_loftr: bool) -> tuple[list[str], list[str]]:
                 "(manca una fase sperimentale, oppure e1 con --riparti è stata rilanciata dopo e2)"
             )
         if "<!-- TABELLA:" in testo:
-            problemi.append("segnaposto di tabella non sostituito in RELAZIONE.md")
+            problemi.append("segnaposto di tabella non sostituito in relazione.md")
     return problemi, avvisi
 
 
@@ -481,7 +481,7 @@ def main(argv: list[str] | None = None) -> int:
 
     print(f"\n\033[32mfatto in {(time.perf_counter() - t0) / 60:.1f} minuti\033[0m")
     if not args.controlla:
-        print("\nDa qui: relazione/RELAZIONE.html si apre nel browser e si stampa in PDF.")
+        print("\nDa qui: relazione/relazione.html si apre nel browser e si stampa in PDF.")
         if not _csv_contiene_loftr():
             print("E3 (LoFTR) non è nel CSV: rilancia con --con-loftr per la parte comparativa.")
     return 0
