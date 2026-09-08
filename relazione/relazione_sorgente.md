@@ -750,14 +750,15 @@ problema è nel codice.
 ### 8.1 Il tetto di prestazione
 
 In assenza di degradazione, **sulle prove che riescono**, tutti e tre i matcher
-recuperano la trasformazione con errore sub-pixel: nel caso peggiore 0.502 px
-per SIFT (0.128 m), 0.801 per LoFTR, 0.930 per ORB. Su un riferimento il cui
-pavimento è ~0.5 m questo sta sotto di un fattore quattro, ed è il segnale che
-la pipeline è corretta.
+recuperano la trasformazione con un errore nell'ordine del pixel o meno: nel
+caso peggiore 0.502 px per SIFT (0.128 m), 0.294 per LoFTR, 1.000 per ORB —
+quest'ultimo esattamente al limite di un pixel, non più sotto. Sul numero di
+SIFT, che resta il riferimento: su un pavimento di riferimento ~0.5 m questo
+sta sotto di un fattore quattro, ed è il segnale che la pipeline è corretta.
 
 La riserva conta però quanto l'affermazione, perché non tutte le prove
 riescono. Su tutte e 35 le combinazioni di ritaglio e trasformazione, sempre
-senza alcuna degradazione, il caso peggiore è 0.502 px per SIFT ma **4.6 px per
+senza alcuna degradazione, il caso peggiore è 0.5 px per SIFT ma **1.4 px per
 ORB e 33128 px per LoFTR**. A degradazione nulla l'unica variabile è la
 trasformazione geometrica — la carta è identica in tutte le prove — quindi quei
 fallimenti sono **geometrici e non radiometrici**.
@@ -767,15 +768,16 @@ Scomponendo per ampiezza della rotazione si vede esattamente dove, e il quadro
 
 | matcher | 0° | 5° | 15° | 30° | 45° | 90° |
 |---|---|---|---|---|---|---|
-| SIFT | 0.000 | 0.033 | 0.108 | 0.187 | 0.269 | 0.501 |
-| ORB | 0.000 | 0.310 | 0.406 | 0.420 | 0.491 | 0.478 |
-| LoFTR | 0.029 | 0.073 | 0.200 | **1.111** | **3583** | **12047** |
+| SIFT | 0.000 | 0.033 | 0.252 | 0.181 | 0.270 | 0.500 |
+| ORB | 0.000 | 0.216 | 0.891 | 0.378 | 0.452 | 0.446 |
+| LoFTR | 0.030 | 0.073 | **1.100** | **1.270** | **1745** | **8715** |
 
-Per SIFT e ORB l'errore cresce con la rotazione ma resta sotto il pixel fino a
-90°: è il costo dell'interpolazione del warp e della quantizzazione
-dell'orientamento dei descrittori, non un difetto. **LoFTR invece regge fino a
-30° e poi si rompe**: a 45° l'errore mediano è di tremila pixel, a 90° di
-dodicimila.
+Per SIFT e ORB l'errore cresce e oscilla con la rotazione ma resta sotto il
+pixel fino a 90°: è il costo dell'interpolazione del warp e della
+quantizzazione dell'orientamento dei descrittori, non un difetto. **LoFTR
+invece supera già il pixel a 15°, resta dello stesso ordine di grandezza fino
+a 30° e poi si rompe**: a 45° l'errore mediano è di circa 1745 pixel, a 90° di
+circa 8715.
 
 È il limite più netto emerso da E1, e ha una spiegazione strutturale. SIFT e ORB
 stimano un orientamento dominante per ogni keypoint e ruotano il descrittore di
