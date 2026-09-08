@@ -915,13 +915,13 @@ il tratto storico è più marcato.
 
 <!-- TABELLA: e2_per_crop -->
 
-Un caso è istruttivo: **`aspera` fallisce con le sole particelle (125.9 m) e
-riesce includendo acque e strade (0.98 m)**. È il ritaglio che tocca la costa,
+Un caso è istruttivo: **`aspera` fallisce con le sole particelle (99.6 m) e
+riesce includendo acque e strade (0.66 m)**. È il ritaglio che tocca la costa,
 dove buona parte del contenuto sono la linea di riva e i corsi d'acqua: senza il
-codice 12 il vettoriale è quasi vuoto proprio dove l'impianto ha il tratto.
-
-`vedra`, il più povero di tratto, ha l'inlier ratio più basso (0.024) ma riesce
-comunque: la struttura c'è, è solo poca.
+codice 12 il vettoriale è quasi vuoto proprio dove l'impianto ha il tratto. La
+stessa configurazione ha anche l'inlier ratio più basso fra tutte le prove
+riuscite (0.012, contro il 5-8% degli altri crop): la registrazione tiene anche
+quando solo l'1% circa delle corrispondenze è corretto.
 
 ---
 
