@@ -800,14 +800,17 @@ perché a quel livello nulla si rompeva ancora. Il comportamento reale è netto
 
 | degradazione | RMSE mediano | successo | corrispondenze |
 |---|---|---|---|
-| 0.00 | 0.108 px | 100% | 2084 |
-| 0.75 | 0.224 px | 60% | 487 |
-| 1.00 | 0.344 px | 60% | 389 |
-| 1.10 | 3.168 px | 40% | 215 |
-| 1.40 | 9.009 px | 0% | 9 |
+| 0.00 | 0.119 px | 100% | 2805 |
+| 0.75 | 0.202 px | 100% | 749 |
+| 1.00 | 0.409 px | 60% | 349 |
+| 1.30 | 0.969 px | 60% | 43 |
+| 1.40 | 579.839 px | 0% | 18 |
 
 Con passi di 0.2 fermi a 1.0, la curva avrebbe mostrato un degrado dolce che non
-esiste. Il campionamento è stato infittito sopra 1.0 per catturare la soglia.
+esiste. Il campionamento è stato infittito sopra 1.0 per catturare la soglia:
+l'errore resta sotto il pixel fino a 1.30 (60% di successo) e poi esplode a
+quasi 580 px in un solo passo, un precipizio ancora più netto di quanto
+suggerisse la prima esecuzione.
 
 ### 8.3 Nota sull'aggregazione
 
