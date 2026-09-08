@@ -697,14 +697,14 @@ La curva è per ogni famiglia, in scala logaritmica, con il tetto reale del
 codice (`max_iter = 5000`) e tre punti realmente misurati nelle griglie di M6 e
 M8. Si legge da destra a sinistra ed è brutale:
 
-- **E1, SIFT senza degrado** (`w = 0.938`): bastano **3** iterazioni. Con quasi
+- **E1, SIFT senza degrado** (`w = 0.960`): bastano **2** iterazioni. Con quasi
   tutte le corrispondenze corrette, il primo campione a caso è già quasi
   certamente pulito.
-- **E2, ORB+Sauvola, mediana** (`w = 0.054`): per la similarità servono **1805**
-  iterazioni — dentro il budget di 5000. Per l'**omografia**, con lo stesso `w`,
-  ne servirebbero **oltre 600 000**: enormemente fuori budget. È la ragione
-  algebrica, non solo empirica, del risultato di §9.4: con pochi inlier un
-  modello a più parametri non è "più difficile da stimare bene", è
+- **E2, ORB+Sauvola, mediana** (`w = 0.035`): per la similarità servono **4304**
+  iterazioni — appena dentro il budget di 5000. Per l'**omografia**, con lo
+  stesso `w`, ne servirebbero **oltre 3 500 000**: enormemente fuori budget. È
+  la ragione algebrica, non solo empirica, del risultato di §9.4: con pochi
+  inlier un modello a più parametri non è "più difficile da stimare bene", è
   strutturalmente **irraggiungibile** nel numero di tentativi concesso.
 - **E2, ritaglio `aspera` con il solo codice 18** (`w = 0.009`, il caso fallito
   di §9.5): anche per la sola similarità servirebbero **oltre 65 000**
