@@ -80,11 +80,19 @@ def sezione_72_iterazioni(df: pd.DataFrame) -> None:
         (df.esperimento == "E2") & (df.crop == "aspera") & (df.codici.astype(str) == "18")
     ]
     if not aspera_18.empty:
-        w = aspera_18.inlier_ratio.median()
+        w_mediano = aspera_18.inlier_ratio.median()
+        w_minimo = aspera_18.inlier_ratio.min()
         _riga(
             "E2, crop aspera, solo codice 18 (w = 0.009): oltre 65 000 iterazioni (similarita')",
-            f"w = {w:.3f}: similarita' {iterazioni(w, 2):.0f} iterazioni",
-            "esperimento=E2, crop=aspera, codici=18",
+            f"mediana su tutte le config = {w_mediano:.3f} ({iterazioni(w_mediano, 2):.0f} iter.), "
+            f"minima osservata = {w_minimo:.3f} ({iterazioni(w_minimo, 2):.0f} iter.)",
+            "esperimento=E2, crop=aspera, codici=18 -- NON so quale singola riga citasse il testo,"
+            " sotto il dettaglio per matcher/preprocess/modello",
+        )
+        print(
+            aspera_18[["matcher", "preprocess", "modello", "inlier_ratio", "n_matches"]]
+            .sort_values("inlier_ratio")
+            .to_string(index=False)
         )
     else:
         print("  (nessuna riga E2/aspera/codici=18 nel CSV: filtro da correggere)")
@@ -162,27 +170,56 @@ def sezione_94_modello_e_codici(df: pd.DataFrame) -> None:
 
 
 def sezione_95_per_crop(df: pd.DataFrame) -> None:
-    """§9.5 -- aspera (18 vs 18+12) e vedra (inlier ratio minimo)."""
-    _sez("§9.5 -- crop aspera e vedra")
-    d = df[df.esperimento == "E2"]
+    """§9.5 -- aspera (18 vs 18+12) e vedra (inlier ratio minimo).
+
+    tabella_e2_per_crop() in report.py NON fa una mediana su tutte le
+    configurazioni: filtra a una sola, quella dichiarata "migliore" in §9.2
+    (orb + sauvola + similarity), e mostra le righe grezze per crop e codici.
+    Il controllo va fatto sullo stesso identico filtro, altrimenti si confronta
+    la mela con la pera -- versione precedente di questa funzione mediava su
+    TUTTE le configurazioni ed era per questo fuorviante.
+    """
+    _sez("§9.5 -- crop aspera e vedra (SOLO orb+sauvola+similarity, come la tabella vera)")
+    d = df[
+        (df.esperimento == "E2")
+        & (df.matcher == "orb")
+        & (df.preprocess == "sauvola")
+        & (df.modello == "similarity")
+    ]
     if d.empty:
-        print("  (nessuna riga E2 nel CSV)")
+        print("  (nessuna riga E2/orb/sauvola/similarity nel CSV: controlla i nomi esatti")
+        print("   di preprocess/modello nel tuo CSV, es. 'similarity' vs 'similarita')")
         return
 
     aspera = d[d.crop == "aspera"]
     if not aspera.empty:
-        per_codici = aspera.groupby(aspera.codici.astype(str)).rmse_m.median()
+        print("  righe grezze per aspera (crop, codici, n_matches, inlier_ratio, rmse_m, success):")
+        print(
+            aspera[["codici", "n_matches", "inlier_ratio", "rmse_m", "success"]]
+            .sort_values("codici")
+            .to_string(index=False)
+        )
         _riga(
             "aspera: 125.9 m (solo 18) -> 0.98 m (18+12)",
-            ", ".join(f"codici={c}: {v:.2f} m" for c, v in per_codici.items()),
+            "vedi righe sopra -- confronta rmse_m per codici=18 e codici=18+12",
         )
+    else:
+        print("  (nessuna riga per crop=aspera in questa configurazione)")
 
     vedra = d[d.crop == "vedra"]
     if not vedra.empty:
-        _riga(
-            "vedra: inlier ratio minimo 0.024",
-            f"inlier ratio minimo osservato: {vedra.inlier_ratio.min():.3f}",
+        print("  righe grezze per vedra:")
+        print(
+            vedra[["codici", "n_matches", "inlier_ratio", "rmse_m", "success"]]
+            .sort_values("codici")
+            .to_string(index=False)
         )
+        _riga(
+            "vedra: inlier ratio minimo 0.024, ma riesce comunque",
+            "vedi righe sopra -- controlla inlier_ratio e success per ogni riga",
+        )
+    else:
+        print("  (nessuna riga per crop=vedra in questa configurazione)")
 
 
 def sezione_104_degradazione_matcher(df: pd.DataFrame) -> None:
