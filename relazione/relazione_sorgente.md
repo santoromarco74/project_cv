@@ -859,8 +859,9 @@ indirette di allineamento producono falsi positivi convincenti.
 
 <!-- TABELLA: e2 -->
 
-Sulle 180 prove classiche — SIFT e ORB; le 90 righe LoFTR della tabella
-appartengono a E3 e si commentano in §10 — 50 raggiungono un RMSE sotto i 2 m.
+Sulle 180 prove classiche — SIFT e ORB; le 90 righe LoFTR della tabella sono
+taggate anch'esse `E2` nel CSV, ma si commentano a parte in §10 — 50 raggiungono
+un RMSE sotto i 2 m.
 **Il cross-domain non fallisce del tutto**, ma il quadro ribalta E1 su ogni asse.
 
 **La migliore combinazione è ORB + Sauvola con chiusura + similarità: 90% di
