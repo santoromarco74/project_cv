@@ -217,16 +217,41 @@ def sezione_95_per_crop(df: pd.DataFrame) -> None:
 
 
 def sezione_104_degradazione_matcher(df: pd.DataFrame) -> None:
-    """§10.4 -- successo per matcher, per livello di degrado, senza preprocessing."""
+    """§10.4 -- successo per matcher, per livello di degrado, senza preprocessing.
+
+    §12.4 dice che ogni cella di questa curva aggrega 5 prove, una per
+    ritaglio -- quindi la percentuale deve essere un multiplo di 20. Se non lo
+    e', il filtro sta mescolando anche rotazione/scala diverse invece di
+    isolare il solo asse del degrado (come fa §8.2 per SIFT). Qui si isola
+    esplicitamente rot_deg=0, scala=1.0: solo degradazione radiometrica, come
+    dovrebbe essere per una curva "senza preprocessing" pulita.
+    """
     _sez("§10.4 -- successo per degradazione, tutti i matcher (preprocess=none)")
-    d = df[(df.preprocess == "none") & (df.esperimento.isin(["E1", "E3"]))]
-    if d.empty:
+
+    d_largo = df[(df.preprocess == "none") & (df.esperimento.isin(["E1", "E3"]))]
+    if d_largo.empty:
         print("  (nessuna riga trovata: puo' darsi che LoFTR sia taggato E2 nel tuo CSV --")
         print("   riprova sostituendo il filtro con esperimento.isin(['E1', 'E2', 'E3']))")
         return
-    tab = (d.groupby(["matcher", "degrado"]).success.mean() * 100).unstack("degrado").round(0)
-    print(tab.to_string())
-    print("  (confronta a mano con la tabella di riga 1004-1010 della relazione)")
+
+    print("  filtro largo (preprocess=none, tutte le rot_deg/scala insieme):")
+    tab_largo = (d_largo.groupby(["matcher", "degrado"]).success.mean() * 100).unstack("degrado").round(0)
+    print(tab_largo.to_string())
+
+    d_stretto = d_largo[(d_largo.rot_deg == 0) & (d_largo.scala == 1.0)]
+    print()
+    if d_stretto.empty:
+        print("  filtro stretto (rot_deg=0, scala=1.0): nessuna riga -- controlla i nomi")
+        print("  esatti delle colonne rot_deg/scala nel tuo CSV (es. potrebbero essere")
+        print("  stringhe invece che numeri).")
+        return
+    print("  filtro stretto (preprocess=none, rot_deg=0, scala=1.0 -- solo degrado):")
+    conteggio = d_stretto.groupby(["matcher", "degrado"]).size().unstack("degrado")
+    print("  numero di prove per cella (deve essere 5 se una per ritaglio):")
+    print(conteggio.to_string())
+    tab_stretto = (d_stretto.groupby(["matcher", "degrado"]).success.mean() * 100).unstack("degrado").round(0)
+    print(tab_stretto.to_string())
+    print("  (confronta questa seconda tabella, non la prima, con la relazione a riga 1004-1010)")
 
 
 def sezione_13_conclusioni(df: pd.DataFrame) -> None:
