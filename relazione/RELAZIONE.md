@@ -223,6 +223,21 @@ Raster e vettoriale sono entrambi in **Cassini-Soldner zona G0007, origine Forte
 Diamante**. Non è un EPSG standard e non serve riproiettare nulla: le coordinate
 dei due file sono già confrontabili. Il progetto non usa `pyproj` né `geopandas`.
 
+Vale la pena essere espliciti sulla differenza fra `.cxf` e `.jgw`, perché il
+nome fa pensare a due varianti dello stesso tipo di file, e non lo sono. Il CXF
+**è** un contenuto: un elenco di coordinate che disegnano i confini delle
+particelle, cioè la mappa moderna stessa scritta come numeri invece che come
+disegno. Il JGW **non è** un contenuto, ma un'istruzione di conversione:
+soli sei numeri, che dicono a quale coordinata reale sul terreno corrisponde
+il pixel in alto a sinistra della scansione e quanti metri misura il lato di
+un pixel — non contiene nessun confine, nessuna particella. Senza il JGW la
+scansione storica sarebbe un'immagine priva di qualunque legame con il
+territorio; senza il CXF non ci sarebbe una mappa moderna con cui
+confrontarla. Servono entrambi, e per ragioni complementari: il primo dà il
+contenuto da confrontare, il secondo dà la posizione sul terreno di ciò che
+si vede nella scansione — quest'ultima è anche l'ingrediente della ground
+truth (§4).
+
 ### 3.2 La trappola dei due CXF
 
 Il servizio rilascia **due** file vettoriali per lo stesso foglio, e il file
@@ -737,13 +752,13 @@ problema è nel codice.
 
 | matcher | preprocess | prove | successo_pct | rmse_px_mediano_ok | rmse_px_max_ok | inlier_ratio | match_medi | t_ms |
 |---------|------------|-------|--------------|--------------------|----------------|--------------|------------|------|
-| loftr   | none       | 80    | 42.5         | 0.208              | 0.963          | 0.619        | 1909       | 4587 |
-| orb     | clahe      | 80    | 68.8         | 0.499              | 1.0            | 0.619        | 2503       | 152  |
-| orb     | none       | 80    | 67.5         | 0.438              | 0.999          | 0.608        | 2377       | 138  |
-| orb     | sauvola    | 80    | 55.0         | 0.479              | 0.995          | 0.486        | 1945       | 133  |
-| sift    | clahe      | 80    | 82.5         | 0.186              | 0.927          | 0.752        | 2289       | 469  |
-| sift    | none       | 80    | 80.0         | 0.182              | 0.969          | 0.691        | 1709       | 409  |
-| sift    | sauvola    | 80    | 73.8         | 0.206              | 0.927          | 0.614        | 974        | 463  |
+| loftr   | none       | 80    | 42.5         | 0.208              | 0.963          | 0.619        | 1909       | 4601 |
+| orb     | clahe      | 80    | 68.8         | 0.499              | 1.0            | 0.619        | 2503       | 150  |
+| orb     | none       | 80    | 67.5         | 0.438              | 0.999          | 0.608        | 2377       | 137  |
+| orb     | sauvola    | 80    | 55.0         | 0.479              | 0.995          | 0.486        | 1945       | 131  |
+| sift    | clahe      | 80    | 82.5         | 0.186              | 0.927          | 0.752        | 2289       | 473  |
+| sift    | none       | 80    | 80.0         | 0.182              | 0.969          | 0.691        | 1709       | 435  |
+| sift    | sauvola    | 80    | 73.8         | 0.206              | 0.927          | 0.614        | 974        | 461  |
 
 
 ![RMSE contro degradazione](../results/figures/m6_rmse_vs_degradazione.png)
@@ -894,16 +909,16 @@ appartengono a E3 e si commentano in §10 — 50 raggiungono un RMSE sotto i 2 m
 **Il cross-domain non fallisce del tutto**, ma il quadro ribalta E1 su ogni asse.
 
 **La migliore combinazione è ORB + Sauvola con chiusura + similarità: 90% di
-successo, RMSE mediano 0.32 m.** È *sotto* il pavimento del riferimento: la
+successo, RMSE mediano 0.42 m.** È *sotto* il pavimento del riferimento: la
 registrazione è buona quanto questa ground truth consente di misurare. Anche
-Sauvola senza chiusura raggiunge il 90%, con errore mediano 0.57 m: a decidere
+Sauvola senza chiusura raggiunge il 90%, con errore mediano 0.48 m: a decidere
 non è la chiusura, è la coppia binarizzazione più modello vincolato.
 
 ![Verifica a piena risoluzione](../results/figures/m8_verifica_ribba.png)
 
 ### 9.3 Perché ORB batte SIFT, contro ogni aspettativa
 
-Su E1 SIFT domina; su E2 crolla al 30% di successo mentre ORB arriva al 90%. La
+Su E1 SIFT domina; su E2 crolla al 40% di successo mentre ORB arriva al 90%. La
 causa non è la qualità dei descrittori ma il **numero di candidati**: il ratio
 test di Lowe lascia a SIFT 74-121 corrispondenze, il cross-check di ORB ne lascia
 circa 730. Con inlier ratio dell'1-5%, RANSAC ha bisogno di candidati, non di
@@ -987,11 +1002,11 @@ di `--matcher`. Stessi ritagli, stesse metriche, stesse soglie.
 
 | esperimento | matcher | config                        | prove | successo_pct | rmse_m_mediano_ok | inlier_ratio | match_mediani | t_ms |
 |-------------|---------|-------------------------------|-------|--------------|-------------------|--------------|---------------|------|
-| E1          | loftr   | none / homography             | 80    | 42.5         | 0.053             | 0.622        | 1033          | 4391 |
-| E1          | orb     | clahe / homography            | 80    | 68.8         | 0.127             | 0.705        | 2511          | 152  |
-| E1          | sift    | clahe / homography            | 80    | 82.5         | 0.047             | 0.873        | 1497          | 462  |
-| E2          | loftr   | sauvola / similarity          | 10    | 90.0         | 0.435             | 0.288        | 385           | 3949 |
-| E2          | orb     | sauvola+chiusura / similarity | 10    | 90.0         | 0.362             | 0.049        | 743           | 117  |
+| E1          | loftr   | none / homography             | 80    | 42.5         | 0.053             | 0.622        | 1033          | 4465 |
+| E1          | orb     | clahe / homography            | 80    | 68.8         | 0.127             | 0.705        | 2511          | 148  |
+| E1          | sift    | clahe / homography            | 80    | 82.5         | 0.047             | 0.873        | 1497          | 472  |
+| E2          | loftr   | sauvola / similarity          | 10    | 90.0         | 0.435             | 0.288        | 385           | 3843 |
+| E2          | orb     | sauvola+chiusura / similarity | 10    | 90.0         | 0.362             | 0.049        | 743           | 116  |
 | E2          | sift    | sauvola / affine              | 10    | 40.0         | 1.096             | 0.07         | 146           | 487  |
 
 
@@ -1018,7 +1033,7 @@ Il confronto è onesto solo se si dichiara ciò che non è simmetrico:
 ### 10.2 LoFTR non ribalta il cross-domain
 
 Sul tasso di successo LoFTR **pareggia** ORB (90%), con RMSE mediano peggiore
-(0.593 contro 0.284 m) e un tempo per registrazione di un ordine di grandezza
+(0.435 contro 0.362 m) e un tempo per registrazione di un ordine di grandezza
 superiore, che si legge nella colonna `t_ms`. La promessa del detector-free
 — funzionare dove i rilevatori a blob non hanno nulla da agganciare — **non si
 realizza su questi dati**.
@@ -1301,7 +1316,7 @@ dove invece reggono meglio del previsto.
    il pavimento del riferimento.
 2. **La registrazione cross-domain riesce**, ma non con la configurazione che ci
    si aspetterebbe: ORB + Sauvola con chiusura + similarità raggiunge il 90% di
-   successo con RMSE mediano 0.32 m, al limite di ciò che questa ground truth
+   successo con RMSE mediano 0.42 m, al limite di ciò che questa ground truth
    può misurare.
 3. **Il modello geometrico conta più del matcher**: a parità di corrispondenze,
    passare da omografia a similarità porta il successo dal 19% al 53%. Con inlier
