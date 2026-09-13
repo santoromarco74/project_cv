@@ -165,11 +165,15 @@ def sezione_93_corrispondenze(df: pd.DataFrame) -> None:
         print("  (nessuna riga E2 nel CSV)")
         return
 
+    print(f"  valori esatti di preprocess nel CSV (E2): {sorted(d.preprocess.unique())}")
+    print()
+
     for matcher, preprocess, modello in (
         ("sift", "sauvola", "affine"),
         ("sift", "sauvola", "similarity"),
         ("sift", "sauvola+chiusura", "similarity"),
         ("orb", "sauvola+chiusura", "similarity"),
+        ("orb", "sauvola+close", "similarity"),
         ("orb", "sauvola", "similarity"),
     ):
         sotto = d[
