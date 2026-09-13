@@ -508,7 +508,7 @@ resto torna com'era.
 
 ![Effetto della chiusura](../results/figures/m5_chiusura_ribba.png)
 
-Sull'intero ritaglio la chiusura aggiunge 2957 pixel su un milione, lo 0.28%: è
+Sull'intero ritaglio la chiusura aggiunge 2696 pixel su 1 048 576, lo 0.26%: è
 un ritocco, non una trasformazione. Ma il quarto pannello mostra anche un effetto
 collaterale che non era previsto e che va detto: **dove due linee corrono
 parallele e vicine — il caso delle strade, disegnate a doppio bordo — la chiusura
@@ -532,13 +532,13 @@ Contando i keypoint SIFT rilevati su ciascuna variante, rapportati al grayscale:
 
 | variante | keypoint (rapporto sul grayscale) |
 |---|---|
-| CLAHE | 1.17× – 1.55× |
-| Sauvola | 0.75× – 0.79× |
-| Sauvola + chiusura | 0.68× – 0.77× |
-| Otsu | 0.61× – 0.72× |
+| CLAHE | 1.17× – 1.37× |
+| Sauvola | 0.74× – 0.79× |
+| Sauvola + chiusura | 0.69× – 0.77× |
+| Otsu | 0.67× – 0.72× |
 
 Il dato è consistente su tutti e cinque i ritagli: **binarizzare costa fra il 21
-e il 39% dei keypoint, CLAHE ne aggiunge fra il 17 e il 55%**. Non è ancora la
+e il 33% dei keypoint, CLAHE ne aggiunge fra il 17 e il 37%**. Non è ancora la
 risposta — quella è l'RMSE di §8 e §9 — ma indica la direzione.
 
 ### 6.3 Una previsione verificata invece che assunta
@@ -553,10 +553,10 @@ sintetico di intensità crescente:
 
 | gradiente | Otsu | Sauvola |
 |---|---|---|
-| 0.0 | 8.42% | 7.09% |
-| 0.3 | 8.99% | 6.94% |
-| 0.6 | **46.58%** | 6.79% |
-| 0.9 | **53.25%** | 6.63% |
+| 0.0 | 8.06% | 6.84% |
+| 0.3 | 8.79% | 6.71% |
+| 0.6 | **43.66%** | 6.57% |
+| 0.9 | **49.84%** | 6.43% |
 
 (percentuale di pixel classificati come inchiostro, ritaglio `ribba`)
 
@@ -626,13 +626,15 @@ nettamente.
 
 La figura mostra questo rapporto calcolato su ogni keypoint di un ritaglio reale,
 in due situazioni. **Contro sé stesso ruotato** (stesso dominio, come in E1) la
-distribuzione è ampia e un terzo abbondante dei punti supera la soglia: ci sono
-molti candidati chiaramente migliori degli altri. **Contro il vettoriale**
-(cross-domain, come in E2) la distribuzione si ammassa quasi tutta sopra 0.75, e
-**solo l'1.5% dei keypoint sopravvive**. È il numero dietro le poche decine di
-corrispondenze che SIFT trova su E2 (§9.3): non è che il ratio test sia mal
-tarato, è che nel cross-domain quasi nessun punto ha davvero un solo candidato
-migliore di tutti gli altri — sono tutti vagamente simili a molti altri punti.
+distribuzione è ampia e il 36.8% dei punti supera la soglia: ci sono molti
+candidati chiaramente migliori degli altri. **Contro il vettoriale**
+(cross-domain, come in E2) la distribuzione si sposta visibilmente sopra 0.75, e
+**solo il 13.6% dei keypoint sopravvive** — meno di un terzo della quota dello
+stesso dominio. È coerente con le poche centinaia di corrispondenze che SIFT
+trova su E2 (§9.3): non è che il ratio test sia mal tarato, è che nel
+cross-domain molto più raramente un punto ha davvero un solo candidato
+nettamente migliore di tutti gli altri — sono più vagamente simili a molti
+altri punti che nello stesso dominio.
 
 **ORB** fa la stessa cosa in modo più rapido ed essenziale: descrive ogni punto
 con una stringa di bit invece che con 128 numeri, e confronta le stringhe
