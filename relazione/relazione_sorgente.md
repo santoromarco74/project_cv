@@ -279,15 +279,16 @@ parser che funziona benissimo per il 96% dei record e sfasa sul restante 4%: il
 sintomo è che l'estensione del foglio passa da ~1.6 km a ~31 km, con coordinate
 positive dove dovrebbero essere tutte negative.
 
-Il progetto ha tre difese contro questo errore, tutte automatiche:
+Il progetto ha due difese contro questo errore, entrambe automatiche ed
+entrambe eseguite a ogni parsing, non solo nei test:
 
-1. **Assert di estensione**: dopo il parsing, ogni coordinata deve cadere dentro
-   l'estensione del raster calcolata dal JGW.
+1. **Assert di estensione**: dopo il parsing, ogni singolo vertice deve cadere
+   dentro l'estensione del raster calcolata dal JGW. È il controllo che
+   smaschera lo sfasamento da `nflag`: le coordinate lette al posto sbagliato
+   sono piccoli indici (0-50), non numeri dell'ordine di −30000, e sforano
+   l'estensione alla prima occorrenza.
 2. **Sentinella di segno**: nessuna coordinata può essere positiva, perché il
    foglio sta interamente nel terzo quadrante del sistema.
-3. **Regressione contro un export indipendente**: il parser riproduce, entro
-   1e-9, un GeoJSON esportato in precedenza da QGIS — 871 feature, stessi
-   attributi, stesse coordinate.
 
 Un dettaglio del formato merita una nota, perché è lo stesso tipo di insidia:
 il nome di un `BORDO` è testo libero, e nel foglio 49 esistono record chiamati
