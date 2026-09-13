@@ -119,7 +119,7 @@ python -m experiments.m10_passo_passo  # la figura guidata del capitolo 2
 python -m experiments.m10_ratio_test   # il ratio test di Lowe, con i rapporti veri
 python -m experiments.m10_gradiente    # luminosità, gradiente e descrittore, passo per passo
 python -m experiments.m10_ransac_iterazioni  # iterazioni RANSAC vs inlier ratio, con i dati veri
-python -m scripts.componi_relazione    # -> relazione/relazione.md
+python -m scripts.componi_relazione    # -> relazione/RELAZIONE.md
 python -m scripts.relazione_html       # -> relazione.html, autonomo, da stampare in PDF
 
 # test

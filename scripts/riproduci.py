@@ -237,7 +237,7 @@ def costruisci_fasi(con_loftr: bool = False) -> list[Fase]:
             "relazione",
             "M10 — relazione con le tabelle iniettate dal CSV, più l'HTML da stampare",
             (("scripts.componi_relazione",), ("scripts.relazione_html",)),
-            ("relazione/relazione.md", "relazione/relazione.html"),
+            ("relazione/RELAZIONE.md", "relazione/relazione.html"),
             minuti=0.5,
         ),
     ]
@@ -316,7 +316,7 @@ def verifica_relazione(con_loftr: bool) -> tuple[list[str], list[str]]:
         else:
             problemi.append(f"figura citata dalla relazione ma mai generata: {f}")
 
-    composta = os.path.join(RADICE, "relazione", "relazione.md")
+    composta = os.path.join(RADICE, "relazione", "RELAZIONE.md")
     if os.path.exists(composta):
         with open(composta, encoding="utf-8") as fh:
             testo = fh.read()
@@ -326,7 +326,7 @@ def verifica_relazione(con_loftr: bool) -> tuple[list[str], list[str]]:
                 "(manca una fase sperimentale, oppure e1 con --riparti è stata rilanciata dopo e2)"
             )
         if "<!-- TABELLA:" in testo:
-            problemi.append("segnaposto di tabella non sostituito in relazione.md")
+            problemi.append("segnaposto di tabella non sostituito in RELAZIONE.md")
     return problemi, avvisi
 
 
