@@ -50,8 +50,8 @@ copia relazione/relazione.html   # se generata da scripts/relazione_html.py
 #     (CLAUDE.md §5.8: condizioni d'uso non verificate per redistribuzione) ---
 copia data/README.md
 copia data/crops/README.md
-find "$SRC/data/raw" -maxdepth 1 -name '*_metadata.txt' -exec cp {} "$OUT/data/raw/" \; 2>/dev/null || true
 mkdir -p "$OUT/data/raw"
+find "$SRC/data/raw" -maxdepth 1 -name '*_metadata.txt' -exec cp {} "$OUT/data/raw/" \; 2>/dev/null || true
 
 # --- crop e risultati rigenerati oggi (dopo la correzione di cannei/ribba/vedra) ---
 find "$SRC/data/crops" -maxdepth 1 \( -name '*.png' -o -name '*.jgw' \) -exec cp {} "$OUT/data/crops/" \; 2>/dev/null || true
