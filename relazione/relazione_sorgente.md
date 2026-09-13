@@ -881,7 +881,7 @@ non è la chiusura, è la coppia binarizzazione più modello vincolato.
 
 Su E1 SIFT domina; su E2 crolla al 40% di successo mentre ORB arriva al 90%. La
 causa non è la qualità dei descrittori ma il **numero di candidati**: il ratio
-test di Lowe lascia a SIFT 74-121 corrispondenze, il cross-check di ORB ne lascia
+test di Lowe lascia a SIFT 93-189 corrispondenze, il cross-check di ORB ne lascia
 circa 730. Con inlier ratio dell'1-5%, RANSAC ha bisogno di candidati, non di
 candidati puliti.
 
