@@ -32,6 +32,13 @@ Dalla funzione **Fogli Originali di Impianto**, sistema **ORIGINARIO**:
 **ATTENZIONE**: NON usare `L675_00490Z.cxf`. È un allegato in Roma40-Gauss
 Boaga (EPSG:3003), sistema diverso: non si allinea al raster. 
 
+Il portale consegna anche lo zip originale della richiesta (nel nostro caso
+`Richiesta_921360_L675.zip`): non serve alla pipeline, ma va tenuto in
+`raw/` perché `tests/test_smoke.py` lo usa per verificare che il parser CXF
+dia lo stesso risultato sia sulla copia CRLF originale dentro lo zip sia su
+quella LF del working tree (git normalizza i newline dei file tracciati).
+Anche questo file non è versionato (`*.zip` in `.gitignore`).
+
 Il codice legge sempre la dimensione del raster dal file, mai da una costante:
 I10 riportano 8000×5322 px, che non corrisponde alla scansione
 (i px in più sono margine di carta). Vedi la nota in `crops/README.md`.
