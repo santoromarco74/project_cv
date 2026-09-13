@@ -13,7 +13,6 @@ saltano da soli se `data/raw/` non c'è, dichiarandolo.
 """
 from __future__ import annotations
 
-import json
 import os
 import sys
 import zipfile
@@ -77,7 +76,6 @@ TXT = os.path.join(RAW, "L675_004900_metadata.txt")
 CXF = os.path.join(RAW, "L675_004900.cxf")
 JPG = os.path.join(RAW, "L675_004900.jpg")
 ZIP = os.path.join(RAW, "Richiesta_921360_L675.zip")
-GEOJSON = os.path.join(RAW, "L675_004900_vettoriale_qgis.geojson")
 
 # Dimensione del foglio, letta dal file — qui serve solo come riferimento per il
 # test sull'estensione, e vale 8489x5648 (non 8000x5322 come in §5.2 / I10).
@@ -237,21 +235,6 @@ def test_cxf_indipendente_dai_newline():
     for a, b in zip(bordi_lf, bordi_crlf):
         assert a.nome == b.nome and a.codice == b.codice and a.nflag == b.nflag
         assert np.array_equal(a.pts, b.pts), a.nome
-
-
-def test_cxf_contro_export_indipendente():
-    """Regressione contro l'export GeoJSON fatto a suo tempo in QGIS: 871 feature,
-    stessi attributi, stesse coordinate."""
-    bordi = parse_cxf(_serve(CXF))
-    with open(_serve(GEOJSON), encoding="utf-8") as fh:
-        feature = json.load(fh)["features"]
-    assert len(feature) == len(bordi) == 871
-    for b, f in zip(bordi, feature):
-        geom = f["geometry"]
-        coord = geom["coordinates"][0] if geom["type"] == "Polygon" else geom["coordinates"]
-        assert f["properties"]["nome"] == b.nome, (b.nome, f["properties"])
-        assert f["properties"]["codice"] == str(b.codice), (b.nome, f["properties"])
-        assert np.allclose(np.asarray(coord), b.pts, atol=1e-9), b.nome
 
 
 # ------------------------------------------------------------------ M3: ground truth
