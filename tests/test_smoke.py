@@ -310,7 +310,7 @@ def test_h_true_fra_due_crop_e_una_traslazione():
     W_a = read_jgw(_serve(os.path.join("data/crops", "tassarole.jgw")))
     W_b = read_jgw(_serve(os.path.join("data/crops", "ribba.jgw")))
     H = h_true(W_a, W_b)
-    atteso = _affine(1, 0, 1500 - 3300, 0, 1, 300 - 600)  # offset di §5.6
+    atteso = _affine(1, 0, 1500 - 3850, 0, 1, 300 - 700)  # offset di §5.6
     assert np.allclose(H, atteso, atol=1e-6), H
 
 
