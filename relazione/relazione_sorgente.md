@@ -697,14 +697,14 @@ La curva è per ogni famiglia, in scala logaritmica, con il tetto reale del
 codice (`max_iter = 5000`) e tre punti realmente misurati nelle griglie di M6 e
 M8. Si legge da destra a sinistra ed è brutale:
 
-- **E1, SIFT senza degrado** (`w = 0.938`): bastano **3** iterazioni. Con quasi
+- **E1, SIFT senza degrado** (`w = 0.960`): bastano **2** iterazioni. Con quasi
   tutte le corrispondenze corrette, il primo campione a caso è già quasi
   certamente pulito.
-- **E2, ORB+Sauvola, mediana** (`w = 0.054`): per la similarità servono **1805**
-  iterazioni — dentro il budget di 5000. Per l'**omografia**, con lo stesso `w`,
-  ne servirebbero **oltre 600 000**: enormemente fuori budget. È la ragione
-  algebrica, non solo empirica, del risultato di §9.4: con pochi inlier un
-  modello a più parametri non è "più difficile da stimare bene", è
+- **E2, ORB+Sauvola, mediana** (`w = 0.035`): per la similarità servono **4304**
+  iterazioni — appena dentro il budget di 5000. Per l'**omografia**, con lo
+  stesso `w`, ne servirebbero **oltre 3 500 000**: enormemente fuori budget. È
+  la ragione algebrica, non solo empirica, del risultato di §9.4: con pochi
+  inlier un modello a più parametri non è "più difficile da stimare bene", è
   strutturalmente **irraggiungibile** nel numero di tentativi concesso.
 - **E2, ritaglio `aspera` con il solo codice 18** (`w = 0.009`, il caso fallito
   di §9.5): anche per la sola similarità servirebbero **oltre 65 000**
@@ -750,14 +750,15 @@ problema è nel codice.
 ### 8.1 Il tetto di prestazione
 
 In assenza di degradazione, **sulle prove che riescono**, tutti e tre i matcher
-recuperano la trasformazione con errore sub-pixel: nel caso peggiore 0.502 px
-per SIFT (0.128 m), 0.801 per LoFTR, 0.930 per ORB. Su un riferimento il cui
-pavimento è ~0.5 m questo sta sotto di un fattore quattro, ed è il segnale che
-la pipeline è corretta.
+recuperano la trasformazione con un errore nell'ordine del pixel o meno: nel
+caso peggiore 0.502 px per SIFT (0.128 m), 0.294 per LoFTR, 1.000 per ORB —
+quest'ultimo esattamente al limite di un pixel, non più sotto. Sul numero di
+SIFT, che resta il riferimento: su un pavimento di riferimento ~0.5 m questo
+sta sotto di un fattore quattro, ed è il segnale che la pipeline è corretta.
 
 La riserva conta però quanto l'affermazione, perché non tutte le prove
 riescono. Su tutte e 35 le combinazioni di ritaglio e trasformazione, sempre
-senza alcuna degradazione, il caso peggiore è 0.502 px per SIFT ma **4.6 px per
+senza alcuna degradazione, il caso peggiore è 0.5 px per SIFT ma **1.4 px per
 ORB e 33128 px per LoFTR**. A degradazione nulla l'unica variabile è la
 trasformazione geometrica — la carta è identica in tutte le prove — quindi quei
 fallimenti sono **geometrici e non radiometrici**.
@@ -767,15 +768,16 @@ Scomponendo per ampiezza della rotazione si vede esattamente dove, e il quadro
 
 | matcher | 0° | 5° | 15° | 30° | 45° | 90° |
 |---|---|---|---|---|---|---|
-| SIFT | 0.000 | 0.033 | 0.108 | 0.187 | 0.269 | 0.501 |
-| ORB | 0.000 | 0.310 | 0.406 | 0.420 | 0.491 | 0.478 |
-| LoFTR | 0.029 | 0.073 | 0.200 | **1.111** | **3583** | **12047** |
+| SIFT | 0.000 | 0.033 | 0.252 | 0.181 | 0.270 | 0.500 |
+| ORB | 0.000 | 0.216 | 0.891 | 0.378 | 0.452 | 0.446 |
+| LoFTR | 0.030 | 0.073 | **1.100** | **1.270** | **1745** | **8715** |
 
-Per SIFT e ORB l'errore cresce con la rotazione ma resta sotto il pixel fino a
-90°: è il costo dell'interpolazione del warp e della quantizzazione
-dell'orientamento dei descrittori, non un difetto. **LoFTR invece regge fino a
-30° e poi si rompe**: a 45° l'errore mediano è di tremila pixel, a 90° di
-dodicimila.
+Per SIFT e ORB l'errore cresce e oscilla con la rotazione ma resta sotto il
+pixel fino a 90°: è il costo dell'interpolazione del warp e della
+quantizzazione dell'orientamento dei descrittori, non un difetto. **LoFTR
+invece supera già il pixel a 15°, resta dello stesso ordine di grandezza fino
+a 30° e poi si rompe**: a 45° l'errore mediano è di circa 1745 pixel, a 90° di
+circa 8715.
 
 È il limite più netto emerso da E1, e ha una spiegazione strutturale. SIFT e ORB
 stimano un orientamento dominante per ogni keypoint e ruotano il descrittore di
@@ -798,14 +800,17 @@ perché a quel livello nulla si rompeva ancora. Il comportamento reale è netto
 
 | degradazione | RMSE mediano | successo | corrispondenze |
 |---|---|---|---|
-| 0.00 | 0.108 px | 100% | 2084 |
-| 0.75 | 0.224 px | 60% | 487 |
-| 1.00 | 0.344 px | 60% | 389 |
-| 1.10 | 3.168 px | 40% | 215 |
-| 1.40 | 9.009 px | 0% | 9 |
+| 0.00 | 0.119 px | 100% | 2805 |
+| 0.75 | 0.202 px | 100% | 749 |
+| 1.00 | 0.409 px | 60% | 349 |
+| 1.30 | 0.969 px | 60% | 43 |
+| 1.40 | 579.839 px | 0% | 18 |
 
 Con passi di 0.2 fermi a 1.0, la curva avrebbe mostrato un degrado dolce che non
-esiste. Il campionamento è stato infittito sopra 1.0 per catturare la soglia.
+esiste. Il campionamento è stato infittito sopra 1.0 per catturare la soglia:
+l'errore resta sotto il pixel fino a 1.30 (60% di successo) e poi esplode a
+quasi 580 px in un solo passo, un precipizio ancora più netto di quanto
+suggerisse la prima esecuzione.
 
 ### 8.3 Nota sull'aggregazione
 
@@ -859,8 +864,9 @@ indirette di allineamento producono falsi positivi convincenti.
 
 <!-- TABELLA: e2 -->
 
-Sulle 180 prove classiche — SIFT e ORB; le 90 righe LoFTR della tabella
-appartengono a E3 e si commentano in §10 — 50 raggiungono un RMSE sotto i 2 m.
+Sulle 180 prove classiche — SIFT e ORB; le 90 righe LoFTR della tabella sono
+taggate anch'esse `E2` nel CSV, ma si commentano a parte in §10 — 50 raggiungono
+un RMSE sotto i 2 m.
 **Il cross-domain non fallisce del tutto**, ma il quadro ribalta E1 su ogni asse.
 
 **La migliore combinazione è ORB + Sauvola con chiusura + similarità: 90% di
@@ -896,8 +902,8 @@ diversa, e più forte.
 <!-- TABELLA: e2_fattori -->
 
 Sugli stessi identici insiemi di corrispondenze, il modello geometrico cambia
-tutto: la **similarità** (4 gradi di libertà) riesce nel 53% delle prove,
-l'affine nel 32%, l'**omografia** (8 gradi) nel 19%. Con inlier ratio bassi —
+tutto: la **similarità** (4 gradi di libertà) riesce nel 52% delle prove,
+l'affine nel 36%, l'**omografia** (8 gradi) nel 23%. Con inlier ratio bassi —
 sotto il 5% per ORB, attorno al 10% per SIFT — più gradi di libertà significano
 più modi di accordarsi con gli outlier: RANSAC trova un consenso, ma quello
 sbagliato.
@@ -907,21 +913,21 @@ inlier ratio bassi, il modello più vincolato non è una semplificazione, è una
 necessità.**
 
 La tabella mostra anche l'esito dell'ablazione sui codici CXF: rasterizzare
-**particelle + acque/strade** (18+12) batte le sole particelle (18), 40% contro
-27% di successo. Le strade e i corsi d'acqua aggiungono struttura proprio dove
+**particelle + acque/strade** (18+12) batte le sole particelle (18), 41% contro
+33% di successo. Le strade e i corsi d'acqua aggiungono struttura proprio dove
 il tratto storico è più marcato.
 
 ### 9.5 I ritagli non sono equivalenti
 
 <!-- TABELLA: e2_per_crop -->
 
-Un caso è istruttivo: **`aspera` fallisce con le sole particelle (125.9 m) e
-riesce includendo acque e strade (0.98 m)**. È il ritaglio che tocca la costa,
+Un caso è istruttivo: **`aspera` fallisce con le sole particelle (99.6 m) e
+riesce includendo acque e strade (0.66 m)**. È il ritaglio che tocca la costa,
 dove buona parte del contenuto sono la linea di riva e i corsi d'acqua: senza il
-codice 12 il vettoriale è quasi vuoto proprio dove l'impianto ha il tratto.
-
-`vedra`, il più povero di tratto, ha l'inlier ratio più basso (0.024) ma riesce
-comunque: la struttura c'è, è solo poca.
+codice 12 il vettoriale è quasi vuoto proprio dove l'impianto ha il tratto. La
+stessa configurazione ha anche l'inlier ratio più basso fra tutte le prove
+riuscite (0.012, contro il 5-8% degli altri crop): la registrazione tiene anche
+quando solo l'1% circa delle corrispondenze è corretto.
 
 ---
 
