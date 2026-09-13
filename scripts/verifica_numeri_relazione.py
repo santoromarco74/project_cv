@@ -149,6 +149,45 @@ def sezione_82_degradazione(df: pd.DataFrame) -> None:
     print("  (confronta a mano con la tabella di riga 799-805 della relazione)")
 
 
+def sezione_93_corrispondenze(df: pd.DataFrame) -> None:
+    """§9.3 -- "SIFT 74-121 corrispondenze", "ORB circa 730".
+
+    Non e' chiaro a quale configurazione esatta si riferissero questi due
+    numeri (un range per crop? una singola config?). Qui si stampa, per
+    entrambi i matcher, n_matches per ogni crop nella configurazione
+    "migliore" dichiarata in §9.2 (sift: la si individua da tabella_e2 come
+    quella con piu' successo; orb: sauvola+chiusura+similarity), cosi' si
+    vede subito se un range simile a quello scritto compare da qualche parte.
+    """
+    _sez('§9.3 -- "corrispondenze" per SIFT e ORB, per crop')
+    d = df[df.esperimento == "E2"]
+    if d.empty:
+        print("  (nessuna riga E2 nel CSV)")
+        return
+
+    for matcher, preprocess, modello in (
+        ("sift", "sauvola", "affine"),
+        ("sift", "sauvola", "similarity"),
+        ("sift", "sauvola+chiusura", "similarity"),
+        ("orb", "sauvola+chiusura", "similarity"),
+        ("orb", "sauvola", "similarity"),
+    ):
+        sotto = d[
+            (d.matcher == matcher) & (d.preprocess == preprocess) & (d.modello == modello)
+        ]
+        if sotto.empty:
+            continue
+        print(f"  {matcher} + {preprocess} + {modello}:")
+        print(
+            sotto[["crop", "codici", "n_matches"]]
+            .sort_values(["crop", "codici"])
+            .to_string(index=False)
+        )
+        print(f"  range n_matches: {sotto.n_matches.min()} - {sotto.n_matches.max()}")
+        print()
+    print('  confronta i range sopra con "74-121" (SIFT) e "circa 730" (ORB) nel testo.')
+
+
 def sezione_94_modello_e_codici(df: pd.DataFrame) -> None:
     """§9.4 -- successo per modello geometrico, e per ablation dei codici CXF."""
     _sez("§9.4 -- successo per modello geometrico (E2)")
@@ -301,6 +340,7 @@ def main() -> int:
     sezione_81_tetto_e1(df)
     sezione_81_rotazione(df)
     sezione_82_degradazione(df)
+    sezione_93_corrispondenze(df)
     sezione_94_modello_e_codici(df)
     sezione_95_per_crop(df)
     sezione_104_degradazione_matcher(df)
@@ -310,8 +350,7 @@ def main() -> int:
     print("Non coperti da questo script (non vengono dal CSV E1/E2/E3, servono")
     print("gli script diagnostici originali): §6.1 (chiusura su ribba), §6.2")
     print("(rapporto keypoint per preprocessing), §6.3 (gradiente sintetico),")
-    print("§7.1 (percentuali del ratio test), §9.3 (range corrispondenze SIFT/ORB),")
-    print("§10.2/10.3 (range inlier ratio e RMSE di LoFTR con CLAHE/Sauvola).")
+    print("§7.1 (percentuali del ratio test).")
     return 0
 
 
