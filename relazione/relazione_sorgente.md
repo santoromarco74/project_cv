@@ -1009,15 +1009,15 @@ Su E1, tasso di successo al crescere della degradazione (senza preprocessing):
 
 | degradazione | LoFTR | ORB | SIFT |
 |---|---|---|---|
-| 0.00 | 100% | 70% | 100% |
-| 0.50 | 100% | 40% | 80% |
-| 1.00 | 20% | 60% | 60% |
-| 1.20 | 0% | 60% | 40% |
+| 0.00 | 100% | 80% | 100% |
+| 0.50 | 100% | 80% | 100% |
+| 1.00 | 40% | 40% | 60% |
+| 1.10 | 0% | 40% | 80% |
 | 1.40 | 0% | 0% | 0% |
 
 LoFTR parte alla pari con SIFT — e sopra ORB — e **crolla prima di entrambi i
-classici**: a degradazione 1.1 è già a zero, dove SIFT tiene il 40% e ORB il
-60%. Il rumore gaussiano non appartiene alla distribuzione su cui è stato
+classici**: a degradazione 1.1 è già a zero, dove SIFT tiene l'80% e ORB il
+40%. Il rumore gaussiano non appartiene alla distribuzione su cui è stato
 addestrato.
 
 La colonna di ORB non è monotona, e non va letta come se lo fosse: ogni cella
