@@ -43,7 +43,7 @@ copia LICENSE
 
 # --- relazione (già rigenerata da componi_relazione.py, non a mano) ---
 copia relazione/relazione_sorgente.md
-copia relazione/RELAZIONE.md
+copia relazione/relazione.md
 copia relazione/relazione.html   # se generata da scripts/relazione_html.py
 
 # --- dati: solo i metadati piccoli e versionabili, MAI le scansioni AdE
