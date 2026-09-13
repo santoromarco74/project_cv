@@ -629,8 +629,8 @@ in due situazioni. **Contro sé stesso ruotato** (stesso dominio, come in E1) la
 distribuzione è ampia e il 36.8% dei punti supera la soglia: ci sono molti
 candidati chiaramente migliori degli altri. **Contro il vettoriale**
 (cross-domain, come in E2) la distribuzione si sposta visibilmente sopra 0.75, e
-**solo il 13.6% dei keypoint sopravvive** — meno di un terzo della quota dello
-stesso dominio. È coerente con le poche centinaia di corrispondenze che SIFT
+**solo il 13.6% dei keypoint sopravvive** — poco più di un terzo della quota
+dello stesso dominio. È coerente con le poche centinaia di corrispondenze che SIFT
 trova su E2 (§9.3): non è che il ratio test sia mal tarato, è che nel
 cross-domain molto più raramente un punto ha davvero un solo candidato
 nettamente migliore di tutti gli altri — sono più vagamente simili a molti
@@ -1242,8 +1242,8 @@ Il lavoro misura, e spiega, dove i metodi classici cedono sul cross-domain — e
 dove invece reggono meglio del previsto.
 
 1. **La pipeline è corretta**: E1 recupera trasformazioni note con errore
-   sub-pixel (0.046 m mediani nella configurazione migliore), due ordini di grandezza sotto
-   il pavimento del riferimento.
+   sub-pixel (0.046 m mediani nella configurazione migliore), circa un ordine
+   di grandezza sotto il pavimento del riferimento.
 2. **La registrazione cross-domain riesce**, ma non con la configurazione che ci
    si aspetterebbe: ORB + Sauvola con chiusura + similarità raggiunge il 90% di
    successo con RMSE mediano 0.42 m, al limite di ciò che questa ground truth
