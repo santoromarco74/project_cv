@@ -969,9 +969,9 @@ realizza su questi dati**.
 Dove è invece nettamente superiore è nella **qualità** delle corrispondenze. Il
 confronto va però fatto sulle configurazioni che registrano davvero, e per una
 ragione che vale la pena esplicitare: le tre configurazioni LoFTR con CLAHE
-hanno gli inlier ratio più alti dell'intera griglia (0.354, 0.472, 0.236) e
-insieme sette corrispondenze mediane e un tasso di successo fra 0 e 10%. Un
-inlier ratio calcolato su sette corrispondenze non è confrontabile con uno
+hanno gli inlier ratio più alti dell'intera griglia (0.464, 0.619, 0.31) e
+insieme sei corrispondenze mediane e un tasso di successo dello 0%. Un
+inlier ratio calcolato su sei corrispondenze non è confrontabile con uno
 calcolato su settecento: mediare sull'intera griglia **premia proprio le celle
 in cui il matcher non ha trovato niente**.
 
@@ -981,9 +981,9 @@ e le due varianti di binarizzazione, e si leggono dalla tabella di §9.2:
 
 | matcher | inlier ratio | corrispondenze mediane |
 |---|---|---|
-| LoFTR | 0.276 – 0.293 | 477 – 487 |
-| SIFT  | 0.088 – 0.132 | 120 – 121 |
-| ORB   | 0.018 – 0.048 | 709 – 733 |
+| LoFTR | 0.273 – 0.288 | 385 – 390 |
+| SIFT  | 0.070 – 0.130 | 130 – 146 |
+| ORB   | 0.022 – 0.049 | 743 – 752 |
 
 Sono due strade opposte allo stesso risultato: LoFTR trova un numero moderato di
 corrispondenze quasi tutte utilizzabili, ORB ne trova una massa in cui gli inlier
@@ -994,9 +994,9 @@ di successo nasconde questa differenza.
 
 | preprocessing | corrispondenze mediane | successo | RMSE mediano |
 |---|---|---|---|
-| CLAHE | 7 | 0 – 10% | 236 – 488 m |
-| Sauvola | 477 | 60 – 80% | 0.47 – 0.85 m |
-| Sauvola + chiusura | 487 | 60 – 90% | 0.63 – 1.02 m |
+| CLAHE | 6 | 0% | 241 – 723 m |
+| Sauvola | 385 | 70 – 90% | 0.44 – 1.02 m |
+| Sauvola + chiusura | 390 | 70 – 90% | 0.53 – 1.16 m |
 
 Il vantaggio del pre-addestramento su immagini naturali **non sopravvive al
 divario di dominio**: a colmarlo è la binarizzazione, non la rete. È forse il
@@ -1247,7 +1247,7 @@ dove invece reggono meglio del previsto.
    successo con RMSE mediano 0.42 m, al limite di ciò che questa ground truth
    può misurare.
 3. **Il modello geometrico conta più del matcher**: a parità di corrispondenze,
-   passare da omografia a similarità porta il successo dal 19% al 53%. Con inlier
+   passare da omografia a similarità porta il successo dal 23% al 52%. Con inlier
    ratio bassi, vincolare è necessario.
 4. **Il preprocessing conta più della rete**: su E2 è la binarizzazione di
    Sauvola a far funzionare tutti e tre i matcher, LoFTR incluso. Con CLAHE SIFT
