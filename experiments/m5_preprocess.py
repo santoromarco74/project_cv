@@ -263,6 +263,7 @@ def main(argv: list[str] | None = None) -> int:
         img_dettaglio,
         os.path.join(args.out, f"m5_chiusura_{dettaglio}.png"),
     )
+    print(f"chiusura su {dettaglio}: {aggiunti} px su {totali} ({100 * aggiunti / totali:.2f}%)")
 
     gradiente = figura_gradiente(
         dettaglio,
