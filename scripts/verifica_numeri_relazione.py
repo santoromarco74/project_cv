@@ -220,11 +220,12 @@ def sezione_104_degradazione_matcher(df: pd.DataFrame) -> None:
     """§10.4 -- successo per matcher, per livello di degrado, senza preprocessing.
 
     §12.4 dice che ogni cella di questa curva aggrega 5 prove, una per
-    ritaglio -- quindi la percentuale deve essere un multiplo di 20. Se non lo
-    e', il filtro sta mescolando anche rotazione/scala diverse invece di
-    isolare il solo asse del degrado (come fa §8.2 per SIFT). Qui si isola
-    esplicitamente rot_deg=0, scala=1.0: solo degradazione radiometrica, come
-    dovrebbe essere per una curva "senza preprocessing" pulita.
+    ritaglio -- quindi la percentuale deve essere un multiplo di 20. Il primo
+    tentativo (rot_deg=0, scala=1.0) dava risultati solo a degrado=0: la
+    curva di degradazione non parte dall'identita', parte da una
+    trasformazione geometrica gia' fissata (rot_deg=15, scala=1.15, tx=30,
+    ty=20, prospettiva=0) sopra cui si somma il degrado radiometrico
+    crescente. Il filtro stretto qui sotto isola quella base.
     """
     _sez("§10.4 -- successo per degradazione, tutti i matcher (preprocess=none)")
 
@@ -238,24 +239,19 @@ def sezione_104_degradazione_matcher(df: pd.DataFrame) -> None:
     tab_largo = (d_largo.groupby(["matcher", "degrado"]).success.mean() * 100).unstack("degrado").round(0)
     print(tab_largo.to_string())
 
-    d_stretto = d_largo[(d_largo.rot_deg == 0) & (d_largo.scala == 1.0)]
+    # Base geometrica trovata guardando le combinazioni reali a degrado > 0:
+    # rot_deg=15, scala=1.15, tx=30, ty=20, prospettiva=0. La curva di
+    # degradazione non parte dall'identita': somma il degrado radiometrico
+    # sopra una trasformazione geometrica moderata gia' fissata.
+    d_stretto = d_largo[
+        (d_largo.rot_deg == 15) & (d_largo.scala == 1.15) & (d_largo.prospettiva == 0)
+    ]
     print()
-    if d_stretto.empty or set(d_stretto.degrado.unique()) == {0.0}:
-        print("  rot_deg=0/scala=1.0 esiste solo a degrado=0: non e' la base giusta per")
-        print("  isolare la curva di degradazione. Guardiamo quali combinazioni di")
-        print("  rot_deg/scala esistono DAVVERO per ogni livello di degrado > 0:")
-        combinazioni = (
-            d_largo[d_largo.degrado > 0]
-            .groupby("degrado")[["rot_deg", "scala", "tx", "ty", "prospettiva"]]
-            .agg(lambda s: sorted(s.unique().tolist()))
-        )
-        print(combinazioni.to_string())
-        print()
-        print("  Usa i valori che vedi qui sopra (probabilmente costanti su tutti i")
-        print("  livelli di degrado) per costruire il filtro giusto, es.:")
-        print("  d_stretto = d_largo[(d_largo.rot_deg == <valore>) & (d_largo.scala == <valore>)]")
+    if d_stretto.empty:
+        print("  rot_deg=15/scala=1.15/prospettiva=0: nessuna riga -- la base e' cambiata")
+        print("  ancora, o i tipi delle colonne non sono quelli attesi.")
         return
-    print("  filtro stretto (preprocess=none, rot_deg=0, scala=1.0 -- solo degrado):")
+    print("  filtro stretto (preprocess=none, rot_deg=15, scala=1.15, prospettiva=0):")
     conteggio = d_stretto.groupby(["matcher", "degrado"]).size().unstack("degrado")
     print("  numero di prove per cella (deve essere 5 se una per ritaglio):")
     print(conteggio.to_string())
