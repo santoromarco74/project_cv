@@ -170,11 +170,9 @@ def sezione_93_corrispondenze(df: pd.DataFrame) -> None:
 
     for matcher, preprocess, modello in (
         ("sift", "sauvola", "affine"),
-        ("sift", "sauvola", "similarity"),
-        ("sift", "sauvola+chiusura", "similarity"),
-        ("orb", "sauvola+chiusura", "similarity"),
+        ("sift", "clahe", "affine"),
+        ("sift", "sauvola+close", "affine"),
         ("orb", "sauvola+close", "similarity"),
-        ("orb", "sauvola", "similarity"),
     ):
         sotto = d[
             (d.matcher == matcher) & (d.preprocess == preprocess) & (d.modello == modello)
