@@ -240,10 +240,20 @@ def sezione_104_degradazione_matcher(df: pd.DataFrame) -> None:
 
     d_stretto = d_largo[(d_largo.rot_deg == 0) & (d_largo.scala == 1.0)]
     print()
-    if d_stretto.empty:
-        print("  filtro stretto (rot_deg=0, scala=1.0): nessuna riga -- controlla i nomi")
-        print("  esatti delle colonne rot_deg/scala nel tuo CSV (es. potrebbero essere")
-        print("  stringhe invece che numeri).")
+    if d_stretto.empty or set(d_stretto.degrado.unique()) == {0.0}:
+        print("  rot_deg=0/scala=1.0 esiste solo a degrado=0: non e' la base giusta per")
+        print("  isolare la curva di degradazione. Guardiamo quali combinazioni di")
+        print("  rot_deg/scala esistono DAVVERO per ogni livello di degrado > 0:")
+        combinazioni = (
+            d_largo[d_largo.degrado > 0]
+            .groupby("degrado")[["rot_deg", "scala", "tx", "ty", "prospettiva"]]
+            .agg(lambda s: sorted(s.unique().tolist()))
+        )
+        print(combinazioni.to_string())
+        print()
+        print("  Usa i valori che vedi qui sopra (probabilmente costanti su tutti i")
+        print("  livelli di degrado) per costruire il filtro giusto, es.:")
+        print("  d_stretto = d_largo[(d_largo.rot_deg == <valore>) & (d_largo.scala == <valore>)]")
         return
     print("  filtro stretto (preprocess=none, rot_deg=0, scala=1.0 -- solo degrado):")
     conteggio = d_stretto.groupby(["matcher", "degrado"]).size().unstack("degrado")
