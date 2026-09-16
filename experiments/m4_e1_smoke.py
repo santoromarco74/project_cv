@@ -56,6 +56,34 @@ def una_prova(img, t, matcher, modello, degrado, seed, W_hist):
     return riga, b, st, pts_a, pts_b
 
 
+def _colori_per_quota(pts: np.ndarray, altezza: int) -> list[tuple[int, int, int]]:
+    """Un colore per corrispondenza, da una scala continua sulla quota del punto
+    di partenza.
+
+    Tutte le linee dello stesso colore sono illeggibili appena il fascio si
+    incrocia, ma alternare tinte a caso distinguerebbe due linee vicine senza
+    dire nient'altro. Legando la tinta alla posizione verticale nell'immagine di
+    sinistra la figura diventa anche diagnostica: se gli agganci sono corretti i
+    colori arrivano a destra nello stesso ordine, e una corrispondenza sbagliata
+    si nota perché rompe la sequenza, non perché è di un colore qualsiasi.
+    """
+    quota = np.clip(pts[:, 1] / max(altezza - 1, 1), 0.0, 1.0)
+    # La tinta si ferma a 150 dei 180 gradini di OpenCV: il giro completo
+    # riporterebbe il fondo scala sul rosso da cui era partito. Il valore è
+    # tenuto sotto il massimo perché il fondo è carta chiara: a piena
+    # luminosità la fascia gialla sparisce contro il beige.
+    hsv = np.stack(
+        [
+            (quota * 150).astype(np.uint8),
+            np.full(len(quota), 235, np.uint8),
+            np.full(len(quota), 195, np.uint8),
+        ],
+        axis=1,
+    ).reshape(-1, 1, 3)
+    bgr = cv2.cvtColor(hsv, cv2.COLOR_HSV2BGR).reshape(-1, 3)
+    return [tuple(int(c) for c in riga) for riga in bgr]
+
+
 def figura(img_a, img_b, st, pts_a, pts_b, out_path, titolo, seed=42, quanti=80):
     """Le corrispondenze inlier, per guardare che cosa ha agganciato.
 
@@ -69,20 +97,29 @@ def figura(img_a, img_b, st, pts_a, pts_b, out_path, titolo, seed=42, quanti=80)
     inlier = np.flatnonzero(st.inliers)
     rng = np.random.default_rng(seed)
     idx = np.sort(rng.choice(inlier, size=min(quanti, len(inlier)), replace=False))
-    kp_a = [cv2.KeyPoint(float(x), float(y), 4) for x, y in pts_a[idx]]
-    kp_b = [cv2.KeyPoint(float(x), float(y), 4) for x, y in pts_b[idx]]
-    match = [cv2.DMatch(i, i, 0) for i in range(len(idx))]
-    vis = cv2.drawMatches(
-        img_a, kp_a, img_b, kp_b, match, None,
-        matchColor=(0, 180, 0), singlePointColor=None, flags=2,
-    )
+
+    ha, wa = img_a.shape[:2]
+    hb, wb = img_b.shape[:2]
+    vis = np.zeros((max(ha, hb), wa + wb, 3), np.uint8)
+    vis[:ha, :wa] = img_a
+    vis[:hb, wa:] = img_b
+
+    for (xa, ya), (xb, yb), colore in zip(
+        pts_a[idx], pts_b[idx], _colori_per_quota(pts_a[idx], ha)
+    ):
+        p = (int(round(float(xa))), int(round(float(ya))))
+        q = (int(round(float(xb))) + wa, int(round(float(yb))))
+        cv2.line(vis, p, q, colore, 1, cv2.LINE_AA)
+        cv2.circle(vis, p, 3, colore, -1, cv2.LINE_AA)
+        cv2.circle(vis, q, 3, colore, -1, cv2.LINE_AA)
+
     # putText disegna solo ASCII: gli accenti e i separatori tipografici
     # diventerebbero '??' sull'immagine.
     ascii_titolo = titolo.encode("ascii", "replace").decode("ascii")
     cv2.putText(vis, ascii_titolo, (12, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 200), 2)
     os.makedirs(os.path.dirname(out_path) or ".", exist_ok=True)
     cv2.imwrite(out_path, vis)
-    print(f"figura: {out_path}")
+    print(f"figura: {out_path} ({len(idx)} corrispondenze disegnate su {len(inlier)} inlier)")
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -94,6 +131,7 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--seed", type=int, default=42)
     ap.add_argument("--jgw", default="data/raw/L675_004900.jgw", help="solo per l'RMSE in metri")
     ap.add_argument("--out", default="results/figures/m4_e1_match.png")
+    ap.add_argument("--quanti", type=int, default=80, help="corrispondenze disegnate nella figura")
     args = ap.parse_args(argv)
 
     W_hist = read_jgw(args.jgw) if os.path.exists(args.jgw) else None
@@ -128,6 +166,7 @@ def main(argv: list[str] | None = None) -> int:
                 figura(
                     img, b, st, pa, pb, args.out,
                     f"E1 {nome} - similarita - {args.matcher}", seed=args.seed,
+                    quanti=args.quanti,
                 )
 
     print(f"\nRMSE peggiore sul lotto: {peggiore:.4f} px")
