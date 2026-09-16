@@ -16,6 +16,7 @@ import sys
 import cv2
 import numpy as np
 
+from src.figure import affianca_corrispondenze
 from src.pipeline import Opzioni, registra
 
 MATCHER = ("sift", "orb", "loftr")
@@ -71,11 +72,8 @@ def figura_overlay(hist, modern, ris, out_path: str) -> None:
         idx = np.flatnonzero(ris.stima.inliers)
         rng = np.random.default_rng(ris.meta.get("seed", 42))
         idx = np.sort(rng.choice(idx, size=min(60, len(idx)), replace=False))
-        kp_a = [cv2.KeyPoint(float(x), float(y), 4) for x, y in ris.pts_hist[idx]]
-        kp_b = [cv2.KeyPoint(float(x), float(y), 4) for x, y in ris.pts_modern[idx]]
-        match = [cv2.DMatch(i, i, 0) for i in range(len(idx))]
         pannelli.append(
-            cv2.drawMatches(hist, kp_a, modern, kp_b, match, None, matchColor=(0, 180, 0), flags=2)
+            affianca_corrispondenze(hist, modern, ris.pts_hist[idx], ris.pts_modern[idx])
         )
 
     if not pannelli:
