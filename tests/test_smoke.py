@@ -849,6 +849,55 @@ def test_cli_con_world_file_calcola_rmse():
     assert colonne["success"] in ("True", "False"), colonne
 
 
+def test_cli_out_figure_disegna_corrispondenze_non_monocrome():
+    """`--out-figure` scrive la figura, e le corrispondenze non sono tutte dello
+    stesso colore.
+
+    La figura è l'unico prodotto della CLI che nessun numero controlla: il
+    colore per quota (`src/figure.py`) serve a seguire una linea dentro un
+    fascio che si incrocia, e tornare a una tinta fissa non farebbe muovere
+    nessuna cifra del CSV. Senza questo test quel codice non ha copertura.
+    """
+    import tempfile
+
+    tmp = tempfile.mkdtemp(prefix="histreg-figura-")
+    hist_png = os.path.join("data/crops", "ribba.png")
+    _serve(hist_png)
+    img = cv2.imread(hist_png, cv2.IMREAD_COLOR)[:256, :256]
+    b, _ = genera_coppia(img, Trasformazione(rot_deg=5))
+    a_png, b_png = os.path.join(tmp, "a.png"), os.path.join(tmp, "b.png")
+    cv2.imwrite(a_png, img)
+    cv2.imwrite(b_png, b)
+    figura = os.path.join(tmp, "figura.png")
+
+    # --out-csv nel temporaneo: senza, la CLI appenderebbe a results/runs.csv
+    cli_main(
+        ["--hist", a_png, "--modern", b_png, "--preprocess", "none",
+         "--out-csv", os.path.join(tmp, "runs.csv"), "--out-figure", figura]
+    )
+
+    vis = cv2.imread(figura, cv2.IMREAD_COLOR)
+    assert vis is not None, f"{figura}: non scritto, o illeggibile"
+    # due pannelli: l'overlay (largo come la moderna) e le due immagini
+    # affiancate, quindi tre volte la larghezza di partenza
+    lato = img.shape[0]
+    assert vis.shape[:2] == (lato, 3 * lato), vis.shape
+
+    # Sul pannello delle corrispondenze le linee sono l'unica cosa molto
+    # satura: la carta è beige e le campiture sono pastello.
+    #
+    # Si misura l'AMPIEZZA delle tinte, non quante sono: l'anti-aliasing
+    # sfuma ogni linea contro il fondo e produce comunque una manciata di
+    # tinte intermedie, quindi un conteggio non distinguerebbe una figura
+    # colorata da una monocroma. Misurato su una coppia di prova: tinte
+    # sparse su un'ampiezza di 121 con i colori per quota, di 7 con un
+    # colore fisso.
+    hsv = cv2.cvtColor(vis[:, lato:], cv2.COLOR_BGR2HSV)
+    tinte = np.unique(hsv[..., 0][hsv[..., 1] > 180])
+    ampiezza = int(tinte.max()) - int(tinte.min())
+    assert ampiezza >= 60, f"corrispondenze quasi monocrome: tinte da {tinte.min()} a {tinte.max()}"
+
+
 # ------------------------------------------------------------------ M10: relazione
 
 
