@@ -592,6 +592,15 @@ d'archivio non funziona, perché la carta non ha un colore solo: è più gialla 
 zone ingiallite, più scura vicino alle pieghe, più chiara al centro. Una soglia
 che va bene in un angolo del foglio sbaglia nell'angolo opposto.
 
+**Una precisazione sulle cifre che seguono.** Binarizzare non toglie né
+aggiunge pixel: l'immagine ne ha esattamente gli stessi prima e dopo. Cambia
+l'*etichetta* — ogni pixel passa da un valore fra 0 e 255 all'appartenenza a
+una di due classi, inchiostro o carta. È una classificazione, non una
+cancellazione, e per questo la percentuale di pixel dichiarati inchiostro può
+salire o scendere senza che ciò sia di per sé un miglioramento. Quando sale di
+molto è di norma un guasto: Otsu sotto gradiente di illuminazione arriva al
+43.66% (§6.3), e quel 43.66% è la carta scurita promossa a inchiostro.
+
 **Otsu — una soglia sola per tutta l'immagine.** Guarda l'istogramma dei grigi e
 sceglie il valore che separa meglio le due popolazioni (scuri e chiari). È il
 metodo classico di riferimento, e serve qui come termine di paragone. Il suo
@@ -638,6 +647,24 @@ l'*apertura* cancella i puntini isolati (la grana della carta scambiata per
 inchiostro), la *chiusura* ricongiunge i tratti interrotti, frequenti perché il
 pennino stacca. L'ordine conta: si apre prima e si chiude poi, perché chiudendo
 per primo si salderebbe la grana al tratto, rendendola poi non più rimovibile.
+
+Non è una precauzione teorica, e si vede in un numero. Sul ritaglio `ribba`,
+partendo da Sauvola:
+
+| variante | pixel etichettati inchiostro |
+|---|---|
+| Sauvola | 6.84% |
+| Sauvola + chiusura | 7.10% |
+| Sauvola + chiusura + rimozione delle componenti piccole | 7.09% |
+
+La chiusura aggiunge inchiostro, come deve. Ma il passo successivo — quello che
+elimina le componenti connesse più piccole di una soglia, cioè proprio la grana
+— ne recupera **0.01 punti**, un centinaio di pixel su un milione: praticamente
+nulla. Il motivo è che quella variante ha la chiusura e **non** l'apertura,
+quindi la grana non viene mai tolta e la chiusura la salda al tratto: smette di
+essere una componente piccola e isolata e diventa parte di una componente
+grande, che il filtro sull'area non tocca più. Aprire per primo non è una
+questione di stile, è ciò che rende possibile la pulizia a valle.
 
 La variante che nelle tabelle compare come **`sauvola+chiusura`** è esattamente
 questo: la stessa binarizzazione, più un passaggio di chiusura con un elemento
