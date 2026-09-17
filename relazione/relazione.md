@@ -842,20 +842,55 @@ restituire un risultato che non avrebbe senso.
 
 #### Come funziona il voto, con i numeri
 
-Ogni iterazione di RANSAC pesca a caso un **campione minimo**: il numero `s` di
-corrispondenze che bastano a calcolare la trasformazione esattamente — 2 per la
-similarità, 3 per l'affine, 4 per l'omografia, cioè metà dei parametri, perché
-ogni punto ne fissa due. Il voto ha senso solo se prima o poi capita un campione
-fatto di corrispondenze **tutte** corrette, e quanti tentativi servano perché
-questo accada si può calcolare. Detta `w` la frazione di corrispondenze corrette
-e `p` la sicurezza voluta (qui 0.995), il numero di iterazioni necessarie è
+Un'iterazione di RANSAC fa quattro cose. **Pesca** a caso un *campione minimo*:
+il numero `s` di corrispondenze che bastano a calcolare la trasformazione
+esattamente — 2 per la similarità, 3 per l'affine, 4 per l'omografia, cioè metà
+dei parametri, perché ogni punto ne fissa due. **Risolve** il sistema esatto,
+ottenendo una `H` candidata. **Applica** quella `H` a tutte le corrispondenze e
+conta quante cadono vicino al punto con cui erano state abbinate. **Ripete**,
+tenendo alla fine la `H` che ha raccolto più consensi.
+
+Il test su una singola corrispondenza è elementare, e vale la pena scriverlo
+perché è facile confonderlo con la formula qui sotto: si applica la `H`
+candidata al punto di partenza, si misura quanto lontano cade dal suo compagno,
+e la coppia si tiene se quella distanza sta sotto una soglia — **3 pixel**, il
+valore di `--ransac-thresh`.
+
+```
+‖H·a − b‖ < 3 px   →   la coppia è un inlier
+```
+
+**La famiglia entra nei primi due passi, non nel terzo.** Decide quante
+corrispondenze servono per costruire un candidato e che forme quel candidato
+può assumere; la soglia invece resta 3 px per tutte e tre. Non cambia quindi il
+*test*, cambia lo **spazio delle ipotesi sottoposte al test** — ed è qui che
+nasce il risultato di §9.4: una `H` sbagliata, pescata da una famiglia più
+libera, riesce a portare per caso più coppie sotto i 3 px, perché ha più
+parametri con cui contorcersi. La soglia è identica, è il candidato a essere
+più capace di ingannarla.
+
+Un ultimo passo spiega la precisione che si ottiene. La `H` vincente **non
+resta quella calcolata dal campione minimo**: viene ricalcolata sull'insieme
+completo dei suoi inlier. Le 2-4 corrispondenze del campione servono a *trovare*
+il consenso, non a fornire la risposta — la stima definitiva si costruisce su
+tutte le centinaia di coppie che quel consenso ha raccolto, ed è la ragione per
+cui da un campione di quattro punti si arriva a un errore sub-pixel.
+
+Resta la domanda su **quante** iterazioni servano perché prima o poi capiti un
+campione fatto di corrispondenze tutte corrette. Detta `w` la frazione di
+corrispondenze corrette e `p` la sicurezza voluta (qui 0.995):
 
 ```
 k ≥ ln(1 − p) / ln(1 − w^s)
 ```
 
-La formula dice una cosa sola, ma decisiva: `w` è elevato a `s`, quindi il costo
-non cresce con il numero di parametri, **esplode**.
+Questa è un **budget di tentativi**, non un criterio di selezione: non giudica
+nessuna coppia. E non è valutabile in anticipo, perché `w` è precisamente ciò
+che non si sa — scoprirlo è il lavoro di RANSAC. Per questo il codice porta un
+tetto fisso, `max_iter = 5000`, e la formula serve a stabilire *a posteriori* se
+quel tetto era sufficiente. La sua lezione è una sola, ma decisiva: `w` è
+elevato a `s`, quindi il costo non cresce con il numero di parametri,
+**esplode**.
 
 ![Iterazioni necessarie in funzione dell'inlier ratio](../results/figures/m10_ransac_iterazioni.png)
 
