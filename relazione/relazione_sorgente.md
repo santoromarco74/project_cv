@@ -1488,3 +1488,6 @@ dove invece reggono meglio del previsto.
 Un progetto che misura e spiega perché un metodo cede vale più di uno che mostra
 solo il caso riuscito. Qui i casi riusciti ci sono, e i punti di rottura sono
 documentati con lo stesso rigore.
+<!--stackedit_data:
+eyJoaXN0b3J5IjpbMTUyOTkwMDY0N119
+-->
