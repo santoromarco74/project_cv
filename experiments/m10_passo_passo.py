@@ -23,10 +23,16 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 
 from src.evaluate import valuta  # noqa: E402
+from src.figure import sovrapponi_tratti  # noqa: E402
 from src.groundtruth import h_true_from_jgw  # noqa: E402
 from src.io_geo import read_jgw  # noqa: E402
 from src.pipeline import Opzioni, registra  # noqa: E402
 from src.preprocess import applica  # noqa: E402
+
+# La stessa soglia di successo della griglia E2 (experiments/m8_e2_griglia.py):
+# la figura descrive una riga di quell'esperimento, e dichiarare due soglie
+# diverse per la stessa prova la renderebbe incomparabile.
+SOGLIA_M = 2.0
 
 
 def _affianca(a: np.ndarray, b: np.ndarray) -> tuple[np.ndarray, int]:
@@ -60,6 +66,48 @@ def _disegna_linee(tela, offset, pts_a, pts_b, colore, spessore=1, quanti=60, se
     return tela
 
 
+def _riquadro_numeri(ax, ris, metriche, riuscita: bool, tinta: str) -> None:
+    """Il risultato in cifre, accanto al pannello 6.
+
+    La figura fa vedere che i tratti si sovrappongono; questo riquadro dice di
+    quanto sbaglia, che è il numero su cui si giudica l'intera pipeline (§4).
+    Sta qui e non solo nel titolo generale perché il titolo si legge una volta,
+    mentre questo resta accanto all'immagine che descrive.
+    """
+    ax.axis("off")
+    ax.text(
+        0.5, 0.97, "registrazione riuscita" if riuscita else "registrazione fallita",
+        ha="center", va="top", fontsize=15, weight="bold", color=tinta,
+        transform=ax.transAxes,
+    )
+    ax.text(
+        0.5, 0.82, f"{metriche['rmse_m']:.2f} m",
+        ha="center", va="top", fontsize=40, weight="bold", transform=ax.transAxes,
+    )
+    ax.text(
+        0.5, 0.66,
+        "errore finale (RMSE) su un riferimento\nche di suo ne vale circa 0.5",
+        ha="center", va="top", fontsize=10, transform=ax.transAxes,
+    )
+    righe = (
+        ("corrispondenze trovate", f"{ris.stima.n_matches}"),
+        ("inlier dopo RANSAC", f"{ris.stima.n_inliers}  ({100 * ris.stima.inlier_ratio:.1f}%)"),
+        ("errore in pixel", f"{metriche['rmse_px']:.2f} px"),
+        ("errore massimo", f"{metriche['err_max_px']:.2f} px"),
+        ("soglia dichiarata", f"{SOGLIA_M:.2f} m"),
+    )
+    for i, (etichetta, valore) in enumerate(righe):
+        y = 0.48 - i * 0.09
+        ax.text(0.05, y, etichetta, fontsize=10, transform=ax.transAxes)
+        ax.text(0.95, y, valore, fontsize=10, weight="bold", ha="right", transform=ax.transAxes)
+    ax.add_patch(
+        plt.Rectangle(
+            (0.01, 0.01), 0.98, 0.99, transform=ax.transAxes,
+            fill=False, linewidth=1.2, edgecolor="#999999",
+        )
+    )
+
+
 def figura(crop: str, crops_dir: str, out_path: str, opz: Opzioni) -> dict:
     hist = cv2.imread(os.path.join(crops_dir, f"{crop}.png"), cv2.IMREAD_COLOR)
     vec = cv2.imread(os.path.join(crops_dir, f"{crop}_vec1812.png"), cv2.IMREAD_COLOR)
@@ -76,7 +124,7 @@ def figura(crop: str, crops_dir: str, out_path: str, opz: Opzioni) -> dict:
         hist.shape[1],
         hist.shape[0],
         W_hist=read_jgw(os.path.join(crops_dir, f"{crop}.jgw")),
-        soglia_m=2.0,
+        soglia_m=SOGLIA_M,
     )
 
     hist_pulito = applica(hist, modo=opz.preprocess, morph_close=opz.morph_close)
@@ -97,18 +145,27 @@ def figura(crop: str, crops_dir: str, out_path: str, opz: Opzioni) -> dict:
     # 6: la sovrapposizione
     h, w = vec.shape[:2]
     warp = cv2.warpPerspective(hist, ris.H, (w, h), borderValue=(255, 255, 255))
-    overlay = vec.copy()
-    overlay[cv2.cvtColor(warp, cv2.COLOR_BGR2GRAY) < 128] = (0, 0, 220)
+    overlay = sovrapponi_tratti(warp, vec)
 
-    fig = plt.figure(figsize=(17, 15))
-    gs = fig.add_gridspec(3, 3, height_ratios=[1.0, 0.72, 1.0])
+    # Quattro righe, non tre. I pannelli 4 e 5 sono la stessa coppia di immagini
+    # prima e dopo la votazione, e confrontarli è il punto: stanno quindi su due
+    # righe di uguale altezza, non uno a piena larghezza e l'altro schiacciato in
+    # una colonna. L'ultima riga è la più alta e ospita il risultato, che è ciò
+    # che il lettore deve portarsi via.
+    fig = plt.figure(figsize=(17, 21))
+    gs = fig.add_gridspec(4, 3, height_ratios=[1.0, 0.72, 0.72, 1.7])
 
-    def _pannello(ax, img, titolo, didascalia):
+    def _pannello(ax, img, titolo, didascalia, cornice=None, grande=False):
         ax.imshow(cv2.cvtColor(img, cv2.COLOR_BGR2RGB) if img.ndim == 3 else img, cmap="gray")
-        ax.set_title(titolo, fontsize=11, weight="bold")
+        ax.set_title(titolo, fontsize=14 if grande else 11, weight="bold")
         ax.set_xlabel(didascalia, fontsize=9)
         ax.set_xticks([])
         ax.set_yticks([])
+        if cornice is not None:
+            for lato in ax.spines.values():
+                lato.set_visible(True)
+                lato.set_linewidth(4)
+                lato.set_edgecolor(cornice)
 
     _pannello(
         fig.add_subplot(gs[0, 0]),
@@ -138,30 +195,39 @@ def figura(crop: str, crops_dir: str, out_path: str, opz: Opzioni) -> dict:
         f"perché solo il {100 * ris.stima.inlier_ratio:.0f}% è corretto",
     )
     _pannello(
-        fig.add_subplot(gs[2, 0]),
+        fig.add_subplot(gs[2, :]),
         tela_inlier,
         f"5 · dopo la votazione ({ris.stima.n_inliers} sopravvissuti)",
-        "RANSAC tiene solo gli abbinamenti che\nconcordano su una stessa trasformazione",
+        "RANSAC tiene solo gli abbinamenti che concordano su una stessa "
+        "trasformazione: confrontare questa riga con quella sopra è il punto",
     )
 
-    ax6 = fig.add_subplot(gs[2, 1:])
+    riuscita = bool(metriche["success"])
+    tinta = "#1b7a3d" if riuscita else "#a62828"
     _pannello(
-        ax6,
+        fig.add_subplot(gs[3, 0:2]),
         overlay,
         "6 · il risultato",
-        "lo storico, deformato dalla trasformazione stimata, sovrapposto in rosso al vettoriale",
+        "nero dove i due tratti coincidono; rosso il solo storico deformato, "
+        "ciano il solo vettoriale",
+        cornice=tinta,
+        grande=True,
     )
 
-    esito = "riuscita" if metriche["success"] else "fallita"
+    # L'immagine del risultato è quadrata e occupa due colonne: la terza
+    # resterebbe vuota. Ci va il numero, che del risultato è la parte che si
+    # cita — la figura mostra *che* ha funzionato, il riquadro dice *quanto* (I6).
+    _riquadro_numeri(fig.add_subplot(gs[3, 2]), ris, metriche, riuscita, tinta)
+
     fig.suptitle(
         f"Una registrazione dall'inizio alla fine — ritaglio «{crop}», "
-        f"{opz.matcher.upper()} · {opz.preprocess} · {opz.model}\n"
-        f"errore finale {metriche['rmse_m']:.2f} m su un riferimento che ne vale ~0.5: "
-        f"registrazione {esito}",
-        fontsize=13,
+        f"{opz.matcher.upper()} · {opz.preprocess} · {opz.model}",
+        fontsize=14,
     )
     os.makedirs(os.path.dirname(out_path) or ".", exist_ok=True)
-    fig.tight_layout()
+    # rect lascia il posto al suptitle: senza, tight_layout gli fa sovrascrivere
+    # i titoli della prima riga di pannelli
+    fig.tight_layout(rect=(0, 0, 1, 0.975))
     fig.savefig(out_path, dpi=110)
     plt.close(fig)
     print(f"figura: {out_path}")
