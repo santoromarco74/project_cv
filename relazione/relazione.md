@@ -52,7 +52,7 @@ sono tre lezioni distinte. Qui sotto, dove il progetto tocca il corso.
 | lezione | argomento | dove compare |
 |---|---|---|
 | CV02 | segmentazione, immagini binarie, distribuzione bimodale | Otsu come soglia globale, e Sauvola come sua versione locale (§6.1) |
-| CV03 | istogrammi, LUT, operazioni locali | CLAHE, l'alternativa che non binarizza (§6.1) |
+| CV03 | istogrammi, LUT, operazioni locali | CLAHE, l'alternativa che non binarizza (§6.1); i kernel derivativi di Sobel, con cui è calcolato il gradiente di §7.1 |
 | CV04 | morfologia matematica binaria | apertura e chiusura con elemento strutturante (§6.1) |
 | CV06 | pattern recognition e ricerca visiva | la ricerca di corrispondenze fra le due immagini (§7.1) |
 | CV08 | analisi di regioni, componenti connesse | `rimuovi_componenti` in `preprocess.py`, che elimina le macchie più piccole di una soglia |
@@ -65,7 +65,9 @@ livelli. L'analisi di componenti connesse di CV08 è implementata ma **resta
 fuori dalla griglia sperimentale**: eliminare le macchie piccole toglie anche i
 blob su cui SIFT trova i suoi punti, e misurare quel compromesso avrebbe
 aggiunto un asse a un piano già ampio. Della multirisoluzione di CV09 il
-progetto sfrutta solo l'invarianza di scala di SIFT, senza svilupparne il tema.
+progetto sfrutta solo l'invarianza di scala di SIFT — che nasce dalla piramide
+di gaussiane e dalla loro differenza, cioè dal laplaciano approssimato (§7.1) —
+senza svilupparne il tema per proprio conto.
 
 Il corso tratta inoltre fotometria, compressione, visione tridimensionale e
 sintesi di immagini, che qui non compaiono: la traccia chiede la soluzione di
@@ -769,11 +771,37 @@ reale: è acceso solo lungo i contorni delle lettere, nero altrove — la carta
 uniforme non genera gradiente. Il pannello 3 mostra la sua direzione, colorata:
 lungo un bordo curvo il colore ruota con esso. Il pannello 4 raccoglie i
 gradienti di *tutta* la finestra in un istogramma a 8 direzioni, pesato da
-quanto è forte ciascuno: è la stessa identica aritmetica del descrittore SIFT.
+quanto è forte ciascuno: è la stessa aggregazione che sta dentro il descrittore
+SIFT.
 
-**SIFT** cerca punti che restano riconoscibili anche se l'immagine viene
-ingrandita o ruotata, e per ognuno costruisce il suo descrittore così: prende una
-finestra di 16×16 pixel attorno al punto, la divide in 16 sotto-finestre di 4×4,
+**Con che cosa è calcolato quel gradiente.** La figura usa l'operatore di
+**Sobel**, due kernel 3×3 che stimano la derivata orizzontale e verticale. SIFT
+internamente non usa Sobel ma la semplice differenza fra il pixel precedente e
+il successivo, e la ragione è istruttiva: il kernel di Sobel si fattorizza in
+`[1, 0, −1] ⊗ [1, 2, 1]`, cioè *è* quella differenza più una lisciatura nella
+direzione ortogonale. SIFT quella lisciatura ce l'ha già, perché lavora
+sull'immagine convoluta con una gaussiana (qui sotto), e applicare Sobel
+significherebbe lisciare due volte. Nella figura serve invece, perché il
+dettaglio è preso dalla scansione grezza, con la grana della carta.
+
+**Come SIFT trova i punti**, prima di descriverli. Sfoca la stessa immagine con
+gaussiane di ampiezza crescente e ne **sottrae** le versioni consecutive: questa
+*differenza di gaussiane* è un'approssimazione del **laplaciano** della
+gaussiana, e i suoi massimi sono i punti cercati. Da qui viene tutto il resto —
+l'invarianza di scala, perché il punto si cerca su tutte le sfocature insieme e
+non su una sola; e il fatto, decisivo per questo progetto, che il laplaciano
+risponda ai **blob**, cioè a macchie con un massimo di curvatura, e non ai
+bordi. È la ragione strutturale per cui un reticolo di linee sottili è il
+terreno peggiore per SIFT, che §7.2 e §9 constatano poi nei numeri.
+
+A ogni punto SIFT assegna poi un **orientamento dominante**, ricavato dagli
+stessi gradienti, e ruota di conseguenza tutto ciò che legge intorno. È da lì
+che viene l'invarianza alla rotazione — costruita per progetto, non appresa dai
+dati, e §8.1 mostra che è proprio questa la differenza che LoFTR non ha.
+
+**Il descrittore**, infine. Per ogni punto trovato SIFT procede così: prende
+una finestra di 16×16 pixel attorno al punto, la divide in 16 sotto-finestre di
+4×4,
 e per ciascuna calcola l'istogramma a 8 direzioni del pannello 4. Sedici
 istogrammi da 8 numeri, incollati uno dopo l'altro, fanno **128 numeri**: è il
 descrittore, un solo vettore per l'intero punto, non uno per pixel. Due punti che
@@ -1566,6 +1594,3 @@ dove invece reggono meglio del previsto.
 Un progetto che misura e spiega perché un metodo cede vale più di uno che mostra
 solo il caso riuscito. Qui i casi riusciti ci sono, e i punti di rottura sono
 documentati con lo stesso rigore.
-<!--stackedit_data:
-eyJoaXN0b3J5IjpbMTUyOTkwMDY0N119
--->
