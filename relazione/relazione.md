@@ -1142,6 +1142,16 @@ sotto il 5% per ORB, attorno al 10% per SIFT — più gradi di libertà signific
 più modi di accordarsi con gli outlier: RANSAC trova un consenso, ma quello
 sbagliato.
 
+E su questi dati la famiglia giusta **si conosce**: §9.1 stabilisce che, avendo
+le due griglie risoluzioni diverse, `H_true` è una similarità vera con fattore
+di scala 1.272265. I 2 gradi di libertà in più dell'affine e i 4 dell'omografia
+non servono a rappresentarla. La tabella non sta quindi misurando quale modello
+descriva meglio i dati, ma **il costo di concedere allo stimatore più libertà
+di quanta la verità ne richieda**: 29 punti di tasso di successo per
+l'omografia. Si potrebbe obiettare che la deformazione residua della carta
+giustifichi i gradi di libertà dell'affine, ma la misura dice che non li
+ripaga — l'affine perde 17 punti invece di guadagnarne.
+
 È il risultato più trasferibile dell'intero lavoro: **su dati cross-domain con
 inlier ratio bassi, il modello più vincolato non è una semplificazione, è una
 necessità.**
