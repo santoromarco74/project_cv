@@ -80,32 +80,18 @@ librerie standard. Ma un elenco di strumenti permessi non è una motivazione, e
 metodi. Ognuno risponde a una domanda del progetto — e più di uno è in griglia
 proprio perché ci si aspettava che perdesse.
 
-**Python e OpenCV, non MATLAB né ImageMagick.** Gli altri due strumenti
-ammessi sono stati scartati, per ragioni diverse.
+**Python e OpenCV, non MATLAB né ImageMagick.** *ImageMagick* saprebbe fare
+tutto il capitolo §6 — soglia globale, soglia adattiva locale, morfologia,
+perfino CLAHE — ma non ha descrittori, matching né RANSAC: si fermerebbe ai
+passi 1-3 di §2.2, prima del problema. *MATLAB* sarebbe invece sufficiente, ma
+un lavoro che non gira senza licenza commerciale non soddisfa la richiesta
+della traccia che i pacchetti esterni siano presenti nella versione finale, e
+i pesi di LoFTR vivono comunque in `torch`/`kornia`.
 
-*ImageMagick* saprebbe fare l'intero capitolo §6: ha la soglia globale, ha una
-soglia adattiva locale, ha la morfologia con elemento strutturante, ha perfino
-CLAHE. Ma si fermerebbe esattamente lì — non ha descrittori, non ha matching,
-non ha RANSAC. Copre i passi 1-3 di §2.2 e non il 4 e il 5, che sono il
-problema. È uno strumento di pulizia dell'immagine, non una base su cui
-costruire una registrazione.
-
-*MATLAB* sarebbe invece sufficiente: il Computer Vision Toolbox ha rilevatori,
-descrittori, matching e stima robusta. Due ragioni contro. La prima è la
-traccia stessa, che chiede che i pacchetti esterni «siano presenti nella
-versione finale del progetto»: un lavoro che non gira senza una licenza
-commerciale non soddisfa quella richiesta in nessun senso utile. La seconda è
-la componente B: LoFTR e i suoi pesi vivono nell'ecosistema `torch`/`kornia`, e
-farli comunicare con MATLAB significherebbe due processi, due formati
-intermedi, e un confronto che non è più fra due matcher nella stessa pipeline
-ma fra due programmi diversi.
-
-Ed è questo il vero motivo della scelta, più che la comodità: **Python è il
-solo dei tre ambienti in cui il classico e il neurale girano nello stesso
-processo, dietro la stessa interfaccia**. Il confronto di §10 ha valore solo se
-cambia una parola sulla riga di comando e non cambia nient'altro; se i due
-matcher girassero in due mondi separati, ogni differenza misurata sarebbe
-attribuibile anche al contorno.
+Il vero motivo però è un altro: **Python è il solo dei tre ambienti in cui il
+classico e il neurale girano nello stesso processo, dietro la stessa
+interfaccia**. Il confronto di §10 ha valore solo se cambia una parola sulla
+riga di comando e non cambia nient'altro.
 
 Una scelta per sottrazione merita di essere dichiarata: **nessun `pyproj`,
 nessun `geopandas`**. Raster e vettoriale sono già nello stesso sistema di
@@ -128,25 +114,22 @@ ripagata in un modo non previsto: su questi ritagli Otsu **non** fallisce
 (§6.3), e la previsione di partenza è stata smentita dai dati. Senza Otsu in
 griglia non ci sarebbe stato niente da smentire.
 
-**Sauvola, non Niblack né la soglia adattiva già pronta.** La famiglia delle
-soglie locali è ampia. Niblack, il capostipite, calcola `T = m + k·s`: dove la
-carta è uniforme `s` è piccolo per definizione, la soglia resta incollata alla
-media locale, e quasi metà del fondo finisce classificata come inchiostro —
-sogliare sul valor medio del rumore significa per costruzione promuoverne
-metà. Su un foglio d'archivio, che è quasi tutto fondo uniforme, è il difetto
-peggiore possibile. Sauvola corregge proprio quello rendendo il
-termine moltiplicativo: con `s` che tende a zero la soglia scende a `m·(1−k)`,
-cioè il 20% sotto la media locale, e una zona uniforme viene assegnata tutta al
-fondo. Non è un dettaglio di taratura, è la ragione per cui questa formula
-nasce — Sauvola è stato proposto per la binarizzazione di **immagini di
-documenti**, che è esattamente ciò che un foglio di mappa è: inchiostro su
-carta.
+**Sauvola, non Niblack né la soglia adattiva già pronta.** Niblack, il
+capostipite delle soglie locali, calcola `T = m + k·s`: dove la carta è
+uniforme `s` è piccolo per definizione, la soglia resta incollata alla media
+locale, e sogliare sul valor medio del rumore significa per costruzione
+promuoverne metà a inchiostro. Su un foglio d'archivio, che è quasi tutto fondo
+uniforme, è il difetto peggiore possibile.
 
-C'era anche una scorciatoia, l'`adaptiveThreshold` di OpenCV, che sottrae una
-costante alla media locale. Ha lo stesso difetto di Niblack — la costante non
-si accorge di quanta struttura ci sia nell'intorno — e per di più è una riga
-sola: usarla avrebbe rinunciato all'unico punto del preprocessing in cui la
-traccia chiede di implementare un algoritmo invece di invocarlo.
+Sauvola corregge proprio quello rendendo il termine moltiplicativo: con `s` che
+tende a zero la soglia scende a `m·(1−k)`, cioè il 20% sotto la media locale, e
+una zona uniforme viene assegnata tutta al fondo. Non è un dettaglio di
+taratura, è la ragione per cui la formula nasce — è stata proposta per la
+binarizzazione di **immagini di documenti**, che è esattamente ciò che un
+foglio di mappa è: inchiostro su carta. La scorciatoia, l'`adaptiveThreshold`
+di OpenCV, sottrae invece una costante alla media locale: stesso difetto di
+Niblack, e in una riga sola — cioè rinunciando all'unico punto del
+preprocessing in cui la traccia chiede di implementare un algoritmo.
 
 **CLAHE, non l'equalizzazione globale dell'istogramma.** L'equalizzazione
 classica stira l'istogramma di tutta l'immagine, e su questo foglio
