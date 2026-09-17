@@ -247,7 +247,7 @@ l'impronta più simile.
 Nel pannello 4 ogni linea rossa unisce due punti che il programma considera la
 stessa cosa. **Se fossero tutti giusti, le linee sarebbero parallele.** Non lo
 sono affatto: su un disegno al tratto moltissimi incroci si somigliano, e in
-questo esempio **solo il 5% degli abbinamenti risulta corretto**. Il resto è rumore.
+questo esempio **solo il 6% degli abbinamenti risulta corretto**. Il resto è rumore.
 
 **5 · La votazione.** È il passaggio che salva tutto. Il programma prende a caso
 due abbinamenti, calcola quale spostamento-rotazione-ingrandimento
@@ -255,15 +255,17 @@ implicherebbero, e poi **conta quanti altri abbinamenti sarebbero d'accordo** co
 quella stessa trasformazione. Ripete l'operazione migliaia di volte e tiene la
 trasformazione che ha raccolto più consensi.
 
-Gli abbinamenti d'accordo si chiamano *inlier*. Nel pannello 5 ne sono rimasti 44
-su 871, e questa volta **sono tutti paralleli**: descrivono tutti lo stesso
+Gli abbinamenti d'accordo si chiamano *inlier*. Nel pannello 5 ne sono rimasti 52
+su 856, e questa volta **sono tutti paralleli**: descrivono tutti lo stesso
 movimento. Questa procedura si chiama RANSAC, ed è ciò che permette di trovare la
-risposta giusta quando il 95% dei dati è sbagliato.
+risposta giusta quando il 94% dei dati è sbagliato.
 
 **6 · Il risultato.** La trasformazione trovata viene applicata all'immagine
-storica, che così si sovrappone al vettoriale. Nel pannello 6 il tratto storico
-deformato è in rosso sopra le linee nere del vettoriale: dove il rosso segue il
-nero, la registrazione è corretta.
+storica, che così si sovrappone al vettoriale. Nel pannello 6 i due strati vanno
+su colori complementari: **nero dove coincidono**, rosso dove c'è solo lo storico
+deformato, ciano dove c'è solo il vettoriale. Una registrazione corretta
+annerisce; un disallineamento si stacca in una frangia rosso-ciano, visibile
+anche per uno scarto di un paio di pixel.
 
 ### 2.3 Come facciamo a sapere se ha funzionato
 
@@ -275,8 +277,10 @@ algebrica la trasformazione **esatta**, senza doverne indovinare nemmeno un
 pezzo.
 
 Quindi la risposta giusta la conosciamo già, e possiamo dire di **quanti metri**
-il programma ha sbagliato. Nell'esempio della figura: 0.67 m, su un riferimento
-che di suo ha un'incertezza di circa mezzo metro.
+il programma ha sbagliato. Nell'esempio della figura: 0.50 m — cioè esattamente
+al livello dell'incertezza del riferimento stesso, che di suo vale circa mezzo
+metro. La registrazione è buona quanto questa ground truth consente di
+misurare.
 
 **Il programma che stima non vede quei sei numeri.** Li vede solo il codice che
 corregge. È una separazione imposta per costruzione (§4.2): se l'informazione
