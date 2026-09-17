@@ -26,6 +26,11 @@ def colori_per_quota(pts: np.ndarray, altezza: int) -> list[tuple[int, int, int]
     colori arrivano a destra nello stesso ordine, e una corrispondenza sbagliata
     si nota perché rompe la sequenza, non perché è di un colore qualsiasi.
     """
+    if len(pts) == 0:
+        # `cv2.cvtColor` rifiuta un array vuoto. I chiamanti oggi hanno tutti
+        # una guardia a monte, ma una funzione che colora le corrispondenze
+        # deve poter rispondere "nessun colore" invece di sollevare.
+        return []
     quota = np.clip(pts[:, 1] / max(altezza - 1, 1), 0.0, 1.0)
     # La tinta si ferma a 150 dei 180 gradini di OpenCV: il giro completo
     # riporterebbe il fondo scala sul rosso da cui era partito. Il valore è
@@ -50,11 +55,15 @@ def affianca_corrispondenze(
 
     Le due immagini possono avere dimensioni diverse: su E2 il raster
     vettoriale ha una griglia propria e un margine oltre il ritaglio (§9.1),
-    quindi la tela si dimensiona sulla più alta delle due. La tela nasce
-    **bianca**, non nera: con 1024 px di storico contro 1504 di vettoriale una
-    tela azzerata lascerebbe 480 righe nere sotto il pannello più corto — un
-    terzo della figura — che si leggono come un difetto dell'immagine invece
-    che come lo spazio vuoto che sono.
+    quindi la tela si dimensiona sulla più alta delle due.
+
+    Due accorgimenti per lo scarto di altezza, che su E2 è di 480 px su 1504.
+    La tela nasce **bianca**, non nera: azzerata lascerebbe un terzo della
+    figura nero sotto il pannello più corto, e si leggerebbe come un difetto
+    dell'immagine invece che come lo spazio vuoto che è. E l'immagine più corta
+    è **centrata** in verticale invece di essere appoggiata in alto: appoggiata
+    lascia tutto il vuoto da un lato solo, e il pannello sembra tagliato a
+    metà.
 
     Si disegna a mano invece di usare `cv2.drawMatches` perché quella accetta
     un solo `matchColor` per tutta la figura, ed è proprio il vincolo da cui
@@ -62,13 +71,17 @@ def affianca_corrispondenze(
     """
     ha, wa = img_a.shape[:2]
     hb, wb = img_b.shape[:2]
-    vis = np.full((max(ha, hb), wa + wb, 3), 255, np.uint8)
-    vis[:ha, :wa] = img_a
-    vis[:hb, wa:] = img_b
+    altezza = max(ha, hb)
+    vis = np.full((altezza, wa + wb, 3), 255, np.uint8)
+    dy_a, dy_b = (altezza - ha) // 2, (altezza - hb) // 2
+    vis[dy_a : dy_a + ha, :wa] = img_a
+    vis[dy_b : dy_b + hb, wa:] = img_b
 
+    # la tinta resta legata alla quota *nell'immagine di partenza*, non sulla
+    # tela: è quella che rende la sequenza dei colori diagnostica
     for (xa, ya), (xb, yb), colore in zip(pts_a, pts_b, colori_per_quota(pts_a, ha)):
-        p = (int(round(float(xa))), int(round(float(ya))))
-        q = (int(round(float(xb))) + wa, int(round(float(yb))))
+        p = (int(round(float(xa))), int(round(float(ya))) + dy_a)
+        q = (int(round(float(xb))) + wa, int(round(float(yb))) + dy_b)
         cv2.line(vis, p, q, colore, 1, cv2.LINE_AA)
         cv2.circle(vis, p, 3, colore, -1, cv2.LINE_AA)
         cv2.circle(vis, q, 3, colore, -1, cv2.LINE_AA)

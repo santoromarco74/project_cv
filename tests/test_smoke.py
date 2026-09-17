@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import os
 import sys
+import unittest
 import zipfile
 from collections import Counter
 
@@ -90,8 +91,17 @@ def _dimensioni_foglio() -> tuple[int, int]:
 JGW_ATTESO = (0.254453, 0.0, 0.0, -0.254453, -31480.044315, -11278.758056)
 
 
-class Skip(Exception):
-    """Dato non disponibile: il test si dichiara saltato, non fallito."""
+class Skip(unittest.SkipTest):
+    """Dato non disponibile: il test si dichiara saltato, non fallito.
+
+    Deriva da `unittest.SkipTest` e non da `Exception` perché così il salto
+    vale per entrambi i modi di eseguire questa suite. Il runner in fondo al
+    file cattura `Skip` per nome e non cambia; `pytest`, che il workflow di CI
+    invoca, riconosce `unittest.SkipTest` come salto invece di contarlo come
+    fallimento. Senza questa derivazione la CI sarebbe rossa a ogni esecuzione
+    per i trenta test che dipendono dai dati AdE, che per §5.8 non stanno nel
+    repository — cioè rossa per un motivo che non è un difetto del codice.
+    """
 
 
 def _serve(path: str) -> str:

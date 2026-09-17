@@ -35,19 +35,35 @@ from src.preprocess import applica  # noqa: E402
 SOGLIA_M = 2.0
 
 
-def _affianca(a: np.ndarray, b: np.ndarray) -> tuple[np.ndarray, int]:
-    """Mette due immagini una accanto all'altra. Ritorna anche l'offset della seconda."""
+def _affianca(a: np.ndarray, b: np.ndarray) -> tuple[np.ndarray, int, int, int]:
+    """Mette due immagini una accanto all'altra, centrate in verticale.
+
+    Ritorna la tela, l'offset orizzontale della seconda immagine e i due
+    scostamenti verticali. Centrare serve perché le due immagini hanno altezze
+    diverse — 1024 px lo storico contro 1504 il vettoriale (§9.1) — e
+    appoggiarle entrambe in alto lascerebbe 480 righe vuote tutte sotto la più
+    corta, cioè un terzo del pannello bianco da un lato solo.
+    """
     a = cv2.cvtColor(a, cv2.COLOR_GRAY2BGR) if a.ndim == 2 else a.copy()
     b = cv2.cvtColor(b, cv2.COLOR_GRAY2BGR) if b.ndim == 2 else b.copy()
-    h = max(a.shape[0], b.shape[0])
+    ha, hb = a.shape[0], b.shape[0]
+    h = max(ha, hb)
     tela = np.full((h, a.shape[1] + b.shape[1], 3), 255, np.uint8)
-    tela[: a.shape[0], : a.shape[1]] = a
-    tela[: b.shape[0], a.shape[1] :] = b
-    return tela, a.shape[1]
+    dy_a, dy_b = (h - ha) // 2, (h - hb) // 2
+    tela[dy_a : dy_a + ha, : a.shape[1]] = a
+    tela[dy_b : dy_b + hb, a.shape[1] :] = b
+    return tela, a.shape[1], dy_a, dy_b
 
 
-def _disegna_linee(tela, offset, pts_a, pts_b, colore, spessore=1, quanti=60, seed=42):
-    """Traccia le linee di corrispondenza fra i due lati, su un campione casuale."""
+def _disegna_linee(
+    tela, offset, pts_a, pts_b, colore, spessore=1, quanti=60, seed=42, dy_a=0, dy_b=0
+):
+    """Traccia le linee di corrispondenza fra i due lati, su un campione casuale.
+
+    `dy_a` e `dy_b` sono gli scostamenti verticali che `_affianca` ha applicato
+    centrando le due immagini: senza, le linee partirebbero dove i punti
+    *stavano* e non dove si vedono.
+    """
     if len(pts_a) == 0:
         return tela
     rng = np.random.default_rng(seed)
@@ -57,8 +73,8 @@ def _disegna_linee(tela, offset, pts_a, pts_b, colore, spessore=1, quanti=60, se
         xb, yb = pts_b[i]
         cv2.line(
             tela,
-            (int(round(xa)), int(round(ya))),
-            (int(round(xb + offset)), int(round(yb))),
+            (int(round(xa)), int(round(ya)) + dy_a),
+            (int(round(xb + offset)), int(round(yb)) + dy_b),
             colore,
             spessore,
             cv2.LINE_AA,
@@ -131,15 +147,18 @@ def figura(crop: str, crops_dir: str, out_path: str, opz: Opzioni) -> dict:
     vec_pulito = applica(vec, modo=opz.preprocess, morph_close=opz.morph_close)
 
     # 4 e 5: gli abbinamenti, prima e dopo la votazione
-    tela_tutti, off = _affianca(hist_pulito, vec_pulito)
-    _disegna_linee(tela_tutti, off, ris.pts_hist, ris.pts_modern, (0, 0, 220))
+    tela_tutti, off, dy_a, dy_b = _affianca(hist_pulito, vec_pulito)
+    _disegna_linee(
+        tela_tutti, off, ris.pts_hist, ris.pts_modern, (0, 0, 220), dy_a=dy_a, dy_b=dy_b
+    )
 
     inlier = (
         np.flatnonzero(ris.stima.inliers) if ris.stima.inliers is not None else np.array([], int)
     )
-    tela_inlier, off2 = _affianca(hist_pulito, vec_pulito)
+    tela_inlier, off2, dy_a2, dy_b2 = _affianca(hist_pulito, vec_pulito)
     _disegna_linee(
-        tela_inlier, off2, ris.pts_hist[inlier], ris.pts_modern[inlier], (0, 160, 0), spessore=2
+        tela_inlier, off2, ris.pts_hist[inlier], ris.pts_modern[inlier], (0, 160, 0),
+        spessore=2, dy_a=dy_a2, dy_b=dy_b2,
     )
 
     # 6: la sovrapposizione
