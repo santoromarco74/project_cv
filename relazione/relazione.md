@@ -247,7 +247,7 @@ l'impronta più simile.
 Nel pannello 4 ogni linea rossa unisce due punti che il programma considera la
 stessa cosa. **Se fossero tutti giusti, le linee sarebbero parallele.** Non lo
 sono affatto: su un disegno al tratto moltissimi incroci si somigliano, e in
-questo esempio **solo il 5% degli abbinamenti risulta corretto**. Il resto è rumore.
+questo esempio **solo il 6% degli abbinamenti risulta corretto**. Il resto è rumore.
 
 **5 · La votazione.** È il passaggio che salva tutto. Il programma prende a caso
 due abbinamenti, calcola quale spostamento-rotazione-ingrandimento
@@ -255,15 +255,17 @@ implicherebbero, e poi **conta quanti altri abbinamenti sarebbero d'accordo** co
 quella stessa trasformazione. Ripete l'operazione migliaia di volte e tiene la
 trasformazione che ha raccolto più consensi.
 
-Gli abbinamenti d'accordo si chiamano *inlier*. Nel pannello 5 ne sono rimasti 44
-su 871, e questa volta **sono tutti paralleli**: descrivono tutti lo stesso
+Gli abbinamenti d'accordo si chiamano *inlier*. Nel pannello 5 ne sono rimasti 52
+su 856, e questa volta **sono tutti paralleli**: descrivono tutti lo stesso
 movimento. Questa procedura si chiama RANSAC, ed è ciò che permette di trovare la
-risposta giusta quando il 95% dei dati è sbagliato.
+risposta giusta quando il 94% dei dati è sbagliato.
 
 **6 · Il risultato.** La trasformazione trovata viene applicata all'immagine
-storica, che così si sovrappone al vettoriale. Nel pannello 6 il tratto storico
-deformato è in rosso sopra le linee nere del vettoriale: dove il rosso segue il
-nero, la registrazione è corretta.
+storica, che così si sovrappone al vettoriale. Nel pannello 6 i due strati vanno
+su colori complementari: **nero dove coincidono**, rosso dove c'è solo lo storico
+deformato, ciano dove c'è solo il vettoriale. Una registrazione corretta
+annerisce; un disallineamento si stacca in una frangia rosso-ciano, visibile
+anche per uno scarto di un paio di pixel.
 
 ### 2.3 Come facciamo a sapere se ha funzionato
 
@@ -275,8 +277,10 @@ algebrica la trasformazione **esatta**, senza doverne indovinare nemmeno un
 pezzo.
 
 Quindi la risposta giusta la conosciamo già, e possiamo dire di **quanti metri**
-il programma ha sbagliato. Nell'esempio della figura: 0.67 m, su un riferimento
-che di suo ha un'incertezza di circa mezzo metro.
+il programma ha sbagliato. Nell'esempio della figura: 0.50 m — cioè esattamente
+al livello dell'incertezza del riferimento stesso, che di suo vale circa mezzo
+metro. La registrazione è buona quanto questa ground truth consente di
+misurare.
 
 **Il programma che stima non vede quei sei numeri.** Li vede solo il codice che
 corregge. È una separazione imposta per costruzione (§4.2): se l'informazione
@@ -969,14 +973,13 @@ ground truth esatta e livello di degrado noto.
 
 | matcher | preprocess | prove | successo_pct | rmse_px_mediano_ok | rmse_px_max_ok | inlier_ratio | match_medi | t_ms |
 |---------|------------|-------|--------------|--------------------|----------------|--------------|------------|------|
-| loftr   | none       | 80    | 42.5         | 0.208              | 0.963          | 0.619        | 1909       | 4601 |
-| orb     | clahe      | 80    | 68.8         | 0.499              | 1.0            | 0.619        | 2503       | 150  |
-| orb     | none       | 80    | 67.5         | 0.438              | 0.999          | 0.608        | 2377       | 137  |
-| orb     | sauvola    | 80    | 55.0         | 0.479              | 0.995          | 0.486        | 1945       | 131  |
-| sift    | clahe      | 80    | 82.5         | 0.186              | 0.927          | 0.752        | 2289       | 473  |
-| sift    | none       | 80    | 80.0         | 0.182              | 0.969          | 0.691        | 1709       | 435  |
-| sift    | sauvola    | 80    | 73.8         | 0.206              | 0.927          | 0.614        | 974        | 461  |
-
+| loftr   | none       | 80    | 42.5         | 0.208              | 0.963          | 0.619        | 1909       | 4403 |
+| orb     | clahe      | 80    | 68.8         | 0.499              | 1.0            | 0.619        | 2503       | 146  |
+| orb     | none       | 80    | 67.5         | 0.438              | 0.999          | 0.608        | 2377       | 136  |
+| orb     | sauvola    | 80    | 55.0         | 0.479              | 0.995          | 0.486        | 1945       | 121  |
+| sift    | clahe      | 80    | 82.5         | 0.186              | 0.927          | 0.752        | 2289       | 489  |
+| sift    | none       | 80    | 80.0         | 0.182              | 0.969          | 0.691        | 1709       | 424  |
+| sift    | sauvola    | 80    | 73.8         | 0.206              | 0.927          | 0.614        | 974        | 464  |
 
 ![RMSE contro degradazione](../results/figures/m6_rmse_vs_degradazione.png)
 
@@ -1229,13 +1232,12 @@ di `--matcher`. Stessi ritagli, stesse metriche, stesse soglie.
 
 | esperimento | matcher | config                        | prove | successo_pct | rmse_m_mediano_ok | inlier_ratio | match_mediani | t_ms |
 |-------------|---------|-------------------------------|-------|--------------|-------------------|--------------|---------------|------|
-| E1          | loftr   | none / homography             | 80    | 42.5         | 0.053             | 0.622        | 1033          | 4465 |
-| E1          | orb     | clahe / homography            | 80    | 68.8         | 0.127             | 0.705        | 2511          | 148  |
-| E1          | sift    | clahe / homography            | 80    | 82.5         | 0.047             | 0.873        | 1497          | 472  |
-| E2          | loftr   | sauvola / similarity          | 10    | 90.0         | 0.435             | 0.288        | 385           | 3843 |
-| E2          | orb     | sauvola+chiusura / similarity | 10    | 90.0         | 0.362             | 0.049        | 743           | 116  |
-| E2          | sift    | sauvola / affine              | 10    | 40.0         | 1.096             | 0.07         | 146           | 487  |
-
+| E1          | loftr   | none / homography             | 80    | 42.5         | 0.053             | 0.622        | 1033          | 4187 |
+| E1          | orb     | clahe / homography            | 80    | 68.8         | 0.127             | 0.705        | 2511          | 137  |
+| E1          | sift    | clahe / homography            | 80    | 82.5         | 0.047             | 0.873        | 1497          | 456  |
+| E2          | loftr   | sauvola / similarity          | 10    | 90.0         | 0.435             | 0.288        | 385           | 3682 |
+| E2          | orb     | sauvola+chiusura / similarity | 10    | 90.0         | 0.362             | 0.049        | 743           | 102  |
+| E2          | sift    | sauvola / affine              | 10    | 40.0         | 1.096             | 0.07         | 146           | 468  |
 
 ![Confronto classico/neurale](../results/figures/m9_e3_confronto.png)
 
