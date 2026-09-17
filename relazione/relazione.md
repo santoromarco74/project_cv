@@ -981,6 +981,7 @@ ground truth esatta e livello di degrado noto.
 | sift    | none       | 80    | 80.0         | 0.182              | 0.969          | 0.691        | 1709       | 424  |
 | sift    | sauvola    | 80    | 73.8         | 0.206              | 0.927          | 0.614        | 974        | 464  |
 
+
 ![RMSE contro degradazione](../results/figures/m6_rmse_vs_degradazione.png)
 
 ### 8.1 Il tetto di prestazione
@@ -1238,6 +1239,7 @@ di `--matcher`. Stessi ritagli, stesse metriche, stesse soglie.
 | E2          | loftr   | sauvola / similarity          | 10    | 90.0         | 0.435             | 0.288        | 385           | 3682 |
 | E2          | orb     | sauvola+chiusura / similarity | 10    | 90.0         | 0.362             | 0.049        | 743           | 102  |
 | E2          | sift    | sauvola / affine              | 10    | 40.0         | 1.096             | 0.07         | 146           | 468  |
+
 
 ![Confronto classico/neurale](../results/figures/m9_e3_confronto.png)
 
