@@ -11,6 +11,10 @@ import cv2
 import numpy as np
 
 
+def _grigio(img: np.ndarray) -> np.ndarray:
+    return cv2.cvtColor(img, cv2.COLOR_BGR2GRAY) if img.ndim == 3 else img
+
+
 def colori_per_quota(pts: np.ndarray, altezza: int) -> list[tuple[int, int, int]]:
     """Un colore per corrispondenza, da una scala continua sulla quota del punto
     di partenza.
@@ -46,7 +50,11 @@ def affianca_corrispondenze(
 
     Le due immagini possono avere dimensioni diverse: su E2 il raster
     vettoriale ha una griglia propria e un margine oltre il ritaglio (§9.1),
-    quindi la tela si dimensiona sulla più alta delle due.
+    quindi la tela si dimensiona sulla più alta delle due. La tela nasce
+    **bianca**, non nera: con 1024 px di storico contro 1504 di vettoriale una
+    tela azzerata lascerebbe 480 righe nere sotto il pannello più corto — un
+    terzo della figura — che si leggono come un difetto dell'immagine invece
+    che come lo spazio vuoto che sono.
 
     Si disegna a mano invece di usare `cv2.drawMatches` perché quella accetta
     un solo `matchColor` per tutta la figura, ed è proprio il vincolo da cui
@@ -54,7 +62,7 @@ def affianca_corrispondenze(
     """
     ha, wa = img_a.shape[:2]
     hb, wb = img_b.shape[:2]
-    vis = np.zeros((max(ha, hb), wa + wb, 3), np.uint8)
+    vis = np.full((max(ha, hb), wa + wb, 3), 255, np.uint8)
     vis[:ha, :wa] = img_a
     vis[:hb, wa:] = img_b
 
@@ -64,4 +72,45 @@ def affianca_corrispondenze(
         cv2.line(vis, p, q, colore, 1, cv2.LINE_AA)
         cv2.circle(vis, p, 3, colore, -1, cv2.LINE_AA)
         cv2.circle(vis, q, 3, colore, -1, cv2.LINE_AA)
+    return vis
+
+
+def sovrapponi_tratti(a: np.ndarray, b: np.ndarray, soglia: int = 128) -> np.ndarray:
+    """Due strati di tratto sovrapposti, con l'accordo e lo scarto distinguibili.
+
+    Dipingere uno strato sopra l'altro con un colore pieno — `overlay[maschera]
+    = rosso` — perde proprio l'informazione che la figura deve mostrare: il
+    rosso *sostituisce* il pixel, quindi rosso su tratto nero (i due strati
+    coincidono, il caso buono) e rosso su carta bianca (il tratto storico è
+    finito dove il vettoriale non ha niente) diventano indistinguibili.
+
+    Qui i due strati vanno invece su canali complementari, partendo dal bianco
+    e spegnendo:
+
+        solo `a`      → rosso
+        solo `b`      → ciano
+        entrambi      → nero
+        nessuno       → bianco
+
+    Così un disallineamento si vede come **frangia**: i due bordi si separano
+    in un filo rosso e un filo ciano, e l'occhio lo cattura a colpo d'occhio
+    anche per uno scarto di un paio di pixel. Una registrazione corretta invece
+    annerisce, e la figura somiglia a una mappa pulita.
+
+    La coppia rosso/ciano non è arbitraria: serve una partizione dei canali
+    BGR, e delle tre possibili è la sola che resta leggibile su fondo bianco.
+    Blu contro giallo sarebbe più sicura per chi confonde rosso e verde, ma il
+    giallo su carta chiara sparisce; verde contro magenta è peggiore proprio
+    sull'asse rosso-verde. Rosso e ciano conserva inoltre la convenzione già
+    usata nel resto del progetto, dove il tratto storico è rosso.
+    """
+    ink_a = _grigio(a) < soglia
+    ink_b = _grigio(b) < soglia
+    if ink_a.shape != ink_b.shape:
+        raise ValueError(f"strati di dimensioni diverse: {ink_a.shape} contro {ink_b.shape}")
+
+    vis = np.full((*ink_a.shape, 3), 255, np.uint8)
+    vis[..., 0][ink_a] = 0  # B  -> `a` da solo resta rosso
+    vis[..., 1][ink_a] = 0  # G
+    vis[..., 2][ink_b] = 0  # R  -> `b` da solo resta ciano
     return vis
