@@ -16,7 +16,7 @@ import sys
 import cv2
 import numpy as np
 
-from src.figure import affianca_corrispondenze
+from src.figure import affianca_corrispondenze, sovrapponi_tratti
 from src.pipeline import Opzioni, registra
 
 MATCHER = ("sift", "orb", "loftr")
@@ -57,16 +57,34 @@ def _leggi(path: str) -> np.ndarray:
     return img
 
 
+# Le voci della legenda del pannello di sovrapposizione, nell'ordine in cui
+# vanno lette: prima che cosa significa "giusto", poi i due modi di sbagliare.
+LEGENDA = (
+    ((0, 0, 0), "i due tratti coincidono"),
+    ((0, 0, 255), "solo lo storico deformato"),
+    ((255, 255, 0), "solo il riferimento"),
+)
+
+
+def _con_legenda(vis: np.ndarray) -> np.ndarray:
+    """Le tre voci in alto a sinistra. Senza, i colori del pannello non si
+    interpretano: la CLI non ha didascalie in cui spiegarli."""
+    for i, (colore, testo) in enumerate(LEGENDA):
+        y = 18 + i * 22
+        cv2.rectangle(vis, (10, y - 9), (26, y + 3), colore, -1)
+        cv2.rectangle(vis, (10, y - 9), (26, y + 3), (120, 120, 120), 1)
+        cv2.putText(vis, testo, (32, y), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (60, 60, 60), 1,
+                    cv2.LINE_AA)
+    return vis
+
+
 def figura_overlay(hist, modern, ris, out_path: str) -> None:
     """Warp dello storico sul moderno, più le corrispondenze inlier."""
     h, w = modern.shape[:2]
     pannelli = []
     if ris.H is not None:
         warp = cv2.warpPerspective(hist, ris.H, (w, h), borderValue=(255, 255, 255))
-        overlay = modern.copy()
-        maschera = cv2.cvtColor(warp, cv2.COLOR_BGR2GRAY) < 128
-        overlay[maschera] = (0, 0, 220)
-        pannelli.append(overlay)
+        pannelli.append(_con_legenda(sovrapponi_tratti(warp, modern)))
 
     if ris.stima.inliers is not None and ris.stima.n_inliers > 0:
         idx = np.flatnonzero(ris.stima.inliers)
