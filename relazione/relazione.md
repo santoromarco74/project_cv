@@ -71,11 +71,153 @@ Il corso tratta inoltre fotometria, compressione, visione tridimensionale e
 sintesi di immagini, che qui non compaiono: la traccia chiede la soluzione di
 *un* problema di visione, non una rassegna del programma.
 
-Un'ultima nota sulla forma. La traccia distingue fra l'implementazione di un
-algoritmo e la soluzione di un problema con librerie standard. Qui ci sono
-entrambe le cose: OpenCV fornisce SIFT, ORB e RANSAC, ma **Sauvola è scritto da
-zero** con le immagini integrali (§6.1), e con lui il parser del formato CXF
-(§3.3) e la composizione analitica della trasformazione di riferimento (§4).
+### 1.2 Perché questi strumenti e non altri
+
+La traccia ammette esplicitamente «opencv, mathlab, Image magick», e distingue
+fra l'implementazione di un algoritmo e la soluzione di un problema con
+librerie standard. Ma un elenco di strumenti permessi non è una motivazione, e
+"lo consente la traccia" non spiega perché in griglia ci siano proprio questi
+metodi. Ognuno risponde a una domanda del progetto — e più di uno è in griglia
+proprio perché ci si aspettava che perdesse.
+
+**Python e OpenCV, non MATLAB né ImageMagick.** Gli altri due strumenti
+ammessi sono stati scartati, per ragioni diverse.
+
+*ImageMagick* saprebbe fare l'intero capitolo §6: ha la soglia globale, ha una
+soglia adattiva locale, ha la morfologia con elemento strutturante, ha perfino
+CLAHE. Ma si fermerebbe esattamente lì — non ha descrittori, non ha matching,
+non ha RANSAC. Copre i passi 1-3 di §2.2 e non il 4 e il 5, che sono il
+problema. È uno strumento di pulizia dell'immagine, non una base su cui
+costruire una registrazione.
+
+*MATLAB* sarebbe invece sufficiente: il Computer Vision Toolbox ha rilevatori,
+descrittori, matching e stima robusta. Due ragioni contro. La prima è la
+traccia stessa, che chiede che i pacchetti esterni «siano presenti nella
+versione finale del progetto»: un lavoro che non gira senza una licenza
+commerciale non soddisfa quella richiesta in nessun senso utile. La seconda è
+la componente B: LoFTR e i suoi pesi vivono nell'ecosistema `torch`/`kornia`, e
+farli comunicare con MATLAB significherebbe due processi, due formati
+intermedi, e un confronto che non è più fra due matcher nella stessa pipeline
+ma fra due programmi diversi.
+
+Ed è questo il vero motivo della scelta, più che la comodità: **Python è il
+solo dei tre ambienti in cui il classico e il neurale girano nello stesso
+processo, dietro la stessa interfaccia**. Il confronto di §10 ha valore solo se
+cambia una parola sulla riga di comando e non cambia nient'altro; se i due
+matcher girassero in due mondi separati, ogni differenza misurata sarebbe
+attribuibile anche al contorno.
+
+Una scelta per sottrazione merita di essere dichiarata: **nessun `pyproj`,
+nessun `geopandas`**. Raster e vettoriale sono già nello stesso sistema di
+riferimento (§3.1), quindi non c'è nulla da riproiettare: importare una
+libreria geospaziale avrebbe aggiunto una dipendenza pesante per non fare
+niente, e avrebbe nascosto dietro una chiamata l'unica aritmetica che qui
+conta davvero, quella di §4. Il parser CXF (§3.3), la composizione della ground
+truth (§4) e Sauvola (§6.1) sono scritti da zero: sono i tre punti in cui la
+traccia chiede l'implementazione di un algoritmo, e non a caso sono i tre in
+cui una libreria pronta avrebbe fatto perdere il controllo su ciò che si
+misura.
+
+**Otsu — il termine di paragone che doveva perdere.** Otsu è in griglia
+sapendo che una soglia sola non può adattarsi a una carta che cambia colore da
+una parte all'altra del foglio. Serve perché senza un riferimento le prestazioni
+di Sauvola non sono un risultato ma un numero isolato: dire "Sauvola classifica
+il 6.84% dei pixel come inchiostro" non significa nulla finché non si sa quanto
+fa il metodo standard nelle stesse condizioni. E la scelta di tenerlo si è
+ripagata in un modo non previsto: su questi ritagli Otsu **non** fallisce
+(§6.3), e la previsione di partenza è stata smentita dai dati. Senza Otsu in
+griglia non ci sarebbe stato niente da smentire.
+
+**Sauvola, non Niblack né la soglia adattiva già pronta.** La famiglia delle
+soglie locali è ampia. Niblack, il capostipite, calcola `T = m + k·s`: dove la
+carta è uniforme `s` è piccolo per definizione, la soglia resta incollata alla
+media locale, e quasi metà del fondo finisce classificata come inchiostro —
+sogliare sul valor medio del rumore significa per costruzione promuoverne
+metà. Su un foglio d'archivio, che è quasi tutto fondo uniforme, è il difetto
+peggiore possibile. Sauvola corregge proprio quello rendendo il
+termine moltiplicativo: con `s` che tende a zero la soglia scende a `m·(1−k)`,
+cioè il 20% sotto la media locale, e una zona uniforme viene assegnata tutta al
+fondo. Non è un dettaglio di taratura, è la ragione per cui questa formula
+nasce — Sauvola è stato proposto per la binarizzazione di **immagini di
+documenti**, che è esattamente ciò che un foglio di mappa è: inchiostro su
+carta.
+
+C'era anche una scorciatoia, l'`adaptiveThreshold` di OpenCV, che sottrae una
+costante alla media locale. Ha lo stesso difetto di Niblack — la costante non
+si accorge di quanta struttura ci sia nell'intorno — e per di più è una riga
+sola: usarla avrebbe rinunciato all'unico punto del preprocessing in cui la
+traccia chiede di implementare un algoritmo invece di invocarlo.
+
+**CLAHE, non l'equalizzazione globale dell'istogramma.** L'equalizzazione
+classica stira l'istogramma di tutta l'immagine, e su questo foglio
+amplificherebbe proprio ciò che dà problemi: il gradiente di colore della carta
+diventa più marcato, non meno, e la grana nelle zone piatte viene esaltata
+insieme al tratto. CLAHE lavora per tessere e soprattutto **limita** il
+guadagno (`clipLimit`), cioè si rifiuta di amplificare il contrasto dove non
+c'è contrasto da amplificare. Ma la vera ragione per cui è in griglia è un'altra
+e riguarda il disegno dell'esperimento: CLAHE è l'unico dei tre preprocessing
+che **non binarizza**, e serve come controllo dell'ipotesi che la
+binarizzazione distrugga le sfumature su cui SIFT costruisce il descrittore
+(§6.1). Senza un'alternativa non binarizzante quell'ipotesi non sarebbe
+verificabile.
+
+**SIFT — il riferimento contro cui si misura tutto il resto.** È il metodo che
+il corso indica quando parla di proprietà invarianti, ed è invariante a scala e
+rotazione **per costruzione** e non per addestramento: proprietà che §8.1
+mostra essere decisiva, perché è l'unica cosa che distingue i classici da LoFTR
+oltre i 30°. Una nota pratica: il brevetto su SIFT è scaduto, e l'algoritmo è
+oggi nel modulo principale di OpenCV — è la ragione per cui `requirements.txt`
+elenca `opencv-python` e non `opencv-contrib-python`, e per cui il progetto non
+ha dipendenze con vincoli di licenza.
+
+**ORB — non "SIFT più veloce".** Il secondo matcher classico non è lì per il
+tempo di calcolo. ORB differisce da SIFT su **tutti e tre** i livelli: il
+descrittore è una stringa di bit invece di 128 numeri, la distanza è di Hamming
+invece che euclidea, e il filtro delle corrispondenze è il cross-check invece
+del ratio test. È quindi un punto genuinamente diverso nello spazio delle
+scelte, non una variante più economica — e serve a rispondere a una domanda che
+con un solo matcher non si può porre: quanto del risultato dipende dalla
+qualità dei descrittori e quanto da come vengono filtrati.
+
+Vale la pena dire che il risultato di §9.3 — ORB che batte SIFT sul
+cross-domain, e per colpa del filtro — **non è la motivazione della scelta**:
+è una scoperta, ed era contraria all'aspettativa. La motivazione era avere due
+punti di confronto invece di uno.
+
+**LoFTR — non SuperPoint+SuperGlue, e senza riaddestramento.** Fra i matcher
+neurali disponibili la scelta è vincolata dall'ipotesi che si vuole testare. Il
+sospetto su questi dati è che il problema stia nel **rilevatore**: su un
+reticolo di linee sottili non ci sono blob né angoli ben definiti, quindi il
+primo dei due tempi classici non ha nulla da trovare e il secondo non ha nulla
+da descrivere. Una pipeline come SuperPoint più SuperGlue resta *detector-based*:
+sostituisce il descrittore e il matching con reti addestrate, ma il rilevatore
+c'è ancora, e quindi erediterebbe esattamente il punto debole che si vuole
+mettere alla prova. LoFTR è *detector-free* — salta il primo tempo — ed è per
+questo l'unico che risponde alla domanda. Che poi la risposta sia negativa
+(§10.2) è un risultato, non un errore di scelta.
+
+Sul riaddestramento la posizione è netta, e non è solo una questione di
+risorse. Il foglio 49 è **uno**: la ground truth esatta esiste per questo
+foglio e per nessun altro. Usarlo per addestrare significherebbe consumare
+l'unico insieme di validazione che il progetto possiede, e la domanda cambierebbe
+sotto i piedi: non più *"un matcher generico pre-addestrato colma il divario di
+dominio?"* — che è la domanda interessante, perché è quella che si porrebbe
+chiunque volesse applicare il metodo a un archivio nuovo — ma *"una rete
+addestrata su mappe catastali funziona su mappe catastali?"*, che ha una
+risposta prevedibile e nessun valore informativo. I pesi sono quelli `outdoor`
+pubblici, usati così come sono.
+
+**RANSAC, non i minimi quadrati.** Su E2 la frazione di corrispondenze corrette
+va dall'1% al 13% a seconda del matcher, e nella configurazione che vince —
+ORB — sta sotto il 5% (§9.2). Una stima ai minimi quadrati minimizza l'errore su
+*tutte* le corrispondenze, quindi con il 95% e più di dati sbagliati si
+adatterebbe a quelli sbagliati: non sarebbe una stima peggiore, sarebbe una
+stima priva di significato. RANSAC rovescia l'impostazione — non cerca la
+trasformazione che accontenta tutti i dati, ma quella che ne accontenta il
+sottoinsieme più numeroso, ignorando il resto per costruzione — ed è ciò che
+rende affrontabile il passo 5 di §2.2. Il prezzo è un budget di tentativi
+adeguato all'inlier ratio, e §7.2 mostra che su questi dati è proprio quel
+budget il vincolo che decide l'esito.
 
 ---
 
