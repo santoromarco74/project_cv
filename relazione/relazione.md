@@ -71,11 +71,136 @@ Il corso tratta inoltre fotometria, compressione, visione tridimensionale e
 sintesi di immagini, che qui non compaiono: la traccia chiede la soluzione di
 *un* problema di visione, non una rassegna del programma.
 
-Un'ultima nota sulla forma. La traccia distingue fra l'implementazione di un
-algoritmo e la soluzione di un problema con librerie standard. Qui ci sono
-entrambe le cose: OpenCV fornisce SIFT, ORB e RANSAC, ma **Sauvola è scritto da
-zero** con le immagini integrali (§6.1), e con lui il parser del formato CXF
-(§3.3) e la composizione analitica della trasformazione di riferimento (§4).
+### 1.2 Perché questi strumenti e non altri
+
+La traccia ammette esplicitamente «opencv, mathlab, Image magick», e distingue
+fra l'implementazione di un algoritmo e la soluzione di un problema con
+librerie standard. Ma un elenco di strumenti permessi non è una motivazione, e
+"lo consente la traccia" non spiega perché in griglia ci siano proprio questi
+metodi. Ognuno risponde a una domanda del progetto — e più di uno è in griglia
+proprio perché ci si aspettava che perdesse.
+
+**Python e OpenCV, non MATLAB né ImageMagick.** *ImageMagick* saprebbe fare
+tutto il capitolo §6 — soglia globale, soglia adattiva locale, morfologia,
+perfino CLAHE — ma non ha descrittori, matching né RANSAC: si fermerebbe ai
+passi 1-3 di §2.2, prima del problema. *MATLAB* sarebbe invece sufficiente, ma
+un lavoro che non gira senza licenza commerciale non soddisfa la richiesta
+della traccia che i pacchetti esterni siano presenti nella versione finale, e
+i pesi di LoFTR vivono comunque in `torch`/`kornia`.
+
+Il vero motivo però è un altro: **Python è il solo dei tre ambienti in cui il
+classico e il neurale girano nello stesso processo, dietro la stessa
+interfaccia**. Il confronto di §10 ha valore solo se cambia una parola sulla
+riga di comando e non cambia nient'altro.
+
+Una scelta per sottrazione merita di essere dichiarata: **nessun `pyproj`,
+nessun `geopandas`**. Raster e vettoriale sono già nello stesso sistema di
+riferimento (§3.1), quindi non c'è nulla da riproiettare: importare una
+libreria geospaziale avrebbe aggiunto una dipendenza pesante per non fare
+niente, e avrebbe nascosto dietro una chiamata l'unica aritmetica che qui
+conta davvero, quella di §4. Il parser CXF (§3.3), la composizione della ground
+truth (§4) e Sauvola (§6.1) sono scritti da zero: sono i tre punti in cui la
+traccia chiede l'implementazione di un algoritmo, e non a caso sono i tre in
+cui una libreria pronta avrebbe fatto perdere il controllo su ciò che si
+misura.
+
+**Otsu — il termine di paragone che doveva perdere.** Otsu è in griglia
+sapendo che una soglia sola non può adattarsi a una carta che cambia colore da
+una parte all'altra del foglio. Serve perché senza un riferimento le prestazioni
+di Sauvola non sono un risultato ma un numero isolato: dire "Sauvola classifica
+il 6.84% dei pixel come inchiostro" non significa nulla finché non si sa quanto
+fa il metodo standard nelle stesse condizioni. E la scelta di tenerlo si è
+ripagata in un modo non previsto: su questi ritagli Otsu **non** fallisce
+(§6.3), e la previsione di partenza è stata smentita dai dati. Senza Otsu in
+griglia non ci sarebbe stato niente da smentire.
+
+**Sauvola, non Niblack né la soglia adattiva già pronta.** Niblack, il
+capostipite delle soglie locali, calcola `T = m + k·s`: dove la carta è
+uniforme `s` è piccolo per definizione, la soglia resta incollata alla media
+locale, e sogliare sul valor medio del rumore significa per costruzione
+promuoverne metà a inchiostro. Su un foglio d'archivio, che è quasi tutto fondo
+uniforme, è il difetto peggiore possibile.
+
+Sauvola corregge proprio quello rendendo il termine moltiplicativo: con `s` che
+tende a zero la soglia scende a `m·(1−k)`, cioè il 20% sotto la media locale, e
+una zona uniforme viene assegnata tutta al fondo. Non è un dettaglio di
+taratura, è la ragione per cui la formula nasce — è stata proposta per la
+binarizzazione di **immagini di documenti**, che è esattamente ciò che un
+foglio di mappa è: inchiostro su carta. La scorciatoia, l'`adaptiveThreshold`
+di OpenCV, sottrae invece una costante alla media locale: stesso difetto di
+Niblack, e in una riga sola — cioè rinunciando all'unico punto del
+preprocessing in cui la traccia chiede di implementare un algoritmo.
+
+**CLAHE, non l'equalizzazione globale dell'istogramma.** L'equalizzazione
+classica stira l'istogramma di tutta l'immagine, e su questo foglio
+amplificherebbe proprio ciò che dà problemi: il gradiente di colore della carta
+diventa più marcato, non meno, e la grana nelle zone piatte viene esaltata
+insieme al tratto. CLAHE lavora per tessere e soprattutto **limita** il
+guadagno (`clipLimit`), cioè si rifiuta di amplificare il contrasto dove non
+c'è contrasto da amplificare. Ma la vera ragione per cui è in griglia è un'altra
+e riguarda il disegno dell'esperimento: CLAHE è l'unico dei tre preprocessing
+che **non binarizza**, e serve come controllo dell'ipotesi che la
+binarizzazione distrugga le sfumature su cui SIFT costruisce il descrittore
+(§6.1). Senza un'alternativa non binarizzante quell'ipotesi non sarebbe
+verificabile.
+
+**SIFT — il riferimento contro cui si misura tutto il resto.** È il metodo che
+il corso indica quando parla di proprietà invarianti, ed è invariante a scala e
+rotazione **per costruzione** e non per addestramento: proprietà che §8.1
+mostra essere decisiva, perché è l'unica cosa che distingue i classici da LoFTR
+oltre i 30°. Una nota pratica: il brevetto su SIFT è scaduto, e l'algoritmo è
+oggi nel modulo principale di OpenCV — è la ragione per cui `requirements.txt`
+elenca `opencv-python` e non `opencv-contrib-python`, e per cui il progetto non
+ha dipendenze con vincoli di licenza.
+
+**ORB — non "SIFT più veloce".** Il secondo matcher classico non è lì per il
+tempo di calcolo. ORB differisce da SIFT su **tutti e tre** i livelli: il
+descrittore è una stringa di bit invece di 128 numeri, la distanza è di Hamming
+invece che euclidea, e il filtro delle corrispondenze è il cross-check invece
+del ratio test. È quindi un punto genuinamente diverso nello spazio delle
+scelte, non una variante più economica — e serve a rispondere a una domanda che
+con un solo matcher non si può porre: quanto del risultato dipende dalla
+qualità dei descrittori e quanto da come vengono filtrati.
+
+Vale la pena dire che il risultato di §9.3 — ORB che batte SIFT sul
+cross-domain, e per colpa del filtro — **non è la motivazione della scelta**:
+è una scoperta, ed era contraria all'aspettativa. La motivazione era avere due
+punti di confronto invece di uno.
+
+**LoFTR — non SuperPoint+SuperGlue, e senza riaddestramento.** Fra i matcher
+neurali disponibili la scelta è vincolata dall'ipotesi che si vuole testare. Il
+sospetto su questi dati è che il problema stia nel **rilevatore**: su un
+reticolo di linee sottili non ci sono blob né angoli ben definiti, quindi il
+primo dei due tempi classici non ha nulla da trovare e il secondo non ha nulla
+da descrivere. Una pipeline come SuperPoint più SuperGlue resta *detector-based*:
+sostituisce il descrittore e il matching con reti addestrate, ma il rilevatore
+c'è ancora, e quindi erediterebbe esattamente il punto debole che si vuole
+mettere alla prova. LoFTR è *detector-free* — salta il primo tempo — ed è per
+questo l'unico che risponde alla domanda. Che poi la risposta sia negativa
+(§10.2) è un risultato, non un errore di scelta.
+
+Sul riaddestramento la posizione è netta, e non è solo una questione di
+risorse. Il foglio 49 è **uno**: la ground truth esatta esiste per questo
+foglio e per nessun altro. Usarlo per addestrare significherebbe consumare
+l'unico insieme di validazione che il progetto possiede, e la domanda cambierebbe
+sotto i piedi: non più *"un matcher generico pre-addestrato colma il divario di
+dominio?"* — che è la domanda interessante, perché è quella che si porrebbe
+chiunque volesse applicare il metodo a un archivio nuovo — ma *"una rete
+addestrata su mappe catastali funziona su mappe catastali?"*, che ha una
+risposta prevedibile e nessun valore informativo. I pesi sono quelli `outdoor`
+pubblici, usati così come sono.
+
+**RANSAC, non i minimi quadrati.** Su E2 la frazione di corrispondenze corrette
+va dall'1% al 13% a seconda del matcher, e nella configurazione che vince —
+ORB — sta sotto il 5% (§9.2). Una stima ai minimi quadrati minimizza l'errore su
+*tutte* le corrispondenze, quindi con il 95% e più di dati sbagliati si
+adatterebbe a quelli sbagliati: non sarebbe una stima peggiore, sarebbe una
+stima priva di significato. RANSAC rovescia l'impostazione — non cerca la
+trasformazione che accontenta tutti i dati, ma quella che ne accontenta il
+sottoinsieme più numeroso, ignorando il resto per costruzione — ed è ciò che
+rende affrontabile il passo 5 di §2.2. Il prezzo è un budget di tentativi
+adeguato all'inlier ratio, e §7.2 mostra che su questi dati è proprio quel
+budget il vincolo che decide l'esito.
 
 ---
 
@@ -184,6 +309,9 @@ Tre ragioni, tutte misurate nei capitoli §8-§10:
 | **rasterizzare** | disegnare un vettoriale su un'immagine |
 | **world file** (`.jgw`) | sei numeri che legano i pixel di un'immagine alle coordinate sul terreno |
 | **georeferenziazione** | il fatto che un'immagine sappia dove si trova sul terreno |
+| **ground truth** | la risposta giusta, nota indipendentemente dall'algoritmo, contro cui si misura l'errore. Qui si ricava dai world file (§4) |
+| **`H`** | la trasformazione: `H_true` è quella vera, `H_est` è quella stimata dal programma. Confrontarle è tutta la valutazione |
+| **warp** | applicare una trasformazione a un'immagine, cioè ridisegnarla deformata secondo `H` |
 | **luminosità** | il valore di grigio di un pixel: un solo numero, 0 (nero) – 255 (bianco) |
 | **gradiente** | quanto e in che direzione la luminosità cambia in UN pixel, confrontandolo coi vicini (§7.1) |
 | **keypoint** | un punto dell'immagine giudicato "riconoscibile" |
@@ -193,6 +321,7 @@ Tre ragioni, tutte misurate nei capitoli §8-§10:
 | **ratio test di Lowe** | il filtro di SIFT: tiene un abbinamento solo se il candidato migliore batte nettamente il secondo (§7.1) |
 | **RANSAC** | la procedura a votazione del passo 5, che trova la risposta giusta anche con pochi dati buoni (dettaglio matematico in §7.2) |
 | **inlier** | un abbinamento che concorda con la trasformazione scelta |
+| **outlier** | un abbinamento che non concorda: su questi dati sono la grande maggioranza |
 | **inlier ratio** | la percentuale di inlier: quanto erano buoni i dati di partenza |
 | **campione minimo** | il numero di corrispondenze che bastano a calcolare esattamente una trasformazione (2, 3 o 4 a seconda della famiglia, §7.2) |
 | **omografia, affine, similarità** | famiglie di trasformazioni con 8, 6 e 4 parametri liberi (§7.2) |
@@ -201,7 +330,12 @@ Tre ragioni, tutte misurate nei capitoli §8-§10:
 | **CLAHE** | tecnica che non binarizza, ma aumenta il contrasto locale (§6.1) |
 | **LoFTR** | rete neurale che abbina due immagini senza cercare prima i keypoint (§7.3) |
 | **RMSE** | l'errore medio commesso, qui espresso in metri |
+| **checkpoint** | i 100 punti su cui l'errore viene misurato, disposti a griglia regolare sull'immagine storica (§4) |
+| **pavimento** | la soglia sotto la quale l'errore misurato non dice più nulla dell'algoritmo, perché è più piccolo dell'incertezza del riferimento: qui ~0.5 m (§4.1) |
 | **E1, E2, E3** | i tre esperimenti: sintetico, reale, comparativo (§8, §9, §10) |
+| **degradazione** | il guasto artificiale applicato alle immagini di E1 per misurare fin dove i metodi reggono; la scala è spiegata in §8 |
+| **divario di dominio** | il fatto che le due immagini, pur raffigurando la stessa zona, abbiano un aspetto completamente diverso |
+| **ablazione** | togliere una componente e rimisurare, per vedere quanto contava |
 
 ---
 
@@ -258,24 +392,20 @@ problemi, semplicemente descrivono posti diversi.
 
 Il CXF è un formato testuale elementare: un campo per riga, CRLF, codifica
 latin-1. Il parser è scritto a mano in una trentina di righe, senza librerie.
-La struttura di un record `BORDO` (un poligono) è:
+Ogni poligono è un record `BORDO` che dichiara un nome — il numero di
+particella, oppure `ACQUA`, `STRADA`, il nome del foglio — e un **codice** che
+ne dice la natura: `18` particella, `12` acqua, strada o bordo del foglio, `25`
+un unico caso residuo. Sono i codici che compaiono nelle tabelle di §9 come
+scelta di che cosa disegnare nel raster moderno.
 
-```
-BORDO
-  <nome>       "1", "1015"… = n° particella | "ACQUA" | "STRADA" | nome mappa
-  <codice>     18 = particella · 12 = acqua/strada/bordo · 25 = altro
-  <angolo>
-  <x> <y>      punto di etichetta (su due righe)
-  <x> <y>      ripetuto
-  <nflag>      ⚠ numero di indici extra che seguono
-  <N>          numero di vertici
-  [nflag interi]
-  <x> <y> × N  i vertici
-```
+Poi, fra l'intestazione e l'elenco dei vertici, si intromette un campo di
+servizio: `nflag`, che dichiara quanti indici extra seguono prima che le
+coordinate comincino davvero.
 
-**Il campo `nflag` è la trappola.** Vale 0 in 838 record su 871, ma 1, 2 o 5 nei
-restanti 33. Chi lo ignora e legge le coordinate subito dopo `N` ottiene un
-parser che funziona benissimo per il 96% dei record e sfasa sul restante 4%: il
+**Ed è la trappola.** Vale 0 in 838 record su 871, ma 1, 2 o 5 nei restanti
+33. Chi lo ignora e comincia a leggere le coordinate subito dopo il conteggio
+dei vertici ottiene un parser che funziona benissimo per il 96% dei record e
+sfasa sul restante 4%: il
 sintomo è che l'estensione del foglio passa da ~1.6 km a ~31 km, con coordinate
 positive dove dovrebbero essere tutte negative.
 
@@ -289,12 +419,6 @@ entrambe eseguite a ogni parsing, non solo nei test:
    l'estensione alla prima occorrenza.
 2. **Sentinella di segno**: nessuna coordinata può essere positiva, perché il
    foglio sta interamente nel terzo quadrante del sistema.
-
-Un dettaglio del formato merita una nota, perché è lo stesso tipo di insidia:
-il nome di un `BORDO` è testo libero, e nel foglio 49 esistono record chiamati
-`ACQUA`, `STRADA`, `L675_004900` e persino `A`. Un parser che cercasse la
-stringa `BORDO` nel file invece di leggerlo sequenzialmente rischierebbe di
-scambiare un nome per una parola chiave.
 
 ### 3.4 I ritagli
 
@@ -325,11 +449,10 @@ Due zone sono state **escluse deliberatamente**:
 ![I cinque ritagli](../results/figures/m1_crops.png)
 
 Ogni ritaglio è salvato come PNG accompagnato dal **proprio world file**,
-composto per traslazione dell'origine pixel:
-
-```
-C' = C + A·x0 + B·y0        F' = F + D·x0 + E·y0
-```
+ottenuto da quello del foglio spostandone l'origine sul primo pixel del
+ritaglio. Ogni ritaglio sa quindi dove si trova sul terreno esattamente come il
+foglio intero, ed è ciò che rende possibile la ground truth del capitolo
+seguente.
 
 ---
 
@@ -337,23 +460,15 @@ C' = C + A·x0 + B·y0        F' = F + D·x0 + E·y0
 
 Questo è il punto metodologico su cui poggia tutto il resto.
 
-Il world file `L675_004900.jgw` è una trasformazione affine da pixel a
-coordinate:
+Il world file `L675_004900.jgw` contiene sei numeri che definiscono una
+trasformazione affine da pixel a coordinate: la dimensione del pixel sui due
+assi — **0.254453 m**, cioè la scala 1:2000 — due termini di rotazione, qui
+nulli, e le coordinate del centro del primo pixel, (−31480.044315,
+−11278.758056). Da questi sei numeri la posizione sul terreno di qualunque
+pixel si ottiene con due moltiplicazioni e due somme.
 
-```
-0.254453        A → dimensione pixel x (m)
-0.0             D → rotazione
-0.0             B → rotazione
--0.254453       E → dimensione pixel y (negativa)
--31480.044315   C → x del centro del pixel (0,0)
--11278.758056   F → y del centro del pixel (0,0)
-```
-
-cioè `X = A·col + B·row + C` e `Y = D·col + E·row + F`, con risoluzione
-**0.254453 m/px** (scala 1:2000).
-
-Rasterizzando il CXF su una griglia con trasformazione pixel→CRS anch'essa nota,
-si ottengono due affini note, e la trasformazione di riferimento è la loro
+Rasterizzando il CXF su una griglia di cui conosciamo, allo stesso modo, il
+legame fra pixel e coordinate, si ottengono due trasformazioni note, e la trasformazione di riferimento è la loro
 composizione:
 
 ```
@@ -370,12 +485,10 @@ RMSE_m = √( media( ‖H_est·p − H_true·p‖² ) ) × 0.254453
 ```
 
 cioè: si applicano entrambe le trasformazioni — quella stimata e quella vera —
-agli stessi 100 punti `p`, si misura la distanza in pixel fra le due immagini
-di ciascun punto, se ne fa la radice della media dei quadrati, e si converte in
-metri con la risoluzione del pixel (§4). È l'unico numero su cui si giudica
-l'intera pipeline: ogni tabella delle sezioni successive è, in ultima analisi,
-un'aggregazione di questa formula su combinazioni diverse di matcher,
-preprocessing e modello.
+agli stessi 100 punti, si misura di quanto le due risposte divergono, e si
+converte in metri. È l'unico numero su cui si giudica l'intera pipeline: ogni
+tabella dei capitoli successivi è, in ultima analisi, un'aggregazione di questa
+formula su configurazioni diverse.
 
 La correttezza della composizione di `H_true` è verificata da un test: un
 punto trasformato avanti e indietro torna su sé stesso entro **1.1e-13 px**,
@@ -405,8 +518,8 @@ risultato non significherebbe più nulla. Il progetto lo impedisce per costruzio
 - `pipeline.py` riceve due array di pixel e non importa né `io_geo` né
   `groundtruth`;
 - solo `evaluate.py` vede entrambi i mondi;
-- un **test statico** analizza l'AST dei moduli dell'algoritmo e fallisce se uno
-  di essi importa la georeferenziazione;
+- un **test automatico** ispeziona il codice dei moduli dell'algoritmo e
+  fallisce se uno di essi importa la georeferenziazione;
 - la CLI, invocata **senza** i parametri `--jgw-*`, produce comunque `H_est` e
   semplicemente non calcola l'RMSE. È la prova architetturale, eseguibile in
   qualsiasi momento.
@@ -436,6 +549,38 @@ Ogni esecuzione è **deterministica**: il seed di RANSAC è fissato con
 `cv2.setRNGSeed`, ogni generazione sintetica passa da un generatore seminato.
 Eseguendo due volte la stessa griglia si ottengono CSV identici cifra per cifra
 su ogni colonna tranne i tempi.
+
+### 5.1 Come si leggono le tabelle e i grafici
+
+Tutte le tabelle dei capitoli §8-§10 sono aggregazioni delle stesse righe di
+CSV e usano gli stessi nomi di colonna. Conviene fissarne il significato una
+volta sola.
+
+| colonna | significato |
+|---|---|
+| `prove` | quante esecuzioni la cella riassume. Una prova è una registrazione completa: un ritaglio, una trasformazione, una configurazione |
+| `successo_pct` | percentuale di prove in cui la stima è riuscita **e** l'errore è rimasto sotto la soglia dichiarata: 0.2545 m su E1 (dove la ground truth è esatta e si può essere severi), 2 m su E2 |
+| `rmse_..._mediano` | errore mediano su **tutte** le prove, fallimenti compresi. È grande di proposito: su E2 una configurazione può non riuscire mai, e allora "l'errore sulle riuscite" non esisterebbe |
+| `..._ok` | la stessa grandezza calcolata sulle **sole prove riuscite** (`rmse_px_mediano_ok`, `rmse_m_mediano_ok`). Le due cifre per la stessa configurazione differiscono: non è un'incoerenza, sono due domande diverse |
+| `rmse_m_minimo` | il caso migliore della cella: dove arriva il metodo quando le cose vanno bene |
+| `inlier_ratio` | la frazione di corrispondenze giudicate coerenti con la trasformazione scelta — quanto erano buoni i dati che RANSAC ha ricevuto |
+| `match_medi`, `match_mediani`, `n_matches` | quante corrispondenze il matcher ha prodotto, **prima** di RANSAC |
+| `t_ms` | millisecondi del **solo matching**. Non comprende il preprocessing, né RANSAC, né il caricamento del modello neurale: il CSV li cronometra in colonne separate, e tenerli distinti è ciò che rende leggibile il confronto di §10.1 |
+| `preprocess: none` | nessuna elaborazione: l'immagine in toni di grigio così com'è |
+| `codici` | quali oggetti del CXF sono stati disegnati nel raster moderno: `18` = le sole particelle, `18+12` = particelle più acque e strade (§3.3) |
+| `esperimento`, `config` | quale esperimento ha prodotto la riga, e in forma compatta la coppia preprocessing / modello geometrico |
+| `rmse_m`, `success` | nella sola tabella di §9.5 non c'è aggregazione: ogni riga è **una** registrazione, quindi l'errore e l'esito sono quelli di quella prova |
+
+Le tabelle riportano sempre la **mediana** e il tasso di successo, mai la
+media: la ragione è in §8.3, e riguarda il fatto che una stima sbagliata di
+migliaia di pixel trascinerebbe da sola la media di tutto il gruppo.
+
+I **grafici** seguono la stessa convenzione. La linea è la mediana; la banda
+attorno è l'intervallo fra il primo e il terzo quartile, cioè la fascia in cui
+cade la metà centrale delle prove — una misura di dispersione che i valori
+estremi non gonfiano. L'asse dell'errore è in **scala logaritmica**, perché
+sullo stesso grafico convivono errori di centesimi di pixel e di migliaia: in
+scala lineare i primi sarebbero indistinguibili da zero.
 
 ---
 
@@ -488,19 +633,12 @@ distruggere proprio l'informazione su cui si basa. Quale delle due strade
 convenga non si può decidere a tavolino, ed è una delle domande sperimentali del
 progetto (§6.2 e §9).
 
-**Due domande sperimentali indipendenti, non una in cascata all'altra.** Vale
-la pena renderlo esplicito, perché le due motivazioni sopra rispondono a
-domande diverse e non a passi successivi di un unico ragionamento. Otsu contro
-Sauvola confronta **soglia globale contro soglia locale**: qui Otsu cede
-perché una soglia sola non regge un'illuminazione non uniforme, e Sauvola
-risolve restando comunque una binarizzazione, solo calcolata zona per zona.
-{Otsu, Sauvola} contro CLAHE confronta invece **binarizzare contro non
-binarizzare**, ed è un asse a sé: la motivazione è la perdita del gradiente
-continuo su cui SIFT costruisce il descrittore, non l'uniformità
-dell'illuminazione. Non a caso CLAHE è anch'esso un metodo **locale** (lavora
-per tessere, come Sauvola): non è "il globale che torna in gioco", condivide
-con Sauvola l'adattività e si differenzia da entrambi gli altri solo
-sull'asse binarizza/non binarizza.
+**Le domande sperimentali sono due, e sono indipendenti.** Otsu contro Sauvola
+confronta *soglia globale contro soglia locale*. {Otsu, Sauvola} contro CLAHE
+confronta invece *binarizzare contro non binarizzare*, che è un asse a sé: anche
+CLAHE lavora zona per zona, quindi non è "il globale che torna in gioco", e la
+ragione per provarlo non è l'illuminazione ma la perdita delle sfumature su cui
+SIFT costruisce il descrittore.
 
 **Morfologia — ritoccare la forma del tratto.** Due operazioni elementari:
 l'*apertura* cancella i puntini isolati (la grana della carta scambiata per
@@ -677,50 +815,38 @@ restituire un risultato che non avrebbe senso.
 
 #### Come funziona il voto, con i numeri
 
-RANSAC non prova tutte le corrispondenze insieme: prova ripetutamente
-**sottoinsiemi minimi** presi a caso. Per ogni famiglia, il sottoinsieme minimo
-`s` è il numero di punti che bastano a calcolare la trasformazione
-*esattamente*, senza sovrabbondanza — ogni punto dà due equazioni (`x`, `y`),
-quindi `s` è la metà dei parametri: 2 per la similarità, 3 per l'affine, 4 per
-l'omografia.
-
-Un'iterazione fa quattro cose: **campiona** `s` corrispondenze a caso, **risolve**
-il sistema esatto per una `H` candidata, **applica** quella `H` a tutte le
-corrispondenze e conta quante cadono entro la soglia di 3 px (gli *inlier*),
-**ripete**. Alla fine tiene la `H` con più inlier fra tutte quelle provate.
-
-Quante iterazioni servono per essere ragionevolmente sicuri di pescare, prima o
-poi, un campione di `s` punti **tutti** corretti? Se `w` è la vera frazione di
-corrispondenze corrette, la probabilità che un singolo campione sia tutto pulito
-è `w^s`, quindi la probabilità che *tutti* i `k` tentativi falliscano è
-`(1 − w^s)^k`. Imponendo che questa probabilità di fallimento resti sotto
-`1 − p` (nel progetto `p = 0.995`, il parametro `confidence`) e risolvendo per
-`k`:
+Ogni iterazione di RANSAC pesca a caso un **campione minimo**: il numero `s` di
+corrispondenze che bastano a calcolare la trasformazione esattamente — 2 per la
+similarità, 3 per l'affine, 4 per l'omografia, cioè metà dei parametri, perché
+ogni punto ne fissa due. Il voto ha senso solo se prima o poi capita un campione
+fatto di corrispondenze **tutte** corrette, e quanti tentativi servano perché
+questo accada si può calcolare. Detta `w` la frazione di corrispondenze corrette
+e `p` la sicurezza voluta (qui 0.995), il numero di iterazioni necessarie è
 
 ```
 k ≥ ln(1 − p) / ln(1 − w^s)
 ```
 
+La formula dice una cosa sola, ma decisiva: `w` è elevato a `s`, quindi il costo
+non cresce con il numero di parametri, **esplode**.
+
 ![Iterazioni necessarie in funzione dell'inlier ratio](../results/figures/m10_ransac_iterazioni.png)
 
-La curva è per ogni famiglia, in scala logaritmica, con il tetto reale del
-codice (`max_iter = 5000`) e tre punti realmente misurati nelle griglie di M6 e
-M8. Si legge da destra a sinistra ed è brutale:
+Il grafico riporta la curva per le tre famiglie, il tetto effettivo del codice
+(5000 iterazioni) e tre casi realmente misurati negli esperimenti. Il confronto
+è brutale:
 
-- **E1, SIFT senza degrado** (`w = 0.960`): bastano **2** iterazioni. Con quasi
-  tutte le corrispondenze corrette, il primo campione a caso è già quasi
-  certamente pulito.
-- **E2, ORB+Sauvola, mediana** (`w = 0.035`): per la similarità servono **4304**
-  iterazioni — appena dentro il budget di 5000. Per l'**omografia**, con lo
-  stesso `w`, ne servirebbero **oltre 3 500 000**: enormemente fuori budget. È
-  la ragione algebrica, non solo empirica, del risultato di §9.4: con pochi
+- **E1, SIFT senza degrado** (`w = 0.960`): bastano **2** iterazioni. Quasi
+  tutte le corrispondenze sono corrette, il primo campione è già pulito.
+- **E2, ORB + Sauvola** (`w = 0.035`): la similarità ne chiede **4304**, appena
+  dentro il budget; l'omografia, con gli stessi dati, ne chiederebbe **oltre
+  tre milioni e mezzo**. È la ragione algebrica del risultato di §9.4: con pochi
   inlier un modello a più parametri non è "più difficile da stimare bene", è
-  strutturalmente **irraggiungibile** nel numero di tentativi concesso.
-- **E2, ritaglio `aspera` con il solo codice 18** (`w = 0.009`, il caso fallito
-  di §9.5): anche per la sola similarità servirebbero **oltre 65 000**
-  iterazioni. Il codice ne prova 5000 e si ferma lì: non è che RANSAC abbia
-  cercato bene e non abbia trovato niente, è che il budget di tentativi non gli
-  ha mai dato una possibilità realistica di pescare un campione pulito.
+  **irraggiungibile** nel numero di tentativi concesso.
+- **E2, ritaglio `aspera` con le sole particelle** (`w = 0.009`, il caso fallito
+  di §9.5): perfino la similarità ne chiederebbe **oltre 65 000**. Il codice ne
+  prova 5000 e si ferma: non è che RANSAC abbia cercato e non abbia trovato, è
+  che non ha mai avuto una possibilità realistica.
 
 ### 7.3 Il matcher neurale (componente B)
 
@@ -745,13 +871,39 @@ della componente comparativa, e la risposta è in §10.
 ## 8. E1 — esperimento sintetico, stesso dominio
 
 Il primo esperimento confronta un ritaglio con **sé stesso trasformato con una
-`H` nota**: rotazione, scala, traslazione, omografia lieve, più una degradazione
-radiometrica opzionale (rumore, sfocatura, contrasto, luminosità). La ground
-truth è esatta per costruzione e il divario di dominio è assente.
+`H` nota** — rotazione, scala, traslazione, lieve prospettiva — al quale si può
+aggiungere una **degradazione** graduale. La ground truth è esatta per
+costruzione e il divario di dominio è assente.
 
 Serve a due cose, entrambe indispensabili: stabilire il **tetto di prestazione**
 dei matcher, e verificare che la pipeline sia **corretta**. Se E1 fallisce, il
 problema è nel codice.
+
+#### Che cosa significa «degradazione 1.0»
+
+Il numero che compare nelle tabelle e sull'asse dei grafici è una sola manopola
+che comanda quattro difetti insieme, ciascuno imitazione di un problema reale
+di una scansione d'archivio:
+
+| componente | che cosa imita | a livello 1.0 |
+|---|---|---|
+| rumore | la grana della carta e del sensore | scarto di 20 livelli di grigio |
+| sfocatura | la messa a fuoco imperfetta, la carta ondulata | sfocatura gaussiana di 2 pixel |
+| contrasto | l'inchiostro sbiadito, la carta ingiallita | dimezzato |
+| luminosità | l'illuminazione non uniforme della scansione | +20 livelli |
+
+Sono comandati da un numero solo perché la figura ha un asse solo: con quattro
+parametri liberi non ci sarebbe una curva, ci sarebbe una nuvola in quattro
+dimensioni. In concreto, a **1.0** l'inchiostro nero non è più nero e la carta
+bianca non è più bianca: la scala di grigi si dimezza, con sopra rumore e
+sfocatura. A **1.5** ne resta un quarto, e il rumore da solo ne copre metà — è
+lì che i matcher cedono (§8.2).
+
+Due precisazioni: la degradazione è **solo radiometrica** — agisce sui toni di
+grigio e non tocca la geometria, che resta un asse indipendente — e si applica
+a **una sola** delle due immagini. La coppia è quindi asimmetrica: riferimento
+pulito contro scansione rovinata, che è la stessa asimmetria di E2, ma qui con
+ground truth esatta e livello di degrado noto.
 
 | matcher | preprocess | prove | successo_pct | rmse_px_mediano_ok | rmse_px_max_ok | inlier_ratio | match_medi | t_ms |
 |---------|------------|-------|--------------|--------------------|----------------|--------------|------------|------|
@@ -839,17 +991,11 @@ dove nessuna degradazione è in gioco. Il massimo osservato su E1 è 33128 px. U
 sola stima di questo tipo trascina la media dell'intero gruppo, producendo "RMSE
 medi" di centinaia di pixel che non descrivono né i casi buoni né i cattivi.
 
-Per questo le tabelle riportano la **mediana** accompagnata dal **tasso di
-successo**, che è la grandezza che descrive i casi cattivi. Le curve usano
-mediana, banda interquartile e scala logaritmica.
-
-Le tabelle di §9 e §10 aggregano in due modi diversi, e le colonne lo dicono nel
-nome: `rmse_m_mediano` è la mediana su **tutte** le prove — grande di proposito,
-perché su E2 una configurazione può avere zero successi e allora "l'errore sulle
-riuscite" non esisterebbe — mentre `rmse_m_mediano_ok` è la mediana sulle sole
-prove riuscite. Confrontando le due tabelle si trovano quindi cifre leggermente
-diverse per la stessa configurazione: non è un'incoerenza, sono due domande
-diverse.
+È la ragione della convenzione dichiarata in §5.1: le tabelle riportano la
+**mediana**, che un singolo valore enorme non sposta, accompagnata dal **tasso
+di successo**, che è la grandezza incaricata di descrivere i casi cattivi. Una
+media li mescolerebbe entrambi in un numero che non descrive né gli uni né gli
+altri.
 
 ---
 
@@ -1030,14 +1176,12 @@ Il confronto è onesto solo se si dichiara ciò che non è simmetrico:
    del lato: a 1024 px su CPU diventa proibitivo. I keypoint vengono riportati
    alle coordinate originali, quindi `H_est` resta nei pixel di partenza.
 2. **Il costo per registrazione è di un altro ordine di grandezza**, e la
-   colonna `t_ms` della tabella lo riporta per la configurazione migliore di
-   ciascun matcher. Fa parte del risultato. Quel tempo misura la **sola
-   inferenza**: il caricamento del checkpoint di LoFTR — 90 MB — sta in una
-   colonna a parte del CSV (`t_init_ms`) e non viene attribuito al matching.
-   Tenerli separati è ciò che rende il confronto leggibile, perché sono due
-   costi di natura diversa: quello iniziale si paga una volta e si ammortizza
-   già alla seconda registrazione, quello ricorrente è ciò che conta davvero
-   quando i fogli da registrare sono molti.
+   colonna `t_ms` lo riporta per la configurazione migliore di ciascun matcher.
+   Fa parte del risultato. Quel tempo misura la sola inferenza: il caricamento
+   dei pesi di LoFTR — 90 MB — è cronometrato a parte (§5.1), perché è un costo
+   di natura diversa. Si paga una volta e si ammortizza già alla seconda
+   registrazione; quello ricorrente è ciò che conta quando i fogli da
+   registrare sono molti.
 
 ### 10.2 LoFTR non ribalta il cross-domain
 
@@ -1236,13 +1380,11 @@ doveva ferma la corsa, che riprende con `--da <fase>`. In coda controlla che ogn
 figura citata da questa relazione sia stata prodotta e che nessun segnaposto di
 tabella sia rimasto vuoto.
 
-Il controllo delle precondizioni non è formalità. `m6_e1_completo` e
-`m9_e3_loftr` leggono il world file del foglio con
-`read_jgw(args.jgw) if os.path.exists(args.jgw) else None`: se quel file manca —
-e `data/raw/` non è versionata — l'errore in metri resta indefinito per ogni
-riga e `success` diventa False per tutte e quattrocento le prove. L'esperimento
-gira fino in fondo e conclude "0 riuscite", che si legge come un algoritmo che
-fallisce e invece è un file assente. È la stessa classe di falso positivo
+Il controllo delle precondizioni non è formalità. Gli esperimenti di E1 ed E3
+leggono il world file del foglio, e se quel file manca — `data/raw/` non è
+versionata — l'errore in metri resta indefinito per ogni riga: l'esperimento
+gira fino in fondo e conclude "0 riuscite". Si legge come un algoritmo che
+fallisce, ed è invece un file assente. È la stessa classe di falso positivo
 convincente di §12.2, e l'unica difesa è verificare prima.
 
 ---

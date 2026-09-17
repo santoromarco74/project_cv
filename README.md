@@ -57,6 +57,22 @@ esista davvero e che nessun segnaposto di tabella sia rimasto vuoto.
 Senza `--con-loftr` la relazione esce completa tranne la figura del capitolo 10,
 e lo script lo dice invece di lasciarlo scoprire aprendo il PDF.
 
+### Il CSV dei risultati è nel repository
+
+`results/runs.csv` **è versionato**, a differenza del resto di `results/`: è la
+base di tutte le tabelle della relazione, e committarlo è ciò che rende
+verificabile la nota in testa al documento — quelle tabelle sono aggregazioni
+del CSV, non numeri ricopiati a mano. Chi clona il repo può quindi ricomporre
+la relazione e rifare le figure senza rieseguire un'ora di esperimenti, e una
+riesecuzione sbagliata si annulla con `git restore results/runs.csv`. Le figure
+PNG restano fuori dal repo: sono binarie, e `python -m src.report` le rigenera
+dal CSV.
+
+Il diff di quel file è leggibile per costruzione: grazie al determinismo (I9),
+rieseguire la stessa griglia cambia **solo** i tre tempi (`t_init_ms`,
+`t_match_ms`, `t_stima_ms`), che dipendono dalla macchina. Se cambia altro, è
+cambiato un risultato.
+
 ## Stato (M1 → M10)
 
 `src/main.py` implementa il contratto di §9. Gli esperimenti passano dalla stessa

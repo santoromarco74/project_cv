@@ -25,7 +25,14 @@ weights/*
 *.pth
 
 # ── Output generati ──
+# Eccezione: `runs.csv` è la base di TUTTE le tabelle della relazione, e la
+# nota in testa al documento — "le tabelle sono aggregazioni del CSV, non
+# numeri ricopiati a mano" — è verificabile solo se il file c'è. È testo, un
+# centinaio di KB, e per I9 il diff mostra differenze solo dove un esperimento
+# è stato davvero rieseguito. Le figure PNG restano fuori: binarie e pesanti,
+# e `src.report` le rigenera dal CSV.
 results/*.csv
+!results/runs.csv
 results/*.png
 results/figures/
 
