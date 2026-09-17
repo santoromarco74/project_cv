@@ -147,13 +147,17 @@ def figura(crop: str, crops_dir: str, out_path: str, opz: Opzioni) -> dict:
     warp = cv2.warpPerspective(hist, ris.H, (w, h), borderValue=(255, 255, 255))
     overlay = sovrapponi_tratti(warp, vec)
 
-    # Quattro righe, non tre. I pannelli 4 e 5 sono la stessa coppia di immagini
-    # prima e dopo la votazione, e confrontarli è il punto: stanno quindi su due
-    # righe di uguale altezza, non uno a piena larghezza e l'altro schiacciato in
-    # una colonna. L'ultima riga è la più alta e ospita il risultato, che è ciò
-    # che il lettore deve portarsi via.
-    fig = plt.figure(figsize=(17, 21))
-    gs = fig.add_gridspec(4, 3, height_ratios=[1.0, 0.72, 0.72, 1.7])
+    # Sei colonne perché la griglia deve dividersi sia in tre (la prima riga) sia
+    # in due (la seconda), e matplotlib non mescola conteggi diversi di colonne.
+    #
+    # I pannelli 4 e 5 sono la stessa coppia di immagini prima e dopo la
+    # votazione, e confrontarli è il punto: stanno **affiancati**, così il
+    # confronto è un movimento dell'occhio e non una risalita oltre una
+    # didascalia. Affiancati prendono anche metà larghezza ciascuno invece di un
+    # terzo, quindi si ingrandiscono. L'ultima riga è la più alta e ospita il
+    # risultato, che è ciò che il lettore deve portarsi via.
+    fig = plt.figure(figsize=(17, 18))
+    gs = fig.add_gridspec(3, 6, height_ratios=[1.0, 0.9, 1.7])
 
     def _pannello(ax, img, titolo, didascalia, cornice=None, grande=False):
         ax.imshow(cv2.cvtColor(img, cv2.COLOR_BGR2RGB) if img.ndim == 3 else img, cmap="gray")
@@ -168,44 +172,44 @@ def figura(crop: str, crops_dir: str, out_path: str, opz: Opzioni) -> dict:
                 lato.set_edgecolor(cornice)
 
     _pannello(
-        fig.add_subplot(gs[0, 0]),
+        fig.add_subplot(gs[0, 0:2]),
         hist,
         "1 · la scansione storica",
         "il foglio disegnato a mano,\ncosì come arriva dall'archivio",
     )
     _pannello(
-        fig.add_subplot(gs[0, 1]),
+        fig.add_subplot(gs[0, 2:4]),
         hist_pulito,
         f"2 · la stessa, ripulita ({opz.preprocess})",
         "ogni pixel è deciso: inchiostro o carta.\nLa soglia è calcolata zona per zona",
     )
     _pannello(
-        fig.add_subplot(gs[0, 2]),
+        fig.add_subplot(gs[0, 4:6]),
         vec_pulito,
         "3 · il vettoriale, disegnato",
         "le coordinate del CXF tracciate su\nun'immagine: ora sono confrontabili",
     )
 
     _pannello(
-        fig.add_subplot(gs[1, :]),
+        fig.add_subplot(gs[1, 0:3]),
         tela_tutti,
         f"4 · gli abbinamenti trovati ({ris.stima.n_matches} in tutto, ne sono disegnati 60 a caso)",
-        "ogni linea unisce due punti che il programma ritiene la stessa cosa. "
-        "Se fossero giusti sarebbero tutti paralleli: non lo sono, "
-        f"perché solo il {100 * ris.stima.inlier_ratio:.0f}% è corretto",
+        "ogni linea unisce due punti che il programma ritiene la stessa cosa.\n"
+        "Se fossero giusti sarebbero tutti paralleli: "
+        f"solo il {100 * ris.stima.inlier_ratio:.0f}% lo è",
     )
     _pannello(
-        fig.add_subplot(gs[2, :]),
+        fig.add_subplot(gs[1, 3:6]),
         tela_inlier,
         f"5 · dopo la votazione ({ris.stima.n_inliers} sopravvissuti)",
-        "RANSAC tiene solo gli abbinamenti che concordano su una stessa "
-        "trasformazione: confrontare questa riga con quella sopra è il punto",
+        "RANSAC tiene solo gli abbinamenti che concordano su una stessa\n"
+        "trasformazione. Il confronto col pannello a sinistra è il punto",
     )
 
     riuscita = bool(metriche["success"])
     tinta = "#1b7a3d" if riuscita else "#a62828"
     _pannello(
-        fig.add_subplot(gs[3, 0:2]),
+        fig.add_subplot(gs[2, 0:4]),
         overlay,
         "6 · il risultato",
         "nero dove i due tratti coincidono; rosso il solo storico deformato, "
@@ -217,7 +221,7 @@ def figura(crop: str, crops_dir: str, out_path: str, opz: Opzioni) -> dict:
     # L'immagine del risultato è quadrata e occupa due colonne: la terza
     # resterebbe vuota. Ci va il numero, che del risultato è la parte che si
     # cita — la figura mostra *che* ha funzionato, il riquadro dice *quanto* (I6).
-    _riquadro_numeri(fig.add_subplot(gs[3, 2]), ris, metriche, riuscita, tinta)
+    _riquadro_numeri(fig.add_subplot(gs[2, 4:6]), ris, metriche, riuscita, tinta)
 
     fig.suptitle(
         f"Una registrazione dall'inizio alla fine — ritaglio «{crop}», "
