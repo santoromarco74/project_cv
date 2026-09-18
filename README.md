@@ -75,6 +75,10 @@ cambiato un risultato.
 
 ## Stato (M1 → M10)
 
+Lo sviluppo è diviso in dieci milestone, e il numero sopravvive nei nomi dei
+file: `m6_e1_completo.py` è l'esperimento della milestone 6. La tabella con che
+cosa produce ciascuna sta in §11.3 della relazione.
+
 `src/main.py` implementa il contratto di §9. Gli esperimenti passano dalla stessa
 pipeline: cambia solo `--matcher`. I singoli comandi, se servono uno alla volta:
 
