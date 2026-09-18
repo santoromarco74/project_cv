@@ -1352,7 +1352,34 @@ python -m src.main --hist data/crops/ribba.png --modern data/crops/ribba_vec.png
     --matcher loftr --preprocess sauvola --model similarity
 ```
 
-### 11.3 Preparazione dei dati ed esperimenti
+### 11.3 Le milestone, e i nomi dei file
+
+Lo sviluppo è stato diviso in dieci milestone, ciascuna con un programma che
+gira e produce un artefatto guardabile. **Il numero sopravvive nei nomi dei
+file**, e serve a leggerli: `m6_e1_completo.py` è l'esperimento della milestone
+6, `m8_verifica_ribba.png` una figura della milestone 8. La tabella è quindi
+anche la chiave dei comandi e delle figure che seguono.
+
+| # | che cosa produce | dove sta in questo documento |
+|---|---|---|
+| **M1** | lettura di JPG e world file, i cinque ritagli | §3.4 |
+| **M2** | il parser CXF, con l'assert sull'estensione | §3.3 |
+| **M3** | la composizione della trasformazione di riferimento | §4 |
+| **M4** | la prima coppia sintetica con `H` nota: se qui l'errore non è ≈ 0, il problema è nel codice e si ferma tutto | §8 |
+| **M5** | il confronto dei preprocessing sui ritagli reali | §6 |
+| **M6** | E1 completo, la curva RMSE contro degradazione e il primo CSV | §8 |
+| **M7** | la rasterizzazione del vettoriale, con verifica visiva a piena risoluzione | §9.1 |
+| **M8** | E2, la griglia cross-domain intera | §9 |
+| **M9** | E3, LoFTR nella stessa pipeline | §10 |
+| **M10** | le figure e le tabelle generate dal CSV, e questo documento | §5.1, §11.5 |
+
+Le milestone non sono fasi di un piano dichiarato a posteriori: erano il
+criterio per andare avanti. Ognuna doveva produrre qualcosa di ispezionabile
+prima che si passasse alla successiva, e M4 in particolare era una condizione
+d'arresto — senza un errore quasi nullo sul sintetico, misurare il cross-domain
+non avrebbe significato niente.
+
+### 11.4 Preparazione dei dati ed esperimenti
 
 ```bash
 # ritagli dal foglio (PNG + world file affiancato)
@@ -1384,9 +1411,9 @@ python -m scripts.componi_relazione
 python -m tests.test_smoke
 ```
 
-### 11.4 Riprodurre tutto in un comando
+### 11.5 Riprodurre tutto in un comando
 
-I comandi di §11.3 vanno eseguiti in quest'ordine, e l'ordine non è arbitrario:
+I comandi di §11.4 vanno eseguiti in quest'ordine, e l'ordine non è arbitrario:
 i ritagli prima della rasterizzazione, la rasterizzazione prima di E2, gli
 esperimenti prima delle tabelle, le tabelle prima di questo documento. Eseguirli
 a mano funziona, ma un passo dimenticato non dà errore: produce un CSV parziale
@@ -1400,7 +1427,7 @@ python -m scripts.riproduci --con-loftr   # tutto, E3 compreso   (~60 min)
 ```
 
 Lo script stampa ogni comando prima di eseguirlo — il log di una corsa è la
-versione eseguita di §11.3 — e dopo ogni fase verifica che gli artefatti attesi
+versione eseguita di §11.4 — e dopo ogni fase verifica che gli artefatti attesi
 esistano davvero: un comando che esce con codice 0 senza aver scritto quello che
 doveva ferma la corsa, che riprende con `--da <fase>`. In coda controlla che ogni
 figura citata da questa relazione sia stata prodotta e che nessun segnaposto di
