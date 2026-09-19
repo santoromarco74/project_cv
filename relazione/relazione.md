@@ -1001,13 +1001,13 @@ ground truth esatta e livello di degrado noto.
 
 | matcher | preprocess | prove | successo_pct | rmse_px_mediano_ok | rmse_px_max_ok | inlier_ratio | match_medi | t_ms |
 |---------|------------|-------|--------------|--------------------|----------------|--------------|------------|------|
-| loftr   | none       | 80    | 42.5         | 0.208              | 0.963          | 0.619        | 1909       | 4637 |
-| orb     | clahe      | 80    | 68.8         | 0.499              | 1.0            | 0.619        | 2503       | 138  |
-| orb     | none       | 80    | 67.5         | 0.438              | 0.999          | 0.608        | 2377       | 128  |
-| orb     | sauvola    | 80    | 55.0         | 0.479              | 0.995          | 0.486        | 1945       | 123  |
-| sift    | clahe      | 80    | 82.5         | 0.186              | 0.927          | 0.752        | 2289       | 464  |
-| sift    | none       | 80    | 80.0         | 0.182              | 0.969          | 0.691        | 1709       | 406  |
-| sift    | sauvola    | 80    | 73.8         | 0.206              | 0.927          | 0.614        | 974        | 470  |
+| loftr   | none       | 80    | 42.5         | 0.208              | 0.963          | 0.619        | 1909       | 4540 |
+| orb     | clahe      | 80    | 68.8         | 0.499              | 1.0            | 0.619        | 2503       | 133  |
+| orb     | none       | 80    | 67.5         | 0.438              | 0.999          | 0.608        | 2377       | 123  |
+| orb     | sauvola    | 80    | 55.0         | 0.479              | 0.995          | 0.486        | 1945       | 116  |
+| sift    | clahe      | 80    | 82.5         | 0.186              | 0.927          | 0.752        | 2289       | 456  |
+| sift    | none       | 80    | 80.0         | 0.182              | 0.969          | 0.691        | 1709       | 389  |
+| sift    | sauvola    | 80    | 73.8         | 0.206              | 0.927          | 0.614        | 974        | 449  |
 
 
 ![RMSE contro degradazione](../results/figures/m6_rmse_vs_degradazione.png)
@@ -1123,15 +1123,15 @@ indirette di allineamento producono falsi positivi convincenti.
 
 | matcher | preprocess       | modello    | prove | successo_pct | rmse_m_mediano | rmse_m_minimo | inlier_ratio | match_mediani |
 |---------|------------------|------------|-------|--------------|----------------|---------------|--------------|---------------|
-| loftr   | clahe            | affine     | 10    | 0.0          | 722.91         | 125.203       | 0.464        | 6             |
-| loftr   | clahe            | homography | 10    | 0.0          | 325.19         | 152.009       | 0.619        | 6             |
-| loftr   | clahe            | similarity | 10    | 0.0          | 240.62         | 170.471       | 0.31         | 6             |
-| loftr   | sauvola          | affine     | 10    | 80.0         | 0.77           | 0.445         | 0.275        | 385           |
-| loftr   | sauvola          | homography | 10    | 70.0         | 1.02           | 0.625         | 0.273        | 385           |
-| loftr   | sauvola          | similarity | 10    | 90.0         | 0.44           | 0.171         | 0.288        | 385           |
-| loftr   | sauvola+chiusura | affine     | 10    | 80.0         | 0.63           | 0.443         | 0.288        | 390           |
-| loftr   | sauvola+chiusura | homography | 10    | 70.0         | 1.16           | 0.472         | 0.279        | 390           |
-| loftr   | sauvola+chiusura | similarity | 10    | 90.0         | 0.53           | 0.326         | 0.278        | 390           |
+| loftr   | clahe            | affine     | 3     | 0.0          | 223.18         | 143.065       | 0.333        | 9             |
+| loftr   | clahe            | homography | 3     | 0.0          | 173.14         | 152.009       | 0.444        | 9             |
+| loftr   | clahe            | similarity | 3     | 0.0          | 232.22         | 170.471       | 0.222        | 9             |
+| loftr   | sauvola          | affine     | 3     | 100.0        | 0.47           | 0.445         | 0.279        | 549           |
+| loftr   | sauvola          | homography | 2     | 100.0        | 0.85           | 0.636         | 0.308        | 477           |
+| loftr   | sauvola          | similarity | 3     | 100.0        | 0.45           | 0.417         | 0.291        | 549           |
+| loftr   | sauvola+chiusura | affine     | 2     | 100.0        | 0.59           | 0.535         | 0.298        | 487           |
+| loftr   | sauvola+chiusura | homography | 2     | 100.0        | 0.93           | 0.806         | 0.291        | 487           |
+| loftr   | sauvola+chiusura | similarity | 2     | 100.0        | 0.63           | 0.593         | 0.291        | 487           |
 | orb     | clahe            | affine     | 10    | 0.0          | 105.81         | 25.621        | 0.009        | 777           |
 | orb     | clahe            | homography | 10    | 0.0          | 168.08         | 3.12          | 0.012        | 777           |
 | orb     | clahe            | similarity | 10    | 60.0         | 0.82           | 0.267         | 0.016        | 777           |
@@ -1195,11 +1195,11 @@ diversa, e più forte.
 
 | fattore            | valore     | prove | successo_pct | rmse_m_mediano | inlier_ratio |
 |--------------------|------------|-------|--------------|----------------|--------------|
-| modello geometrico | affine     | 90    | 35.6         | 35.68          | 0.076        |
-| modello geometrico | homography | 90    | 23.3         | 138.89         | 0.135        |
-| modello geometrico | similarity | 90    | 52.2         | 1.12           | 0.11         |
-| codici CXF         | 18         | 135   | 32.6         | 64.54          | 0.106        |
-| codici CXF         | 18+12      | 135   | 41.5         | 35.68          | 0.104        |
+| modello geometrico | affine     | 68    | 30.9         | 88.82          | 0.054        |
+| modello geometrico | homography | 67    | 16.4         | 139.81         | 0.097        |
+| modello geometrico | similarity | 68    | 50.0         | 2.87           | 0.071        |
+| codici CXF         | 18         | 104   | 27.9         | 128.57         | 0.071        |
+| codici CXF         | 18+12      | 99    | 37.4         | 130.9          | 0.066        |
 
 
 Sugli stessi identici insiemi di corrispondenze, il modello geometrico cambia
@@ -1261,12 +1261,12 @@ di `--matcher`. Stessi ritagli, stesse metriche, stesse soglie.
 
 | esperimento | matcher | config                        | prove | successo_pct | rmse_m_mediano_ok | inlier_ratio | match_mediani | t_ms |
 |-------------|---------|-------------------------------|-------|--------------|-------------------|--------------|---------------|------|
-| E1          | loftr   | none / homography             | 80    | 42.5         | 0.053             | 0.622        | 1033          | 4470 |
-| E1          | orb     | clahe / homography            | 80    | 68.8         | 0.127             | 0.705        | 2511          | 137  |
-| E1          | sift    | clahe / homography            | 80    | 82.5         | 0.047             | 0.873        | 1497          | 455  |
-| E2          | loftr   | sauvola / similarity          | 10    | 90.0         | 0.435             | 0.288        | 385           | 3904 |
-| E2          | orb     | sauvola+chiusura / similarity | 10    | 90.0         | 0.362             | 0.049        | 743           | 111  |
-| E2          | sift    | sauvola / affine              | 10    | 40.0         | 1.096             | 0.07         | 146           | 494  |
+| E1          | loftr   | none / homography             | 80    | 42.5         | 0.053             | 0.622        | 1033          | 4330 |
+| E1          | orb     | clahe / homography            | 80    | 68.8         | 0.127             | 0.705        | 2511          | 132  |
+| E1          | sift    | clahe / homography            | 80    | 82.5         | 0.047             | 0.873        | 1497          | 453  |
+| E2          | loftr   | sauvola / similarity          | 3     | 100.0        | 0.449             | 0.291        | 549           | 3961 |
+| E2          | orb     | sauvola+chiusura / similarity | 10    | 90.0         | 0.362             | 0.049        | 743           | 104  |
+| E2          | sift    | sauvola / affine              | 10    | 40.0         | 1.096             | 0.07         | 146           | 483  |
 
 
 ![Confronto classico/neurale](../results/figures/m9_e3_confronto.png)
