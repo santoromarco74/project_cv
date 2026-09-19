@@ -46,7 +46,7 @@ python -m scripts.riproduci --controlla   # verifica le precondizioni, non esegu
 python -m scripts.riproduci --lista       # le fasi, in ordine, con i tempi
 python -m scripts.riproduci               # tutto tranne E3      (~18 min)
 python -m scripts.riproduci --con-loftr   # tutto, E3 compreso   (~60 min)
-python -m scripts.riproduci --da e2       # senza i dati AdE, dai soli ritagli
+python -m scripts.riproduci --da verifica-raster   # senza i dati AdE, dai soli ritagli
 ```
 
 Ogni comando viene stampato prima di essere eseguito, e ogni fase dichiara gli
@@ -60,18 +60,26 @@ e lo script lo dice invece di lasciarlo scoprire aprendo il PDF.
 
 ### Senza le scansioni AdE si arriva comunque in fondo
 
-Le scansioni servono a meno fasi di quante sembri. `crop`, `cxf` e `rasterize`
-le aprono davvero; `e1` ed `e3` leggono il world file del foglio per convertire
-l'errore in metri. Tutto il resto — da `e2` in avanti — legge `data/crops/`: i
-ritagli, i raster del vettoriale e i loro world file, cioè artefatti che le
-prime fasi hanno già prodotto e che, a differenza delle scansioni, sono
-ridistribuibili.
+Le scansioni servono a tre fasi soltanto: `crop`, `cxf` e `rasterize`. Tutto il
+resto legge `data/crops/` — i ritagli, i raster del vettoriale e i loro world
+file — cioè artefatti che quelle tre fasi hanno già prodotto e che, a differenza
+delle scansioni, sono ridistribuibili.
+
+Anche E1 ed E3 sono liberi. Il world file del foglio serviva loro solo a leggere
+la risoluzione per convertire l'errore in metri, e il world file di un ritaglio
+ha per costruzione gli stessi coefficienti lineari: cambia l'origine, che in
+quella conversione non entra. `io_geo.jgw_per_risoluzione` ripiega quindi sui
+ritagli, dichiarandolo, e il CSV che ne esce è identico colonna per colonna
+(verificato: 96 righe, zero differenze fuori dai tempi). Senza il ripiego i due
+esperimenti giravano fino in fondo scrivendo `rmse_m` vuoto ovunque e "0
+riuscite" in coda — che si legge come un algoritmo che fallisce, ed è invece un
+file assente.
 
 Ogni fase dichiara quali file grezzi le occorrono, e il controllo somma il
-fabbisogno delle sole fasi selezionate: `--da e2` parte anche su una macchina
-con `data/raw/` vuota, purché i ritagli ci siano. Se invece ne manca uno che
-serve, lo script dice quali fasi lo richiedono e da dove si può ripartire lo
-stesso.
+fabbisogno delle sole fasi selezionate: `--da verifica-raster` parte anche su
+una macchina con `data/raw/` vuota, purché i ritagli ci siano. Se invece ne
+manca uno che serve, lo script dice quali fasi lo richiedono e da dove si può
+ripartire lo stesso.
 
 ### Il CSV dei risultati è nel repository
 

@@ -3,7 +3,7 @@
     python -m scripts.riproduci --controlla     # solo le precondizioni, non esegue
     python -m scripts.riproduci                 # tutto tranne E3 (LoFTR)
     python -m scripts.riproduci --con-loftr     # tutto, E3 compreso (~40 min in più)
-    python -m scripts.riproduci --da e2         # senza i dati AdE, dai soli crop
+    python -m scripts.riproduci --da verifica-raster   # senza i dati AdE, dai soli crop
 
 Perché esiste. Il README elenca quindici comandi in ordine, e l'ordine conta:
 i crop prima della rasterizzazione, la rasterizzazione prima di E2, E2 prima
@@ -18,26 +18,31 @@ Il fallimento silenzioso che questo script previene
 
     W_hist = read_jgw(args.jgw) if os.path.exists(args.jgw) else None
 
-Se `data/raw/L675_004900.jgw` manca, `W_hist` resta None, `rmse_m` resta None
-per ogni riga e `success` diventa False per tutte e quattrocento. L'esperimento
-gira fino in fondo, scrive un CSV completo e conclude "0 riuscite". Sembra un
+Se nessun world file è leggibile, `W_hist` resta None, `rmse_m` resta None per
+ogni riga e `success` diventa False per tutte e quattrocento. L'esperimento gira
+fino in fondo, scrive un CSV completo e conclude "0 riuscite". Sembra un
 algoritmo che fallisce; è un file mancante. È esattamente la classe di falso
-positivo di §5.5, e l'unica difesa è verificare le precondizioni **prima**.
+positivo di §5.5, e la difesa è duplice: i due esperimenti ripiegano sul world
+file di un ritaglio quando manca quello del foglio, e comunque lo dicono invece
+di lasciarlo dedurre dal CSV.
 
 Quali dati servono, e a quali fasi
 ----------------------------------
-Solo `crop`, `cxf` e `rasterize` aprono davvero le scansioni AdE, più `e1` ed
-`e3` che dal world file del foglio ricavano i metri. Tutto il resto — da `e2`
-in avanti — legge `data/crops/`: i ritagli, i raster del vettoriale e i loro
-world file, cioè artefatti che le prime fasi hanno già prodotto. Ogni `Fase`
-dichiara il proprio fabbisogno nel campo `grezzi`, e il controllo somma quello
-delle sole fasi selezionate.
+Solo `crop`, `cxf` e `rasterize` aprono le scansioni AdE. Tutto il resto legge
+`data/crops/`: i ritagli, i raster del vettoriale e i loro world file, cioè
+artefatti che quelle tre fasi hanno già prodotto. Ogni `Fase` dichiara il
+proprio fabbisogno nel campo `grezzi`, e il controllo somma quello delle sole
+fasi selezionate.
 
 Serve perché `data/crops/` è ridistribuibile e `data/raw/` no (§5.8): chi
 riceve il progetto senza le scansioni può comunque rifare esperimenti, figure e
 relazione. Prima il controllo pretendeva tutti e tre i file grezzi a ogni
 invocazione, e rifiutava di partire anche a chi aveva chiesto `--da figura-e2`,
 che non ne tocca nessuno.
+
+Anche `e1` ed `e3` sono liberi: il world file del foglio serviva loro solo per
+la risoluzione, e `io_geo.jgw_per_risoluzione` ripiega su quello di un ritaglio,
+che ha gli stessi coefficienti lineari. La conversione in metri esce identica.
 
 Ogni comando viene stampato prima di essere eseguito: il log di una corsa è la
 documentazione eseguibile che §12.10 chiede alla relazione.
@@ -179,7 +184,6 @@ def costruisci_fasi(con_loftr: bool = False) -> list[Fase]:
             "M6 — E1 sintetico completo. Riparte il CSV da zero",
             (("experiments.m6_e1_completo", "--riparti"),),
             (CSV,),
-            grezzi=(GREZZO_JGW,),
             minuti=4,
             nota="`--riparti` cancella results/runs.csv: le fasi E2/E3 vanno dopo, non prima",
         ),
@@ -202,7 +206,6 @@ def costruisci_fasi(con_loftr: bool = False) -> list[Fase]:
             "M9 — E3: LoFTR su E1 ed E2, stessa pipeline",
             (("experiments.m9_e3_loftr",),),
             (CSV,),
-            grezzi=(GREZZO_JGW,),
             minuti=40,
             opzionale=True,
             nota="richiede torch, kornia e i pesi in weights/ (python -m scripts.scarica_pesi)",

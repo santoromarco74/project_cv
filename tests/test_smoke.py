@@ -28,12 +28,14 @@ from src.io_geo import (  # noqa: E402
     apply_affine,
     assert_dentro_estensione,
     cxf_extent,
+    jgw_per_risoluzione,
     parse_cxf,
     pixel_size_m,
     raster_extent,
     read_cxf,
     read_jgw,
     read_metadata_txt,
+    write_jgw,
 )
 from src.groundtruth import (  # noqa: E402
     checkpoints,
@@ -1067,6 +1069,50 @@ def test_i4_torch_solo_in_loftr():
                     assert not any(
                         n.split(".")[0] in {"torch", "kornia"} for n in nomi
                     ), f"{path}: import di {nomi} a livello di modulo, deve essere lazy (I4)"
+
+
+def test_ritaglio_stessa_risoluzione_del_foglio() -> None:
+    """Il ripiego di `jgw_per_risoluzione` regge solo se questo è vero.
+
+    Il world file di un ritaglio trasla l'origine e non tocca A, B, D, E: la
+    risoluzione è quindi la stessa cifra per cifra, non una approssimazione. Se
+    un giorno `crop_world_file` cambiasse anche la parte lineare, E1 ed E3
+    convertirebbero in metri con la scala sbagliata senza accorgersene.
+    """
+    W = np.array([[0.254453, 0.0, -31480.044315], [0.0, -0.254453, -11278.758056], [0.0, 0.0, 1.0]])
+    for x0, y0 in ((0, 0), (1500, 300), (5600, 2600)):
+        W_crop = crop_world_file(W, x0, y0)
+        assert pixel_size_m(W_crop) == pixel_size_m(W), f"ritaglio ({x0},{y0}): scala diversa"
+        assert np.allclose(W_crop[:2, :2], W[:2, :2]), "il ritaglio ha alterato la parte lineare"
+
+
+def test_jgw_per_risoluzione_preferisce_il_foglio_e_poi_ripiega() -> None:
+    """L'ordine è fisso: il foglio, poi i ritagli come sono stati passati.
+
+    Se dipendesse dal filesystem, due macchine con gli stessi file potrebbero
+    scegliere sorgenti diverse — e I9 vuole la stessa cifra ovunque. Un file
+    vuoto vale come assente: `read_jgw` ci si schianterebbe sopra.
+    """
+    import tempfile
+
+    W = np.array([[0.254453, 0.0, -31480.0], [0.0, -0.254453, -11278.0], [0.0, 0.0, 1.0]])
+    with tempfile.TemporaryDirectory() as tmp:
+        foglio = os.path.join(tmp, "foglio.jgw")
+        primo = os.path.join(tmp, "primo.jgw")
+        secondo = os.path.join(tmp, "secondo.jgw")
+        vuoto = os.path.join(tmp, "vuoto.jgw")
+        for path in (foglio, primo, secondo):
+            write_jgw(path, W)
+        open(vuoto, "w").close()
+
+        assert jgw_per_risoluzione(foglio, [primo, secondo]) == foglio
+        os.remove(foglio)
+        assert jgw_per_risoluzione(foglio, [primo, secondo]) == primo
+        os.remove(primo)
+        assert jgw_per_risoluzione(foglio, [primo, secondo]) == secondo
+        assert jgw_per_risoluzione(foglio, [vuoto, secondo]) == secondo, "file vuoto non scartato"
+        assert jgw_per_risoluzione(foglio, []) is None
+        assert jgw_per_risoluzione(foglio, [vuoto]) is None
 
 
 # ------------------------------------------------------------------ runner
