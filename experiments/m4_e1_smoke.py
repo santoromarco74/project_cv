@@ -52,7 +52,7 @@ def una_prova(img, t, matcher, modello, degrado, seed, W_hist):
     st = stima_ransac(pts_a, pts_b, modello=modello, seed=seed)
     t_stima = (time.perf_counter() - t0) * 1000
 
-    riga = valuta(st, H_true, w, h, W_hist=W_hist)
+    riga = valuta(st, H_true, w, h, W_dest=W_hist)  # E1: arrivo = griglia storica
     riga |= {"t_match_ms": round(t_match, 1), "t_stima_ms": round(t_stima, 1)}
     riga |= {k: meta[k] for k in ("n_kp_a", "n_kp_b") if k in meta}
     return riga, b, st, pts_a, pts_b

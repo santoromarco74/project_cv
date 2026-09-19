@@ -28,9 +28,22 @@ def h_true(W_hist: np.ndarray, W_modern: np.ndarray) -> np.ndarray:
     return np.linalg.inv(W_modern) @ W_hist
 
 
-def h_true_from_jgw(jgw_hist: str, jgw_modern: str) -> np.ndarray:
-    """Come h_true, leggendo le due affini dai world file."""
-    return h_true(read_jgw(jgw_hist), read_jgw(jgw_modern))
+def riferimento_da_jgw(jgw_partenza: str, jgw_arrivo: str) -> tuple[np.ndarray, np.ndarray]:
+    """`H_true` e il world file della griglia d'arrivo, in una chiamata sola.
+
+    I due vanno insieme e tenerli separati è precisamente ciò che ha permesso
+    l'errore: `H_true` veniva composta dai due world file, e poi la conversione
+    in metri riceveva quello di **partenza**. Su E2 significava misurare in
+    pixel del raster vettoriale (0.20 m/px) e convertire con la risoluzione
+    della scansione (0.254453), gonfiando ogni RMSE di 1.272265 volte. Chiedendo
+    entrambi con una chiamata sola i due non possono più discordare.
+
+    Restituisce (H_true, W_arrivo), da passare a `valuta` come `H_true` e
+    `W_dest`. In E1 non serve: là non ci sono due world file, l'immagine è
+    trasformata in se stessa e la griglia d'arrivo è quella di partenza.
+    """
+    W_partenza, W_arrivo = read_jgw(jgw_partenza), read_jgw(jgw_arrivo)
+    return h_true(W_partenza, W_arrivo), W_arrivo
 
 
 def transform(H: np.ndarray, pts) -> np.ndarray:
@@ -53,13 +66,21 @@ def checkpoints(width: int, height: int, n: int = 10, margine: float = 0.05) -> 
     return np.column_stack([cc.ravel(), rr.ravel()])
 
 
-def errore_px_to_m(errore_px: float, W_hist: np.ndarray) -> float:
-    """Converte un errore in pixel dell'immagine storica in metri (§7.4).
+def errore_px_to_m(errore_px: float, W_dest: np.ndarray) -> float:
+    """Converte in metri un errore misurato in pixel (§7.4).
+
+    ⚠ `W_dest` è il world file della griglia in cui l'errore è stato misurato,
+    cioè quella di **arrivo** di H, non quella di partenza. `H_est` e `H_true`
+    portano entrambe un pixel storico su un pixel dell'immagine moderna, quindi
+    la loro differenza vive nella griglia moderna e va convertita con la
+    risoluzione di quella. In E1 le due griglie coincidono e la distinzione non
+    si vede; in E2 no — lo storico è a 0.254453 m/px e il raster del vettoriale
+    a 0.20, e usare la prima gonfiava ogni RMSE di 1.272265 volte.
 
     La risoluzione si legge dall'affine, non da una costante: 0.254453 m/px è il
     valore di questo foglio, non una proprietà del codice.
     """
-    sx, sy = pixel_size_m(W_hist)
+    sx, sy = pixel_size_m(W_dest)
     return float(errore_px * (sx + sy) / 2.0)
 
 

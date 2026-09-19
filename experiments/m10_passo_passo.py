@@ -24,8 +24,7 @@ import matplotlib.pyplot as plt  # noqa: E402
 
 from src.evaluate import valuta  # noqa: E402
 from src.figure import sovrapponi_tratti  # noqa: E402
-from src.groundtruth import h_true_from_jgw  # noqa: E402
-from src.io_geo import read_jgw  # noqa: E402
+from src.groundtruth import riferimento_da_jgw  # noqa: E402
 from src.pipeline import Opzioni, registra  # noqa: E402
 from src.preprocess import applica  # noqa: E402
 
@@ -131,7 +130,7 @@ def figura(crop: str, crops_dir: str, out_path: str, opz: Opzioni) -> dict:
         raise FileNotFoundError(f"{crop}: mancano il ritaglio o il raster vettoriale (M1/M7)")
 
     ris = registra(hist, vec, opz)
-    H_true = h_true_from_jgw(
+    H_true, W_dest = riferimento_da_jgw(
         os.path.join(crops_dir, f"{crop}.jgw"), os.path.join(crops_dir, f"{crop}_vec1812.jgw")
     )
     metriche = valuta(
@@ -139,7 +138,7 @@ def figura(crop: str, crops_dir: str, out_path: str, opz: Opzioni) -> dict:
         H_true,
         hist.shape[1],
         hist.shape[0],
-        W_hist=read_jgw(os.path.join(crops_dir, f"{crop}.jgw")),
+        W_dest=W_dest,
         soglia_m=SOGLIA_M,
     )
 

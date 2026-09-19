@@ -42,8 +42,10 @@ from src.groundtruth import (  # noqa: E402
     errore_px_to_m,
     h_true,
     residuo_andata_ritorno,
+    riferimento_da_jgw,
     transform,
 )
+from src.estimate import Stima  # noqa: E402
 from src.estimate import stima as stima_ransac  # noqa: E402
 from src.evaluate import COLONNE, append_csv, valuta  # noqa: E402
 from src.main import costruisci_parser  # noqa: E402
@@ -427,7 +429,7 @@ def test_m4_e1_sift_recupera_h():
         b, H_true = genera_coppia(img, t)
         pts_a, pts_b, _ = crea_matcher("sift").match(img, b)
         st = stima_ransac(pts_a, pts_b, modello="homography", seed=42)
-        riga = valuta(st, H_true, w, h, W_hist=W_hist)
+        riga = valuta(st, H_true, w, h, W_dest=W_hist)
         assert riga["success_stima"], (t, st.motivo)
         assert riga["rmse_px"] < 0.5, (t, riga["rmse_px"])
         assert riga["inlier_ratio"] > 0.5, (t, riga["inlier_ratio"])
@@ -779,9 +781,9 @@ def test_success_richiede_una_soglia_dichiarata():
 
     senza = valuta(ris.stima, H_true, 256, 256)
     assert senza["success"] == "", senza["success"]
-    con = valuta(ris.stima, H_true, 256, 256, W_hist=read_jgw(_serve(JGW)), soglia_m=1.0)
+    con = valuta(ris.stima, H_true, 256, 256, W_dest=read_jgw(_serve(JGW)), soglia_m=1.0)
     assert con["success"] is True, con
-    severa = valuta(ris.stima, H_true, 256, 256, W_hist=read_jgw(_serve(JGW)), soglia_m=1e-6)
+    severa = valuta(ris.stima, H_true, 256, 256, W_dest=read_jgw(_serve(JGW)), soglia_m=1e-6)
     assert severa["success"] is False, severa
 
 
@@ -1113,6 +1115,85 @@ def test_jgw_per_risoluzione_preferisce_il_foglio_e_poi_ripiega() -> None:
         assert jgw_per_risoluzione(foglio, [vuoto, secondo]) == secondo, "file vuoto non scartato"
         assert jgw_per_risoluzione(foglio, []) is None
         assert jgw_per_risoluzione(foglio, [vuoto]) is None
+
+
+def test_rmse_m_usa_la_risoluzione_della_griglia_di_arrivo() -> None:
+    """Un errore di un metro deve leggersi un metro, anche fra griglie diverse.
+
+    `H_est` e `H_true` portano entrambe un pixel storico su un pixel del raster
+    moderno: la loro differenza si misura quindi in pixel del **moderno**, a
+    0.20 m/px, non dello storico a 0.254453. Passando a `valuta` il world file
+    dello storico — com'era prima — ogni RMSE di E2 usciva moltiplicato per
+    0.254453/0.20 = 1.272265, e quella cifra non era né metri né pixel storici.
+
+    Il test costruisce l'errore invece di misurarlo: una stima che sbaglia di
+    esattamente `errore_m` metri nel CRS, per cui la risposta giusta è nota in
+    anticipo e non dipende da nessun dato.
+    """
+    RIS_HIST, RIS_MOD = 0.254453, 0.20
+    W_hist = np.array([[RIS_HIST, 0.0, -30500.0], [0.0, -RIS_HIST, -11457.0], [0.0, 0.0, 1.0]])
+    W_mod = np.array([[RIS_MOD, 0.0, -30520.0], [0.0, -RIS_MOD, -11437.0], [0.0, 0.0, 1.0]])
+    H_true = h_true(W_hist, W_mod)
+
+    for errore_m in (1.0, 0.5, 3.25):
+        traslazione = np.array([[1.0, 0.0, errore_m], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]])
+        st = Stima(H=np.linalg.inv(W_mod) @ traslazione @ W_hist, success=True)
+        riga = valuta(st, H_true, 1024, 1024, W_dest=W_mod)
+        assert abs(riga["rmse_px"] - errore_m / RIS_MOD) < 1e-9, (
+            f"{errore_m} m: l'errore non è nella griglia moderna, rmse_px={riga['rmse_px']}"
+        )
+        assert abs(riga["rmse_m"] - errore_m) < 1e-9, (
+            f"atteso {errore_m} m, ottenuto {riga['rmse_m']}"
+        )
+
+
+def test_riferimento_da_jgw_restituisce_il_world_file_di_arrivo() -> None:
+    """La coppia (H_true, W_dest) deve riferirsi alla stessa griglia.
+
+    È il punto in cui il bug era possibile: finché `H_true` e il world file per
+    i metri si chiedevano con due chiamate separate, niente impediva di comporre
+    la prima da storico→moderno e di convertire con la risoluzione dello
+    storico. Qui si verifica che la funzione restituisca il world file di
+    **arrivo**, e che da quello esca la risoluzione giusta.
+    """
+    import tempfile
+
+    RIS_HIST, RIS_MOD = 0.254453, 0.20
+    W_hist = np.array([[RIS_HIST, 0.0, -30500.0], [0.0, -RIS_HIST, -11457.0], [0.0, 0.0, 1.0]])
+    W_mod = np.array([[RIS_MOD, 0.0, -30520.0], [0.0, -RIS_MOD, -11437.0], [0.0, 0.0, 1.0]])
+
+    with tempfile.TemporaryDirectory() as tmp:
+        p_hist, p_mod = os.path.join(tmp, "a.jgw"), os.path.join(tmp, "a_vec.jgw")
+        write_jgw(p_hist, W_hist)
+        write_jgw(p_mod, W_mod)
+
+        H_true, W_dest = riferimento_da_jgw(p_hist, p_mod)
+        assert np.allclose(W_dest, W_mod), "ritornato il world file di partenza, non quello d'arrivo"
+        assert np.allclose(pixel_size_m(W_dest), (RIS_MOD, RIS_MOD))
+        assert np.allclose(H_true, h_true(W_hist, W_mod))
+
+        # Un errore di 2 m nel CRS deve leggersi 2 m passando dalla coppia.
+        traslazione = np.array([[1.0, 0.0, 2.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]])
+        st = Stima(H=np.linalg.inv(W_mod) @ traslazione @ W_hist, success=True)
+        riga = valuta(st, H_true, 1024, 1024, W_dest=W_dest)
+        assert abs(riga["rmse_m"] - 2.0) < 1e-9, riga["rmse_m"]
+
+
+def test_rmse_m_in_e1_resta_sulla_griglia_storica() -> None:
+    """Il contraltare: in E1 partenza e arrivo coincidono, e il fattore è 0.254453.
+
+    Serve a evitare che la correzione di E2 venga applicata anche dove non
+    serve: qui l'immagine è trasformata in se stessa, quindi il world file
+    giusto è quello dello storico, e restano i metri di sempre.
+    """
+    RIS_HIST = 0.254453
+    W_hist = np.array([[RIS_HIST, 0.0, -30500.0], [0.0, -RIS_HIST, -11457.0], [0.0, 0.0, 1.0]])
+    H_true = np.eye(3)
+    for errore_px in (1.0, 4.0):
+        st = Stima(H=np.array([[1.0, 0.0, errore_px], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]]), success=True)
+        riga = valuta(st, H_true, 1024, 1024, W_dest=W_hist)
+        assert abs(riga["rmse_px"] - errore_px) < 1e-9, riga["rmse_px"]
+        assert abs(riga["rmse_m"] - errore_px * RIS_HIST) < 1e-9, riga["rmse_m"]
 
 
 # ------------------------------------------------------------------ runner

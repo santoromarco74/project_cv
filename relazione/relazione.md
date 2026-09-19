@@ -487,7 +487,7 @@ metri su una griglia regolare di checkpoint nell'immagine storica (10×10 punti,
 bordi esclusi):
 
 ```
-RMSE_m = √( media( ‖H_est·p − H_true·p‖² ) ) × 0.254453
+RMSE_m = √( media( ‖H_est·p − H_true·p‖² ) ) × risoluzione della griglia d'arrivo
 ```
 
 cioè: si applicano entrambe le trasformazioni — quella stimata e quella vera —
@@ -495,6 +495,16 @@ agli stessi 100 punti, si misura di quanto le due risposte divergono, e si
 converte in metri. È l'unico numero su cui si giudica l'intera pipeline: ogni
 tabella dei capitoli successivi è, in ultima analisi, un'aggregazione di questa
 formula su configurazioni diverse.
+
+Il fattore di conversione merita una precisazione, perché è il punto in cui è
+facile sbagliare. Le due trasformazioni portano i checkpoint **fuori**
+dall'immagine storica: la loro differenza si misura nella griglia di arrivo, e
+la risoluzione da applicare è quella. In E1 la coppia è il ritaglio contro se
+stesso trasformato, partenza e arrivo coincidono, e il fattore è i 0.254453 m/px
+della scansione. In E2 no: il raster del vettoriale ha griglia propria a 0.20
+m/px (§9.1), quindi il fattore è 0.20. Usare la risoluzione della scansione in
+entrambi i casi gonfierebbe ogni RMSE cross-domain di 0.254453/0.20 = 1.272265
+volte, e la cifra che ne esce non sarebbe né metri né pixel dello storico.
 
 La correttezza della composizione di `H_true` è verificata da un test: un
 punto trasformato avanti e indietro torna su sé stesso entro **1.1e-13 px**,

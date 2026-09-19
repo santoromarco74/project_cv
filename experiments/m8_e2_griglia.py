@@ -21,8 +21,7 @@ import time
 import cv2
 
 from src.evaluate import append_csv, parametri_matcher, valuta
-from src.groundtruth import h_true_from_jgw
-from src.io_geo import read_jgw
+from src.groundtruth import riferimento_da_jgw
 from src.pipeline import Opzioni, registra
 from src.prep.crop import CROPS
 
@@ -54,13 +53,13 @@ RATIO_DIAGNOSI = (0.75, 0.85, 0.95, 0.99)
 def _valuta_e_scrivi(args, nome, chiave_vec, codici, hist, ris, extra: dict) -> dict:
     """Compone H_true dai world file e scrive la riga. I world file entrano solo qui (I3)."""
     crop_jgw = os.path.join(args.crops_dir, f"{nome}.jgw")
-    H_true = h_true_from_jgw(crop_jgw, os.path.join(args.crops_dir, f"{chiave_vec}.jgw"))
+    H_true, W_dest = riferimento_da_jgw(crop_jgw, os.path.join(args.crops_dir, f"{chiave_vec}.jgw"))
     riga = valuta(
         ris.stima,
         H_true,
         hist.shape[1],
         hist.shape[0],
-        W_hist=read_jgw(crop_jgw),
+        W_dest=W_dest,
         soglia_m=SOGLIA_M,
     )
     riga |= {
@@ -195,7 +194,7 @@ def main(argv: list[str] | None = None) -> int:
         # La pipeline riceve solo pixel: i world file entrano dopo, in valuta (I3).
         ris = registra(hist, modern, opz)
 
-        H_true = h_true_from_jgw(
+        H_true, W_dest = riferimento_da_jgw(
             os.path.join(args.crops_dir, f"{nome}.jgw"),
             os.path.join(args.crops_dir, f"{chiave_vec}.jgw"),
         )
@@ -204,7 +203,7 @@ def main(argv: list[str] | None = None) -> int:
             H_true,
             hist.shape[1],
             hist.shape[0],
-            W_hist=read_jgw(os.path.join(args.crops_dir, f"{nome}.jgw")),
+            W_dest=W_dest,
             soglia_m=SOGLIA_M,
         )
         riga |= {
