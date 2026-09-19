@@ -1424,6 +1424,7 @@ python -m scripts.riproduci --controlla   # verifica le precondizioni, non esegu
 python -m scripts.riproduci --lista       # le fasi, in ordine, con i tempi
 python -m scripts.riproduci               # tutto tranne E3      (~18 min)
 python -m scripts.riproduci --con-loftr   # tutto, E3 compreso   (~60 min)
+python -m scripts.riproduci --da e2       # senza i dati AdE, dai soli ritagli
 ```
 
 Lo script stampa ogni comando prima di eseguirlo — il log di una corsa è la
@@ -1439,6 +1440,15 @@ versionata — l'errore in metri resta indefinito per ogni riga: l'esperimento
 gira fino in fondo e conclude "0 riuscite". Si legge come un algoritmo che
 fallisce, ed è invece un file assente. È la stessa classe di falso positivo
 convincente di §12.2, e l'unica difesa è verificare prima.
+
+Il controllo è però **per fase**, e la distinzione conta proprio alla consegna.
+Le scansioni catastali non sono ridistribuibili, i ritagli sì: chi riceve
+il progetto senza `data/raw/` ha comunque in `data/crops/` i ritagli, i raster
+del vettoriale e i rispettivi world file, che sono tutto ciò che occorre da `e2`
+in avanti. Solo `crop`, `cxf` e `rasterize` aprono le scansioni, e `e1` ed `e3`
+il solo world file del foglio. Pretendere l'intero corredo a ogni invocazione
+significherebbe rifiutarsi di ricomporre una figura su una macchina che ha già
+tutto il necessario per farlo: `--da e2` arriva in fondo lo stesso.
 
 ---
 

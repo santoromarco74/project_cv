@@ -3,6 +3,7 @@
     python -m scripts.riproduci --controlla     # solo le precondizioni, non esegue
     python -m scripts.riproduci                 # tutto tranne E3 (LoFTR)
     python -m scripts.riproduci --con-loftr     # tutto, E3 compreso (~40 min in più)
+    python -m scripts.riproduci --da e2         # senza i dati AdE, dai soli crop
 
 Perché esiste. Il README elenca quindici comandi in ordine, e l'ordine conta:
 i crop prima della rasterizzazione, la rasterizzazione prima di E2, E2 prima
@@ -23,6 +24,21 @@ gira fino in fondo, scrive un CSV completo e conclude "0 riuscite". Sembra un
 algoritmo che fallisce; è un file mancante. È esattamente la classe di falso
 positivo di §5.5, e l'unica difesa è verificare le precondizioni **prima**.
 
+Quali dati servono, e a quali fasi
+----------------------------------
+Solo `crop`, `cxf` e `rasterize` aprono davvero le scansioni AdE, più `e1` ed
+`e3` che dal world file del foglio ricavano i metri. Tutto il resto — da `e2`
+in avanti — legge `data/crops/`: i ritagli, i raster del vettoriale e i loro
+world file, cioè artefatti che le prime fasi hanno già prodotto. Ogni `Fase`
+dichiara il proprio fabbisogno nel campo `grezzi`, e il controllo somma quello
+delle sole fasi selezionate.
+
+Serve perché `data/crops/` è ridistribuibile e `data/raw/` no (§5.8): chi
+riceve il progetto senza le scansioni può comunque rifare esperimenti, figure e
+relazione. Prima il controllo pretendeva tutti e tre i file grezzi a ogni
+invocazione, e rifiutava di partire anche a chi aveva chiesto `--da figura-e2`,
+che non ne tocca nessuno.
+
 Ogni comando viene stampato prima di essere eseguito: il log di una corsa è la
 documentazione eseguibile che §12.10 chiede alla relazione.
 """
@@ -40,14 +56,21 @@ from dataclasses import dataclass, field
 RADICE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 # Precondizioni: i file AdE. Non sono nel repo (§5.8), vanno rimessi a mano
-# seguendo data/README.md. Senza questi non parte nulla di sensato.
+# seguendo data/README.md. Ogni fase dichiara quali le servono davvero (campo
+# `grezzi`): la maggioranza non ne tocca nessuno, perché legge i ritagli e i
+# raster vettoriali già prodotti in data/crops/.
+GREZZO_JPG = "data/raw/L675_004900.jpg"
+GREZZO_JGW = "data/raw/L675_004900.jgw"
+GREZZO_CXF = "data/raw/L675_004900.cxf"
+GREZZO_TXT = "data/raw/L675_004900_metadata.txt"
+
 GREZZI = {
-    "data/raw/L675_004900.jpg": "scansione dell'Originale di Impianto (8489x5648)",
-    "data/raw/L675_004900.jgw": "world file: è la ground truth (§5.3)",
-    "data/raw/L675_004900.cxf": "vettoriale vigente, sistema 004900 e NON 00490Z (I1)",
+    GREZZO_JPG: "scansione dell'Originale di Impianto (8489x5648)",
+    GREZZO_JGW: "world file: è la ground truth (§5.3)",
+    GREZZO_CXF: "vettoriale vigente, sistema 004900 e NON 00490Z (I1)",
 }
 GREZZI_OPZIONALI = {
-    "data/raw/L675_004900_metadata.txt": "metadati: pavimento dell'RMSE (§5.3)",
+    GREZZO_TXT: "metadati: pavimento dell'RMSE (§5.3)",
 }
 PESI_LOFTR = "weights/loftr_outdoor.ckpt"
 
@@ -69,6 +92,8 @@ class Fase:
     titolo: str
     comandi: tuple[tuple[str, ...], ...]
     prodotti: tuple[str, ...] = ()
+    grezzi: tuple[str, ...] = ()
+    grezzi_opzionali: tuple[str, ...] = ()
     minuti: float = 0.1
     opzionale: bool = False
     nota: str = ""
@@ -114,6 +139,7 @@ def costruisci_fasi(con_loftr: bool = False) -> list[Fase]:
             "M1 — ritagli dal foglio, con il world file affiancato",
             (("src.prep.crop",),),
             crop_prodotti + (f"{FIGURE}/m1_crops.png",),
+            grezzi=(GREZZO_JPG, GREZZO_JGW),
             minuti=0.5,
         ),
         Fase(
@@ -121,6 +147,7 @@ def costruisci_fasi(con_loftr: bool = False) -> list[Fase]:
             "M2 — parser CXF: 871 BORDO, nflag, coordinate dentro l'estensione",
             (("src.io_geo",), ("experiments.m2_cxf_check",)),
             (f"{FIGURE}/m2_cxf_overview.png", f"{FIGURE}/m2_cornice.png"),
+            grezzi=(GREZZO_CXF, GREZZO_JGW, GREZZO_JPG),
             minuti=0.5,
         ),
         Fase(
@@ -128,6 +155,7 @@ def costruisci_fasi(con_loftr: bool = False) -> list[Fase]:
             "M7 — vettoriale → raster allineato, codice 18 e 18+12",
             rasterizza,
             raster_prodotti,
+            grezzi=(GREZZO_CXF,),
             minuti=1,
         ),
         Fase(
@@ -151,6 +179,7 @@ def costruisci_fasi(con_loftr: bool = False) -> list[Fase]:
             "M6 — E1 sintetico completo. Riparte il CSV da zero",
             (("experiments.m6_e1_completo", "--riparti"),),
             (CSV,),
+            grezzi=(GREZZO_JGW,),
             minuti=4,
             nota="`--riparti` cancella results/runs.csv: le fasi E2/E3 vanno dopo, non prima",
         ),
@@ -173,6 +202,7 @@ def costruisci_fasi(con_loftr: bool = False) -> list[Fase]:
             "M9 — E3: LoFTR su E1 ed E2, stessa pipeline",
             (("experiments.m9_e3_loftr",),),
             (CSV,),
+            grezzi=(GREZZO_JGW,),
             minuti=40,
             opzionale=True,
             nota="richiede torch, kornia e i pesi in weights/ (python -m scripts.scarica_pesi)",
@@ -238,6 +268,7 @@ def costruisci_fasi(con_loftr: bool = False) -> list[Fase]:
             "M10 — relazione con le tabelle iniettate dal CSV, più l'HTML da stampare",
             (("scripts.componi_relazione",), ("scripts.relazione_html",)),
             ("relazione/relazione.md", "relazione/relazione.html"),
+            grezzi_opzionali=(GREZZO_TXT,),
             minuti=0.5,
         ),
     ]
@@ -251,27 +282,26 @@ def _manca(path: str) -> bool:
     return not os.path.exists(intero) or os.path.getsize(intero) == 0
 
 
-def verifica_ambiente(con_loftr: bool) -> tuple[list[str], list[str], list[str]]:
-    """Precondizioni, separate in (dipendenze, dati, loftr).
+def verifica_dipendenze(con_loftr: bool) -> tuple[list[str], list[str]]:
+    """Le precondizioni che non dipendono dalle fasi scelte: pacchetti e LoFTR.
 
-    La distinzione non è cosmetica, perché la cura è diversa per ciascun gruppo:
-    le dipendenze si installano, i dati AdE si riscaricano dal servizio, il
-    materiale di LoFTR si prende con `scarica_pesi` **oppure** si evita
-    rilanciando senza `--con-loftr`. Tenerli insieme faceva stampare le
-    istruzioni per i dati catastali a chi aveva solo il checkpoint mancante.
+    Va chiamata prima di costruire le fasi, e non per ordine estetico:
+    `costruisci_fasi` importa `src.prep.crop` per leggere i nomi dei ritagli, e
+    quell'import tira dentro cv2. Senza questo controllo, a chi non ha cv2
+    installato arriverebbe un ImportError invece della riga che dice cosa fare.
+
+    La distinzione fra i due gruppi non è cosmetica, perché la cura è diversa:
+    le dipendenze si installano, il materiale di LoFTR si prende con
+    `scarica_pesi` **oppure** si evita rilanciando senza `--con-loftr`. Tenerli
+    insieme faceva stampare le istruzioni sbagliate a chi aveva solo il
+    checkpoint mancante.
     """
     import importlib.util
 
-    dipendenze, dati, loftr = [], [], []
+    dipendenze, loftr = [], []
     for modulo in DIPENDENZE:
         if importlib.util.find_spec(modulo) is None:
             dipendenze.append(f"{modulo} — pip install -r requirements.txt")
-    for path, perche in GREZZI.items():
-        if _manca(path):
-            dati.append(f"{path} — {perche}. Vedi data/README.md")
-    for path, perche in GREZZI_OPZIONALI.items():
-        if _manca(path):
-            print(f"  ⚠ {path} assente ({perche}): non blocca, ma il pavimento va citato a mano")
 
     if con_loftr:
         for modulo in DIPENDENZE_LOFTR:
@@ -279,7 +309,49 @@ def verifica_ambiente(con_loftr: bool) -> tuple[list[str], list[str], list[str]]
                 loftr.append(f"{modulo} non installato — pip install -r requirements.txt")
         if _manca(PESI_LOFTR):
             loftr.append(f"{PESI_LOFTR} assente — python -m scripts.scarica_pesi")
-    return dipendenze, dati, loftr
+    return dipendenze, loftr
+
+
+def verifica_dati(fasi: list[Fase]) -> list[str]:
+    """I file AdE che servono **alle fasi selezionate**, non tutti e tre sempre.
+
+    Pretendere l'intero corredo grezzo da chi ha lanciato `--da figura-e2` era
+    un rifiuto immotivato: da `e2` in poi nessuna fase apre `data/raw/`, perché
+    tutto quello che serve — ritagli, raster vettoriali e i rispettivi world
+    file — sta già in `data/crops/`. Il caso non è raro né teorico: è quello di
+    chiunque riceva il progetto senza le scansioni, che non sono ridistribuibili
+    (§5.8), ed è anche quello di chi rifà solo la coda della sequenza dopo aver
+    ritoccato una figura.
+    """
+    richiesti = {path for fase in fasi for path in fase.grezzi}
+    for fase in fasi:
+        for path in fase.grezzi_opzionali:
+            if _manca(path):
+                print(
+                    f"  ⚠ {path} assente ({GREZZI_OPZIONALI[path]}): "
+                    "non blocca, ma il pavimento va citato a mano"
+                )
+    return [
+        f"{path} — {perche}. Vedi data/README.md"
+        for path, perche in GREZZI.items()
+        if path in richiesti and _manca(path)
+    ]
+
+
+def prima_fase_eseguibile(fasi: list[Fase]) -> str | None:
+    """Da quale fase in poi si arriva in fondo anche senza i file mancanti.
+
+    Si scorre dal fondo perché la risposta utile è la fase **più a monte** da
+    cui in avanti nessuno tocca `data/raw/`: fermarsi alla prima che non chiede
+    nulla darebbe un suggerimento che si schianta due fasi dopo. `None` significa
+    che l'ultima fase stessa li richiede, e allora non c'è coda da salvare.
+    """
+    candidata = None
+    for fase in reversed(fasi):
+        if any(_manca(path) for path in fase.grezzi):
+            break
+        candidata = fase.nome
+    return candidata
 
 
 RIFERIMENTO_FIGURA = re.compile(r"!\[[^\]]*\]\(\.\./(results/figures/[^)]+)\)")
@@ -390,7 +462,7 @@ def main(argv: list[str] | None = None) -> int:
     print(f"radice: {RADICE}\n")
 
     print("precondizioni:")
-    dipendenze, dati, loftr = verifica_ambiente(args.con_loftr)
+    dipendenze, loftr = verifica_dipendenze(args.con_loftr)
 
     if dipendenze:
         print("\n\033[31mdipendenze mancanti:\033[0m")
@@ -408,22 +480,6 @@ def main(argv: list[str] | None = None) -> int:
             "\ncapitolo 10)."
         )
         return 1
-
-    if dati:
-        # `--lista` è documentazione: risponde anche su una macchina senza i dati,
-        # che è il caso di chi apre il repository per capire cosa fa.
-        print(f"\n\033[{'33mdati mancanti (--lista non ne ha bisogno)' if args.lista else '31mnon si può procedere'}:\033[0m")
-        for p in dati:
-            print(f"  ✗ {p}")
-        if not args.lista:
-            print(
-                "\nI dati AdE non stanno nel repository (§5.8): vanno riscaricati dal servizio "
-                "\ndell'Agenzia delle Entrate seguendo data/README.md. Ricorda I1: il file "
-                "\nutilizzabile è L675_004900, mai L675_00490Z."
-            )
-            return 1
-    elif not loftr:
-        print("  ✓ dipendenze e dati grezzi a posto")
 
     fasi = costruisci_fasi(args.con_loftr)
     if args.solo:
@@ -446,6 +502,34 @@ def main(argv: list[str] | None = None) -> int:
                 print(f"fase sconosciuta: {args.fino_a}", file=sys.stderr)
                 return 2
             fasi = fasi[: nomi.index(args.fino_a) + 1]
+
+    # I dati grezzi si controllano **dopo** aver scelto le fasi: quali servano
+    # dipende da cosa si è chiesto di eseguire, e chiederli tutti a chi rifà solo
+    # la coda della sequenza era un rifiuto senza motivo.
+    dati = verifica_dati(fasi)
+    if dati:
+        # `--lista` è documentazione: risponde anche su una macchina senza i dati,
+        # che è il caso di chi apre il repository per capire cosa fa.
+        print(f"\n\033[{'33mdati mancanti (--lista non ne ha bisogno)' if args.lista else '31mnon si può procedere'}:\033[0m")
+        for p in dati:
+            print(f"  ✗ {p}")
+        if not args.lista:
+            bloccate = [f.nome for f in fasi if any(_manca(g) for g in f.grezzi)]
+            print(
+                "\nI dati AdE non stanno nel repository (§5.8): vanno riscaricati dal servizio "
+                "\ndell'Agenzia delle Entrate seguendo data/README.md. Ricorda I1: il file "
+                "\nutilizzabile è L675_004900, mai L675_00490Z."
+            )
+            print(f"\nLe chiedono solo queste fasi: {', '.join(bloccate)}.")
+            ripresa = prima_fase_eseguibile(fasi)
+            if ripresa:
+                print(
+                    f"Da `{ripresa}` in poi si legge soltanto data/crops/: se i ritagli e i raster "
+                    f"\nvettoriali ci sono già, `--da {ripresa}` arriva in fondo lo stesso."
+                )
+            return 1
+    elif not loftr:
+        print("  ✓ dipendenze e dati a posto per le fasi richieste")
 
     if args.lista:
         print(f"\n{len(fasi)} fasi · circa {sum(f.minuti for f in fasi):.0f} minuti\n")
