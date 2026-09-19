@@ -1502,6 +1502,7 @@ python -m scripts.riproduci --controlla   # verifica le precondizioni, non esegu
 python -m scripts.riproduci --lista       # le fasi, in ordine, con i tempi
 python -m scripts.riproduci               # tutto tranne E3      (~18 min)
 python -m scripts.riproduci --con-loftr   # tutto, E3 compreso   (~60 min)
+python -m scripts.riproduci --da verifica-raster   # senza i dati AdE, dai soli ritagli
 ```
 
 Lo script stampa ogni comando prima di eseguirlo — il log di una corsa è la
@@ -1512,11 +1513,27 @@ figura citata da questa relazione sia stata prodotta e che nessun segnaposto di
 tabella sia rimasto vuoto.
 
 Il controllo delle precondizioni non è formalità. Gli esperimenti di E1 ed E3
-leggono il world file del foglio, e se quel file manca — `data/raw/` non è
-versionata — l'errore in metri resta indefinito per ogni riga: l'esperimento
-gira fino in fondo e conclude "0 riuscite". Si legge come un algoritmo che
-fallisce, ed è invece un file assente. È la stessa classe di falso positivo
-convincente di §12.2, e l'unica difesa è verificare prima.
+convertono l'errore in metri leggendo la risoluzione da un world file, e se
+nessuno è disponibile l'errore in metri resta indefinito per ogni riga:
+l'esperimento gira fino in fondo e conclude "0 riuscite". Si legge come un
+algoritmo che fallisce, ed è invece un file assente. È la stessa classe di falso
+positivo convincente di §12.2, e la difesa è verificare prima.
+
+Il controllo è però **per fase**, e la distinzione conta proprio alla consegna.
+Le scansioni catastali non sono ridistribuibili, i ritagli sì: chi riceve il
+progetto senza `data/raw/` ha comunque in `data/crops/` i ritagli, i raster del
+vettoriale e i rispettivi world file. Solo `crop`, `cxf` e `rasterize` aprono
+le scansioni; le altre nove fasi no.
+
+E1 ed E3 rientrano fra le nove per una ragione che vale la pena dire, perché è
+un esempio di quanto poco serva davvero un dato quando si guarda a cosa se ne fa.
+Di quel world file i due esperimenti usano solo la risoluzione, cioè la parte
+lineare dell'affine; e il world file di un ritaglio, che §3.4 ottiene traslando
+l'origine, ha esattamente gli stessi coefficienti lineari del foglio. Ripiegare
+sul ritaglio non approssima nulla: rieseguendo la griglia di E1 nei due modi, le
+96 righe del CSV coincidono colonna per colonna, tempi esclusi. Pretendere
+l'intero corredo grezzo a ogni invocazione significherebbe rifiutarsi di rifare
+un esperimento su una macchina che ha già tutto il necessario per farlo.
 
 ---
 
