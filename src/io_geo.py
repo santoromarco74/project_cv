@@ -6,6 +6,7 @@ sistema (Cassini-Soldner Forte Diamante), non serve riproiettare.
 from __future__ import annotations
 
 import os
+from collections.abc import Iterable
 from dataclasses import dataclass
 
 import numpy as np
@@ -31,6 +32,35 @@ def read_jgw(path: str) -> np.ndarray:
         raise ValueError(f"{path}: attese 6 righe nel world file, trovate {len(values)}")
     a, d, b, e, c, f = values
     return np.array([[a, b, c], [d, e, f], [0.0, 0.0, 1.0]], dtype=np.float64)
+
+
+def jgw_per_risoluzione(preferito: str, ripieghi: Iterable[str]) -> str | None:
+    """Il world file da cui leggere la risoluzione, con ripiego sui ritagli.
+
+    Serve a un solo scopo: convertire un errore in pixel in metri
+    (`groundtruth.errore_px_to_m`). Quella conversione usa la **sola parte
+    lineare** dell'affine — A, B, D, E — e il world file di un ritaglio ha per
+    costruzione gli stessi quattro coefficienti del foglio, perché il ritaglio
+    trasla l'origine e basta (vedi `prep/crop.crop_world_file`). Il ripiego
+    quindi non approssima nulla: dà la stessa cifra, e I9 regge.
+
+    Il foglio resta il preferito perché è la sorgente naturale del dato. I
+    ritagli sono la via d'uscita per chi ha `data/crops/` ma non `data/raw/`,
+    che non è ridistribuibile (§5.8): senza questo ripiego E1 ed E3 girerebbero
+    fino in fondo scrivendo `rmse_m` vuoto su ogni riga e "0 riuscite" in coda,
+    che si legge come un algoritmo che fallisce ed è invece un file assente.
+
+    I `ripieghi` vanno passati in ordine fisso (quello di `CROPS`), altrimenti
+    la scelta dipenderebbe dal filesystem. Nessun candidato esiste: `None`, e
+    le colonne in metri restano vuote come prima.
+
+    ⚠ Non passare mai un `*_vec.jgw`: il raster del vettoriale è a 0.20 m/px,
+    non alla risoluzione della scansione, e la conversione uscirebbe sbagliata.
+    """
+    for path in (preferito, *ripieghi):
+        if path and os.path.exists(path) and os.path.getsize(path) > 0:
+            return path
+    return None
 
 
 def write_jgw(path: str, W: np.ndarray) -> None:

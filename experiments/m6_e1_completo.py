@@ -24,7 +24,7 @@ import numpy as np
 
 from src.estimate import stima as stima_ransac
 from src.evaluate import append_csv, parametri_matcher, valuta
-from src.io_geo import read_jgw
+from src.io_geo import jgw_per_risoluzione, read_jgw
 from src.matchers.classic import crea_matcher
 from src.prep.crop import CROPS
 from src.prep.synth import Trasformazione, genera_coppia, scala_degradazione
@@ -105,8 +105,16 @@ def main(argv: list[str] | None = None) -> int:
     if args.riparti and os.path.exists(args.out_csv):
         os.remove(args.out_csv)
 
-    W_hist = read_jgw(args.jgw) if os.path.exists(args.jgw) else None
     nomi = [c.nome for c in CROPS] if args.crop == "tutti" else [args.crop]
+
+    # Il foglio se c'è, altrimenti il world file di un ritaglio: stessi A/B/D/E,
+    # quindi stessa risoluzione e stesso `rmse_m` (vedi jgw_per_risoluzione).
+    sorgente_jgw = jgw_per_risoluzione(args.jgw, [f"data/crops/{n}.jgw" for n in nomi])
+    W_hist = read_jgw(sorgente_jgw) if sorgente_jgw else None
+    if sorgente_jgw is None:
+        print("⚠ nessun world file: `rmse_m` e `success` resteranno vuoti su ogni riga")
+    elif sorgente_jgw != args.jgw:
+        print(f"world file: {args.jgw} assente, risoluzione letta da {sorgente_jgw}")
 
     prove = []
     for nome in nomi:

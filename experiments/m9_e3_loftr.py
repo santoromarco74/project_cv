@@ -27,7 +27,7 @@ import cv2
 
 from src.evaluate import append_csv, valuta
 from src.groundtruth import h_true_from_jgw
-from src.io_geo import read_jgw
+from src.io_geo import jgw_per_risoluzione, read_jgw
 from src.pipeline import Opzioni, registra
 from src.prep.crop import CROPS
 from src.prep.synth import Trasformazione, genera_coppia, scala_degradazione
@@ -149,8 +149,19 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--solo", choices=("e1", "e2"), default=None)
     args = ap.parse_args(argv)
 
-    args.W_foglio = read_jgw(args.jgw) if os.path.exists(args.jgw) else None
     nomi = [c.nome for c in CROPS] if args.crop == "tutti" else [args.crop]
+
+    # Solo E1 usa questo: E2 legge già il world file del proprio ritaglio. Il
+    # foglio se c'è, altrimenti un ritaglio — stessa risoluzione, stessa cifra.
+    sorgente_jgw = jgw_per_risoluzione(
+        args.jgw, [os.path.join(args.crops_dir, f"{n}.jgw") for n in nomi]
+    )
+    args.W_foglio = read_jgw(sorgente_jgw) if sorgente_jgw else None
+    if sorgente_jgw is None:
+        print("⚠ nessun world file: in E1 `rmse_m` e `success` resteranno vuoti")
+    elif sorgente_jgw != args.jgw:
+        print(f"world file: {args.jgw} assente, risoluzione letta da {sorgente_jgw}")
+
     immagini = {}
     for nome in nomi:
         img = cv2.imread(os.path.join(args.crops_dir, f"{nome}.png"), cv2.IMREAD_COLOR)
