@@ -349,14 +349,40 @@ python -m src.main --hist crop_storico.png --modern raster_vettoriale.png \
     --jgw-hist crop_storico.jgw --jgw-modern raster_vettoriale.jgw
 ```
 
+Le opzioni disponibili sono tutte quelle con cui è stata prodotta la griglia
+sperimentale del capitolo 5, nessuna esclusa:
+
+| opzione | valori | default | significato |
+|---|---|---|---|
+| `--hist` | percorso file | *obbligatorio* | immagine storica da registrare |
+| `--modern` | percorso file | *obbligatorio* | immagine di riferimento (raster del vettoriale) |
+| `--matcher` | `sift`, `orb`, `loftr` | `sift` | metodo di ricerca delle corrispondenze; `loftr` è il componente B |
+| `--preprocess` | `none`, `clahe`, `otsu`, `sauvola` | `sauvola` | pulizia applicata a entrambe le immagini (capitolo 4) |
+| `--morph-close` | intero | `0` | iterazioni di chiusura morfologica dopo la binarizzazione |
+| `--morph-open` | intero | `0` | iterazioni di apertura morfologica dopo la binarizzazione |
+| `--model` | `similarity`, `affine`, `homography` | `homography` | famiglia di trasformazioni concessa a RANSAC (capitolo 4) |
+| `--ratio` | numero decimale | `0.75` | soglia del ratio test di Lowe (solo SIFT) |
+| `--ransac-thresh` | numero decimale | `3.0` | soglia in pixel per accettare un abbinamento come inlier |
+| `--seed` | intero | `42` | seme casuale, per risultati riproducibili |
+| `--jgw-hist` | percorso file | nessuno | world file storico, solo per calcolare l'errore |
+| `--jgw-modern` | percorso file | nessuno | world file moderno, solo per calcolare l'errore |
+| `--soglia-m` | numero decimale | nessuno | errore massimo, in metri, sotto il quale una prova conta come riuscita |
+| `--out-csv` | percorso file | `results/runs.csv` | file su cui accodare la riga di risultato |
+| `--out-figure` | percorso file | nessuno | overlay storico/moderno più le corrispondenze inlier |
+| `--esperimento` | testo | `cli` | etichetta libera scritta nella colonna `esperimento` del CSV |
+| `--crop` | testo | nessuno | etichetta libera scritta nella colonna `crop` del CSV |
+| `--verbose` | flag | disattivo | stampa a schermo i passaggi intermedi |
+
+Senza `--jgw-hist` e `--jgw-modern` la pipeline gira comunque e produce la
+trasformazione stimata, semplicemente senza calcolare l'errore: è la verifica
+concreta, eseguibile in ogni momento, che la posizione di riferimento non
+entra mai nell'algoritmo (capitolo 2).
+
 Cambiando un solo parametro (`--matcher sift`, `--matcher loftr`, oppure il
 tipo di preprocessing o il modello geometrico) si ottiene ciascuna delle
 configurazioni discusse nel capitolo 5: è il modo in cui l'intera griglia
 sperimentale è stata prodotta, un'esecuzione alla volta, sempre con lo stesso
-programma. Senza i world file la pipeline gira comunque e produce la
-trasformazione stimata, semplicemente senza calcolare l'errore — è la prova
-che la posizione di riferimento non entra mai nell'algoritmo, ma serve solo a
-valutarlo a posteriori.
+programma.
 
 **In sintesi:**
 

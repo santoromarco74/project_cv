@@ -221,8 +221,17 @@ math { font-size: 1.02em; }
   .testo > * { max-width: none; }
   h2 { break-before: auto; break-after: avoid; margin: 1.6rem 0 0.8rem; padding-top: 0.6rem; }
   h3 { break-after: avoid; }
-  figure, .tabella, pre, .formula { break-inside: avoid; }
+  figure, pre, .formula { break-inside: avoid; }
   figure { margin: 1rem 0 1.2rem; }
+  /* Su schermo .tabella scorre in orizzontale (overflow-x: auto) quando una
+     tabella con molte colonne non ci sta; in stampa non esiste uno scroll, e
+     quel che sporge oltre il bordo pagina viene tagliato via in silenzio,
+     senza errori. Va quindi forzato a stare nella larghezza del foglio, e le
+     celle devono poter andare a capo invece di restare su una riga sola. */
+  .tabella { overflow-x: visible; break-inside: auto; }
+  table { width: 100%; table-layout: fixed; font-size: 0.72rem; }
+  th, td { white-space: normal; word-break: break-word; padding: 0.32rem 0.5rem; }
+  tr { break-inside: avoid; }
   /* Una figura quasi quadrata a larghezza piena occuperebbe da sola l'intera
      pagina: limitare l'altezza mantiene le proporzioni senza quello spreco. */
   figure img { width: auto; max-width: 100%; max-height: 115mm; margin: 0 auto; display: block; }
