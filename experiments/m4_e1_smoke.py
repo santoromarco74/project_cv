@@ -19,11 +19,11 @@ import unicodedata
 import cv2
 import numpy as np
 
-from src.estimate import stima as stima_ransac
 from src.evaluate import valuta
 from src.figure import affianca_corrispondenze
 from src.io_geo import read_jgw
 from src.matchers.classic import crea_matcher
+from src.pipeline import stima as stima_ransac
 from src.prep.crop import CROPS
 from src.prep.synth import Trasformazione, genera_coppia, scala_degradazione
 

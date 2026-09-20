@@ -87,11 +87,9 @@ histreg/
 │   │   └── synth.py      dataset sintetico (E1)
 │   ├── preprocess.py     grayscale, denoise, Otsu/Sauvola, morfologia
 │   ├── matchers/
-│   │   ├── base.py       interfaccia Matcher
-│   │   ├── classic.py    SiftMatcher, OrbMatcher
+│   │   ├── classic.py    interfaccia Matcher, SiftMatcher, OrbMatcher
 │   │   └── loftr.py      LoftrMatcher (modulo B, lazy)
-│   ├── estimate.py       RANSAC + modelli
-│   ├── pipeline.py       orchestrazione (non conosce il JGW)
+│   ├── pipeline.py       RANSAC + modelli, orchestrazione (non conosce il JGW)
 │   ├── evaluate.py       RMSE, inlier ratio, success rate
 │   └── report.py         figure e tabelle
 ├── experiments/
@@ -263,7 +261,7 @@ class Matcher(Protocol):
 
 **Rischio principale del progetto.** Il cross-domain è brutale: disegno a mano su carta invecchiata vs raster vettoriale di linee pulite. Entrambi *line drawings* quasi privi di texture — il caso peggiore per descrittori a blob/corner. È plausibile che SIFT produca pochissimi match corretti su E2. Non è un bug: è la risposta alla domanda di ricerca, **purché misurata** (inlier ratio, RMSE, distribuzione delle distanze fra descrittori) e non solo constatata. E1 garantisce risultati solidi comunque.
 
-### 7.3 Stima (`estimate.py`)
+### 7.3 Stima (`pipeline.py`)
 RANSAC (`cv2.findHomography` / `estimateAffinePartial2D`), seed fisso (I9). Modelli: similarità (4 gdl), affine (6), omografia (8). Parametri da CLI: soglia reprojection, iterazioni, confidence. Sotto i 4 match: fallimento pulito (`success=False`, riga CSV comunque scritta), non eccezione opaca.
 
 ### 7.4 Valutazione (`evaluate.py`)

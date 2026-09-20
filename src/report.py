@@ -11,7 +11,15 @@ from __future__ import annotations
 import argparse
 import os
 
+import matplotlib
 import pandas as pd
+
+# Backend senza display, impostato una sola volta all'importazione: ogni
+# funzione che disegna una figura ripeteva altrimenti lo stesso `use("Agg")`.
+# A differenza di torch/kornia (I4), matplotlib è già una dipendenza sempre
+# presente (requirements.txt), quindi non c'è ragione di isolarlo per funzione.
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt  # noqa: E402  (deve seguire matplotlib.use)
 
 # Pavimento del riferimento reale (§5.3): 0.56 m di scarto medio sulle 76 coppie
 # omologhe del ricampionamento. Su E1 non si applica — lì la ground truth è
@@ -49,11 +57,6 @@ def curva_degradazione(df: pd.DataFrame, out_path: str, preprocess: str = "none"
     sulle prove riuscite. Dove il matching fallisce l'RMSE sparisce dalla media e
     la curva sembra migliorare. Il tasso di successo accanto racconta il resto.
     """
-    import matplotlib
-
-    matplotlib.use("Agg")
-    import matplotlib.pyplot as plt
-
     d = df[(df.esperimento == "E1") & (df.preprocess == preprocess) & (df.rot_deg == 15)]
     if d.empty:
         print(f"nessuna riga per preprocess={preprocess}: figura saltata")
@@ -98,11 +101,6 @@ def curva_degradazione(df: pd.DataFrame, out_path: str, preprocess: str = "none"
 
 def curva_ampiezza(df: pd.DataFrame, out_path: str, preprocess: str = "none") -> None:
     """RMSE al crescere della sola ampiezza della trasformazione, senza degrado."""
-    import matplotlib
-
-    matplotlib.use("Agg")
-    import matplotlib.pyplot as plt
-
     d = df[(df.esperimento == "E1") & (df.preprocess == preprocess) & (df.degrado == 0) & (df.scala == 1.0)]
     if d.empty:
         print(f"nessuna riga di ampiezza per preprocess={preprocess}: figura saltata")
@@ -127,11 +125,6 @@ def confronto_preprocess(df: pd.DataFrame, out_path: str) -> None:
     M5 aveva misurato che binarizzare costa il 21-39% dei keypoint. Questa è la
     domanda vera di §7.1, e la risposta è l'errore finale.
     """
-    import matplotlib
-
-    matplotlib.use("Agg")
-    import matplotlib.pyplot as plt
-
     d = df[(df.esperimento == "E1") & (df.rot_deg == 15) & (df.degrado <= 1.0)]
     if d.empty:
         return
@@ -174,12 +167,7 @@ def tabella(df: pd.DataFrame, out_path: str | None = None) -> pd.DataFrame:
         )
         .reset_index()
     )
-    if out_path:
-        os.makedirs(os.path.dirname(out_path) or ".", exist_ok=True)
-        with open(out_path, "w", encoding="utf-8") as fh:
-            fh.write(_markdown(agg))
-        print(f"tabella: {out_path}")
-    return agg
+    return _forse_scrivi(agg, out_path)
 
 
 def tabella_e2(df: pd.DataFrame, out_path: str | None = None) -> pd.DataFrame:
@@ -205,12 +193,7 @@ def tabella_e2(df: pd.DataFrame, out_path: str | None = None) -> pd.DataFrame:
         )
         .reset_index()
     )
-    if out_path:
-        os.makedirs(os.path.dirname(out_path) or ".", exist_ok=True)
-        with open(out_path, "w", encoding="utf-8") as fh:
-            fh.write(_markdown(agg))
-        print(f"tabella: {out_path}")
-    return agg
+    return _forse_scrivi(agg, out_path)
 
 
 def figura_e1_vs_e2(df: pd.DataFrame, out_path: str) -> None:
@@ -220,11 +203,6 @@ def figura_e1_vs_e2(df: pd.DataFrame, out_path: str) -> None:
     sbaglia quando si sbaglia; l'inlier ratio dice se il matcher stava
     guardando la stessa scena.
     """
-    import matplotlib
-
-    matplotlib.use("Agg")
-    import matplotlib.pyplot as plt
-
     e1 = df[(df.esperimento == "E1") & (df.degrado == 0)]
     e2 = df[df.esperimento == "E2"]
     if e1.empty or e2.empty:
@@ -260,11 +238,6 @@ def figura_e1_vs_e2(df: pd.DataFrame, out_path: str) -> None:
 
 def figura_e2_dettaglio(df: pd.DataFrame, out_path: str) -> None:
     """Dove il cross-domain va meno peggio: preprocessing, modello, codici CXF."""
-    import matplotlib
-
-    matplotlib.use("Agg")
-    import matplotlib.pyplot as plt
-
     d = df[df.esperimento == "E2"]
     if d.empty:
         return
@@ -326,21 +299,11 @@ def tabella_e3(df: pd.DataFrame, out_path: str | None = None) -> pd.DataFrame:
         .head(1)
         .reset_index(drop=True)
     )
-    if out_path:
-        os.makedirs(os.path.dirname(out_path) or ".", exist_ok=True)
-        with open(out_path, "w", encoding="utf-8") as fh:
-            fh.write(_markdown(migliori))
-        print(f"tabella: {out_path}")
-    return migliori
+    return _forse_scrivi(migliori, out_path)
 
 
 def figura_e3(df: pd.DataFrame, out_path: str) -> None:
     """Accuratezza e costo, affiancati. Il costo fa parte del risultato (§8)."""
-    import matplotlib
-
-    matplotlib.use("Agg")
-    import matplotlib.pyplot as plt
-
     d = df[df.esperimento.isin(("E1", "E2"))]
     if d.empty or d.matcher.nunique() < 2:
         return

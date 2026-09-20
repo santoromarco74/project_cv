@@ -22,6 +22,8 @@ import os
 import cv2
 import numpy as np
 
+from src.preprocess import to_gray
+
 # Percorso dei pesi vendorati. Non è un default di kornia: è una scelta di
 # riproducibilità (§3), perché un peso scaricato a runtime può cambiare.
 PESI_DEFAULT = os.path.join("weights", "loftr_outdoor.ckpt")
@@ -86,7 +88,7 @@ class LoftrMatcher:
         """
         import torch  # noqa: PLC0415
 
-        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY) if img.ndim == 3 else img
+        gray = to_gray(img)
         h, w = gray.shape[:2]
         fattore = min(1.0, self.max_lato / max(h, w))
         nh, nw = max(8, int(round(h * fattore / 8)) * 8), max(8, int(round(w * fattore / 8)) * 8)
@@ -100,7 +102,7 @@ class LoftrMatcher:
     def prepara(self) -> None:
         """Carica il modello adesso, invece che alla prima `match`.
 
-        Metodo opzionale dell'interfaccia (matchers/base.py): la pipeline lo
+        Metodo opzionale dell'interfaccia (`Matcher` in matchers/classic.py): la pipeline lo
         chiama, se c'è, fuori dal cronometro del matching. Senza, il
         caricamento del checkpoint finirebbe dentro il tempo di inferenza, che
         è uno dei risultati del confronto classico/neurale (§10.1).

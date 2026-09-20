@@ -30,12 +30,13 @@ def _riga(etichetta: str, valore) -> None:
 def paragrafo_2(df) -> None:
     """§2.2 e §2.3 — la registrazione d'esempio del capitolo guidato.
 
-    I numeri vengono da `experiments/m10_passo_passo.py`, che non scrive nel
-    CSV: si rileggono dalla riga `E2-figura`, che è la stessa configurazione
-    (ORB + Sauvola + similarità su ribba) usata per la figura di §9.2.
+    I numeri vengono da `figura_passo_passo` in `experiments/m10_didattiche.py`,
+    che non scrive nel CSV: si rileggono dalla riga `E2-figura`, che è la
+    stessa configurazione (ORB + Sauvola + similarità su ribba) usata per la
+    figura di §9.2.
     """
     print("\n§2.2 e §2.3 — l'esempio del capitolo guidato")
-    print("  ATTENZIONE: i numeri esatti li stampa `python -m experiments.m10_passo_passo`")
+    print("  ATTENZIONE: i numeri esatti li stampa `python -m experiments.m10_didattiche`")
     print("  (match, inlier, RMSE). Qui sotto la riga E2-figura, per confronto.\n")
     d = df[df.esperimento == "E2-figura"]
     if d.empty:

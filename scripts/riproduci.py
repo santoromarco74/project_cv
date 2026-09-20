@@ -252,12 +252,7 @@ def costruisci_fasi(con_loftr: bool = False) -> list[Fase]:
         Fase(
             "didattiche",
             "M10 — le figure spiegate del capitolo 2 e delle tecniche",
-            (
-                ("experiments.m10_passo_passo",),
-                ("experiments.m10_ratio_test",),
-                ("experiments.m10_gradiente",),
-                ("experiments.m10_ransac_iterazioni", "--csv", CSV),
-            ),
+            (("experiments.m10_didattiche", "--csv", CSV),),
             (
                 f"{FIGURE}/m10_passo_passo.png",
                 f"{FIGURE}/m10_ratio_test.png",

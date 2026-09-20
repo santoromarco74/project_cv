@@ -1,7 +1,9 @@
-"""SiftMatcher, OrbMatcher (OpenCV + ratio test di Lowe / cross-check).
+"""L'interfaccia Matcher, e SiftMatcher/OrbMatcher (OpenCV + ratio test di
+Lowe / cross-check).
 
 Entrambi rispettano l'interfaccia `Matcher` (I4): la pipeline non sa quale sta
-usando, e LoftrMatcher entrerà dalla stessa porta a M9.
+usando, e `LoftrMatcher` (in `matchers/loftr.py`, isolato per I4) entra dalla
+stessa porta.
 
 Nota su questi dati: storico e vettoriale sono *line drawings* quasi privi di
 texture, il caso peggiore per descrittori a blob/corner (§7.2). Su E1 —
@@ -10,14 +12,27 @@ E1 isola il matcher dal domain gap.
 """
 from __future__ import annotations
 
+from typing import Protocol
+
 import cv2
 import numpy as np
 
+from src.preprocess import to_gray
 
-def _grigio(img: np.ndarray) -> np.ndarray:
-    if img.ndim == 3:
-        return cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    return img
+
+class Matcher(Protocol):
+    def match(self, img_a: np.ndarray, img_b: np.ndarray) -> tuple[np.ndarray, np.ndarray, dict]:
+        """Ritorna (punti_a Nx2, punti_b Nx2, metadati)."""
+        ...
+
+
+# `prepara()` è un metodo OPZIONALE, fuori dal Protocol perché non tutti i
+# matcher hanno qualcosa da preparare: SIFT e ORB sono pronti appena costruiti.
+# Serve a chi paga un costo di inizializzazione una volta sola — LoFTR carica un
+# checkpoint da 90 MB — e permette alla pipeline di pagarlo fuori dal cronometro
+# del matching, che altrimenti misurerebbe il caricamento invece dell'inferenza.
+# La pipeline lo cerca con getattr: un matcher che non ce l'ha non deve
+# implementare un metodo vuoto per rispettare l'interfaccia.
 
 
 class SiftMatcher:
@@ -31,8 +46,8 @@ class SiftMatcher:
         self._sift = cv2.SIFT_create(nfeatures=n_features)
 
     def match(self, img_a: np.ndarray, img_b: np.ndarray) -> tuple[np.ndarray, np.ndarray, dict]:
-        kp_a, des_a = self._sift.detectAndCompute(_grigio(img_a), None)
-        kp_b, des_b = self._sift.detectAndCompute(_grigio(img_b), None)
+        kp_a, des_a = self._sift.detectAndCompute(to_gray(img_a), None)
+        kp_b, des_b = self._sift.detectAndCompute(to_gray(img_b), None)
         meta = {
             "matcher": self.nome,
             "ratio": self.ratio,
@@ -68,8 +83,8 @@ class OrbMatcher:
         self._orb = cv2.ORB_create(nfeatures=n_features)
 
     def match(self, img_a: np.ndarray, img_b: np.ndarray) -> tuple[np.ndarray, np.ndarray, dict]:
-        kp_a, des_a = self._orb.detectAndCompute(_grigio(img_a), None)
-        kp_b, des_b = self._orb.detectAndCompute(_grigio(img_b), None)
+        kp_a, des_a = self._orb.detectAndCompute(to_gray(img_a), None)
+        kp_b, des_b = self._orb.detectAndCompute(to_gray(img_b), None)
         meta = {"matcher": self.nome, "n_kp_a": len(kp_a), "n_kp_b": len(kp_b)}
         if des_a is None or des_b is None:
             return np.empty((0, 2)), np.empty((0, 2)), meta | {"n_matches": 0}

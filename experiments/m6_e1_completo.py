@@ -22,13 +22,11 @@ import time
 import cv2
 import numpy as np
 
-from src.estimate import stima as stima_ransac
 from src.evaluate import append_csv, parametri_matcher, valuta
 from src.io_geo import jgw_per_risoluzione, read_jgw
-from src.matchers.classic import crea_matcher
+from src.pipeline import Opzioni, registra
 from src.prep.crop import CROPS
 from src.prep.synth import Trasformazione, genera_coppia, scala_degradazione
-from src.preprocess import applica
 
 # Trasformazione di riferimento dello sweep sulla degradazione: una similarità
 # realistica, né identità né caso estremo.
@@ -52,21 +50,14 @@ def una_riga(
     b, H_true = genera_coppia(img, t, scala_degradazione(degrado) if degrado else None, seed)
     h, w = img.shape[:2]
 
-    # Il preprocessing si applica alle DUE immagini allo stesso modo: è parte
-    # della pipeline, non un ritocco di una delle due.
-    a_prep = applica(img, modo=nome_preprocess)
-    b_prep = applica(b, modo=nome_preprocess)
-
-    t0 = time.perf_counter()
-    pts_a, pts_b, meta = crea_matcher(nome_matcher).match(a_prep, b_prep)
-    t_match = (time.perf_counter() - t0) * 1000
-
-    t0 = time.perf_counter()
-    st = stima_ransac(pts_a, pts_b, modello=modello, seed=seed)
-    t_stima = (time.perf_counter() - t0) * 1000
+    # Stessa pipeline della CLI e di M8/M9 (§8): preprocessing, matcher e RANSAC
+    # passano tutti da `pipeline.registra`, non da una copia locale della stessa
+    # orchestrazione. Morfologia non fa parte della griglia di E1: resta a 0.
+    opz = Opzioni(matcher=nome_matcher, preprocess=nome_preprocess, model=modello, seed=seed)
+    ris = registra(img, b, opz)
 
     # E1: A contro A trasformata, stessa griglia in partenza e in arrivo.
-    riga = valuta(st, H_true, w, h, W_dest=W_hist, soglia_m=SOGLIA_M)
+    riga = valuta(ris.stima, H_true, w, h, W_dest=W_hist, soglia_m=SOGLIA_M)
     riga |= {
         "esperimento": "E1",
         "crop": nome_crop,
@@ -81,11 +72,12 @@ def una_riga(
         "ty": t.ty,
         "prospettiva": t.prospettiva,
         "seed": seed,
-        "n_kp_a": meta.get("n_kp_a"),
-        "n_kp_b": meta.get("n_kp_b"),
-        "t_match_ms": round(t_match, 1),
-        "t_stima_ms": round(t_stima, 1),
-    } | parametri_matcher(meta)
+        "n_kp_a": ris.meta.get("n_kp_a"),
+        "n_kp_b": ris.meta.get("n_kp_b"),
+        "t_init_ms": ris.meta["t_init_ms"],
+        "t_match_ms": ris.meta["t_match_ms"],
+        "t_stima_ms": ris.meta["t_stima_ms"],
+    } | parametri_matcher(ris.meta)
     return riga
 
 

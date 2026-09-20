@@ -293,19 +293,6 @@ def _read_bordo(righe: list[str], i: int) -> tuple[BordoRecord, int]:
     return BordoRecord(nome, codice, angolo, label, nflag, flags, pts), j + 2 * n_vertici
 
 
-def parse_cxf(path: str) -> list[BordoRecord]:
-    """Parser del formato CXF (testuale AdE). Ritorna la lista dei record BORDO.
-
-    Dopo i due punti di etichetta c'è <nflag>,
-    numero di indici extra che PRECEDONO il blocco coordinate. Ignorarlo sfasa
-    il parser su 33 record su 871 e fa esplodere l'estensione. Dopo il parsing,
-    ASSERIRE che ogni coordinata cada dentro l'estensione del JGW.
-
-    Codici: 18 = particella, 12 = acqua/strada, 25 = altro (da scartare).
-    """
-    return read_cxf(path).bordi
-
-
 def cxf_extent(bordi) -> tuple[float, float, float, float]:
     """Estensione (xmin, ymin, xmax, ymax) dei poligoni."""
     pts = np.vstack([b.pts for b in bordi])

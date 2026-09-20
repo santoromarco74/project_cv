@@ -10,9 +10,7 @@ from __future__ import annotations
 import cv2
 import numpy as np
 
-
-def _grigio(img: np.ndarray) -> np.ndarray:
-    return cv2.cvtColor(img, cv2.COLOR_BGR2GRAY) if img.ndim == 3 else img
+from src.preprocess import to_gray
 
 
 def colori_per_quota(pts: np.ndarray, altezza: int) -> list[tuple[int, int, int]]:
@@ -117,8 +115,8 @@ def sovrapponi_tratti(a: np.ndarray, b: np.ndarray, soglia: int = 128) -> np.nda
     sull'asse rosso-verde. Rosso e ciano conserva inoltre la convenzione già
     usata nel resto del progetto, dove il tratto storico è rosso.
     """
-    ink_a = _grigio(a) < soglia
-    ink_b = _grigio(b) < soglia
+    ink_a = to_gray(a) < soglia
+    ink_b = to_gray(b) < soglia
     if ink_a.shape != ink_b.shape:
         raise ValueError(f"strati di dimensioni diverse: {ink_a.shape} contro {ink_b.shape}")
 

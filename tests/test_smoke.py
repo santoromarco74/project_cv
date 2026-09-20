@@ -29,7 +29,6 @@ from src.io_geo import (  # noqa: E402
     assert_dentro_estensione,
     cxf_extent,
     jgw_per_risoluzione,
-    parse_cxf,
     pixel_size_m,
     raster_extent,
     read_cxf,
@@ -45,18 +44,18 @@ from src.groundtruth import (  # noqa: E402
     riferimento_da_jgw,
     transform,
 )
-from src.estimate import Stima  # noqa: E402
-from src.estimate import stima as stima_ransac  # noqa: E402
 from src.evaluate import COLONNE, append_csv, valuta  # noqa: E402
 from src.main import costruisci_parser  # noqa: E402
 from src.main import main as cli_main  # noqa: E402
 from src.matchers.classic import crea_matcher  # noqa: E402
 from src.pipeline import (  # noqa: E402
     Opzioni,
+    Stima,
     _costruisci_matcher,
     registra,
     svuota_cache_matcher,
 )
+from src.pipeline import stima as stima_ransac  # noqa: E402
 from scripts.componi_relazione import SEGNAPOSTO, TABELLE, componi  # noqa: E402
 from src.preprocess import (  # noqa: E402
     applica,
@@ -203,7 +202,7 @@ def test_cxf_conteggi():
 
 def test_cxf_nflag():
     """La trappola di §5.4: nflag vale 0 su 838 record, ma 1, 2 o 5 sui restanti 33."""
-    bordi = parse_cxf(_serve(CXF))
+    bordi = read_cxf(_serve(CXF)).bordi
     assert Counter(b.nflag for b in bordi) == {0: 838, 1: 27, 2: 5, 5: 1}
     # e dove nflag > 0 gli indici sono stati davvero letti, non saltati a caso
     for b in bordi:
@@ -212,7 +211,7 @@ def test_cxf_nflag():
 
 def test_cxf_dentro_estensione_jgw():
     """Verifica obbligatoria di M2 (§5.4)."""
-    bordi = parse_cxf(_serve(CXF))
+    bordi = read_cxf(_serve(CXF)).bordi
     W = read_jgw(_serve(JGW))
     w, h = _dimensioni_foglio()
     assert_dentro_estensione(bordi, raster_extent(W, w, h))
@@ -222,7 +221,7 @@ def test_cxf_nessuna_coordinata_positiva():
     """Sentinella anti-sfasamento: in Cassini-Soldner Forte Diamante il foglio 49 sta
     tutto nel terzo quadrante. Una coordinata positiva (tipo 68, 82) è un indice di
     cambio tratto letto come coordinata, cioè nflag ignorato."""
-    bordi = parse_cxf(_serve(CXF))
+    bordi = read_cxf(_serve(CXF)).bordi
     pts = np.vstack([b.pts for b in bordi])
     assert pts.max() < 0, f"coordinata non negativa: {pts.max()}"
     xmin, ymin, xmax, ymax = cxf_extent(bordi)
@@ -234,7 +233,7 @@ def test_cxf_nessuna_coordinata_positiva():
 def test_cxf_indipendente_dai_newline():
     """Git normalizza i CRLF: il CXF nel working tree è LF, quello nello zip è CRLF.
     Devono dare lo stesso identico risultato."""
-    bordi_lf = parse_cxf(_serve(CXF))
+    bordi_lf = read_cxf(_serve(CXF)).bordi
     with zipfile.ZipFile(_serve(ZIP)) as z:
         grezzo = z.read("L675_004900.cxf")
     assert b"\r\n" in grezzo, "atteso CRLF nella copia dello zip"
@@ -242,7 +241,7 @@ def test_cxf_indipendente_dai_newline():
     with open(tmp, "wb") as fh:
         fh.write(grezzo)
     try:
-        bordi_crlf = parse_cxf(tmp)
+        bordi_crlf = read_cxf(tmp).bordi
     finally:
         os.remove(tmp)
     assert len(bordi_lf) == len(bordi_crlf)
@@ -645,7 +644,7 @@ def test_griglia_copre_l_estensione():
 
 def test_rasterizza_filtra_per_codice():
     """Il filtro 18 / 12 è l'ablation di §5.4: deve cambiare davvero l'immagine."""
-    bordi = parse_cxf(_serve(CXF))
+    bordi = read_cxf(_serve(CXF)).bordi
     W, w, h = griglia(-30660.0, -11712.0, -30360.0, -11412.0, risoluzione=1.0)
     solo18 = rasterizza(bordi, W, w, h, codici=(18,))
     solo12 = rasterizza(bordi, W, w, h, codici=(12,))
@@ -659,7 +658,7 @@ def test_rasterizza_filtra_per_codice():
 
 
 def test_rasterizza_deterministico():
-    bordi = parse_cxf(_serve(CXF))
+    bordi = read_cxf(_serve(CXF)).bordi
     W, w, h = griglia(-30660.0, -11712.0, -30360.0, -11412.0, risoluzione=1.0)
     assert np.array_equal(rasterizza(bordi, W, w, h), rasterizza(bordi, W, w, h))
 
@@ -917,13 +916,13 @@ def test_cli_out_figure_disegna_corrispondenze_non_monocrome():
 
 def test_ransac_iterazioni_coerente_con_i_default_veri():
     """La formula k(w) illustrata in relazione usa confidence e max_iter come
-    costanti separate (experiments/m10_ransac_iterazioni.py): se i default di
+    costanti separate (experiments/m10_didattiche.py): se i default di
     stima() cambiassero, la figura mostrerebbe un tetto sbagliato senza che
     nessuno se ne accorga. Questo test lega le due cose."""
     import inspect
 
-    from src.estimate import stima as stima_ransac
-    from experiments.m10_ransac_iterazioni import CONFIDENCE, MAX_ITER, k_necessario
+    from src.pipeline import stima as stima_ransac
+    from experiments.m10_didattiche import CONFIDENCE, MAX_ITER, k_necessario
 
     default = {
         k: v.default
@@ -986,11 +985,9 @@ def test_i3_groundtruth_fuori_dalla_pipeline():
     io_geo.py possono essere importati da evaluate.py, non dalla pipeline né dai
     matcher."""
     lato_algoritmo = [
-        "src/pipeline.py",
+        "src/pipeline.py",  # include anche la stima RANSAC, ex src/estimate.py
         "src/preprocess.py",
-        "src/estimate.py",
-        "src/matchers/base.py",
-        "src/matchers/classic.py",
+        "src/matchers/classic.py",  # include anche il Protocol, ex src/matchers/base.py
         "src/matchers/loftr.py",
     ]
     vietati = {"src.groundtruth", "src.io_geo", "groundtruth", "io_geo"}
