@@ -465,13 +465,14 @@ analitica, esatta per costruzione, e `evaluate.py` la usa per produrre l'RMSE in
 metri su una griglia regolare di checkpoint nell'immagine storica (10×10 punti,
 bordi esclusi):
 
-$$
-e_i= \left\|  H_{est}*p_i - H_{true}*p_i\right\|_2 
-$$
-$$
-RMSE_m = \sqrt{\frac{1}{N}\sum_{i=1}^{N} e_i^2}  * 0.254453
-$$
+$$e_i = \left\lVert H_{est}\cdot p_i - H_{true}\cdot p_i \right\rVert_2$$
 
+$$\mathrm{RMSE}_m = \sqrt{\frac{1}{N}\sum_{i=1}^{N} e_i^2} \;\cdot\; r_{\mathrm{dest}}$$
+
+dove $N = 100$ sono i checkpoint e $r_{\mathrm{dest}}$ è la risoluzione in metri
+per pixel della griglia di arrivo: 0.254453 m/px in E1, dove la coppia è il
+ritaglio contro se stesso trasformato, e 0.20 m/px in E2, dove l'arrivo è il
+raster del vettoriale (§9.1).
 
 cioè: si applicano entrambe le trasformazioni — quella stimata e quella vera —
 agli stessi 100 punti, si misura di quanto le due risposte divergono, e si
