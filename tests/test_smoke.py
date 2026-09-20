@@ -1196,6 +1196,58 @@ def test_rmse_m_in_e1_resta_sulla_griglia_storica() -> None:
         assert abs(riga["rmse_m"] - errore_px * RIS_HIST) < 1e-9, riga["rmse_m"]
 
 
+def test_le_formule_non_toccano_i_blocchi_di_codice() -> None:
+    """I `$` dei prompt di shell non sono delimitatori di formula.
+
+    §11.4 della relazione mostra sessioni di terminale in cui ogni riga
+    comincia con `$`. Presi per delimitatori, due prompt consecutivi
+    diventerebbero una formula lunga un paragrafo e i comandi sparirebbero dal
+    documento consegnato — un danno silenzioso, perché l'HTML si genera lo
+    stesso e l'errore si vede solo rileggendo la pagina.
+    """
+    import markdown
+
+    from scripts.relazione_html import estrai_formule, reinserisci_formule
+
+    sorgente = (
+        "Inline $a_1 + b_2$ nel testo.\n\n"
+        "$$\\sum_{i=1}^{N} e_i^2$$\n\n"
+        "```bash\n$ python -m src.report --csv results/runs.csv\n"
+        "$ python -m scripts.componi_relazione\n```\n\n"
+        "Codice inline: `echo $HOME e $PATH`.\n"
+    )
+    testo, formule = estrai_formule(sorgente)
+    assert len(formule) == 2, [f[0] for f in formule]
+    assert testo.count("$ python -m") == 2, "i prompt di shell sono stati mangiati"
+    assert "`echo $HOME e $PATH`" in testo, "il codice inline è stato mangiato"
+
+    html = reinserisci_formule(
+        markdown.markdown(testo, extensions=["tables", "fenced_code", "sane_lists", "attr_list"]),
+        formule,
+    )
+    assert html.count("<math") == 2, html
+    assert 'display="block"' in html and 'display="inline"' in html
+    assert "$ python -m src.report" in html, "il comando non è arrivato nell'HTML"
+
+
+def test_una_formula_illeggibile_non_sparisce() -> None:
+    """Se il convertitore TeX si rifiuta, il contenuto torna come codice.
+
+    Perderla in silenzio sarebbe il modo peggiore di fallire: la pagina si
+    comporrebbe senza errori e mancherebbe un pezzo, che è esattamente la
+    classe di problema contro cui esiste `scripts/riproduci`.
+    """
+    import markdown
+
+    from scripts.relazione_html import estrai_formule, reinserisci_formule
+
+    testo, formule = estrai_formule("Rotta: $ {{{ $ e via.\n")
+    if not formule:  # il delimitatore non ha agganciato: nulla da convertire
+        return
+    html = reinserisci_formule(markdown.markdown(testo), formule)
+    assert "{{{" in html, "il contenuto della formula è sparito"
+
+
 # ------------------------------------------------------------------ runner
 
 

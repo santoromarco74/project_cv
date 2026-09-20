@@ -12,6 +12,10 @@ matplotlib==3.9.2
 # (scripts/relazione_html.py). Serve solo all'ultimo passo, ma la traccia
 # chiede che i pacchetti esterni siano presenti nella versione finale.
 markdown==3.6
+# Le formule in TeX diventano MathML a tempo di composizione, non a runtime:
+# i browser lo rendono nativamente, quindi l'HTML consegnato resta
+# autosufficiente come lo sono le figure incorporate. Niente MathJax da CDN.
+latex2mathml==3.81.1
 
 # Modulo B — matcher deep (LoFTR via kornia)
 # torch pesante: su WSL2 CPU-only va bene. Se serve GPU, installare la

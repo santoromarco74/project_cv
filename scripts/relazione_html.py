@@ -7,8 +7,16 @@ ottiene il PDF con la stampa del browser.
     python -m scripts.relazione_html                    # -> relazione/relazione.html
     python -m scripts.relazione_html --frammento        # senza <html>/<head>/<body>
 
-Richiede il pacchetto `markdown`, che **non** è una dipendenza del progetto: la
-pipeline gira senza. Si installa all'occorrenza con `pip install markdown`.
+Richiede `markdown` e `latex2mathml`, che **non** sono dipendenze della
+pipeline: quella gira senza, e servono solo a questo ultimo passo. Entrambi
+stanno in `requirements.txt` perché la traccia vuole i pacchetti esterni
+presenti nella versione finale.
+
+Le formule in TeX (`$...$` e `$$...$$`) diventano MathML qui, a tempo di
+composizione. I browser lo rendono da soli, quindi il file consegnato resta
+autosufficiente come lo è per le figure — nessun MathJax da scaricare
+all'apertura. I blocchi di codice sono esclusi dalla conversione: la relazione
+è piena di sessioni di shell dove ogni riga comincia con `$`.
 """
 from __future__ import annotations
 
@@ -196,11 +204,20 @@ figcaption {
 }
 figcaption::before { content: "Fig. "; }
 
+/* MathML reso dal browser: nessun JavaScript, l'HTML resta autosufficiente. */
+math { font-size: 1.02em; }
+.formula {
+  margin: 1.5rem 0;
+  text-align: center;
+  overflow-x: auto;
+}
+.formula math { font-size: 1.1em; }
+
 @media print {
   .indice { display: none; }
   .foglio { display: block; max-width: none; padding: 0; }
   h2 { break-before: page; }
-  figure, .tabella, pre { break-inside: avoid; }
+  figure, .tabella, pre, .formula { break-inside: avoid; }
   body { font-size: 11pt; background: #fff; color: #000; }
 }
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
@@ -241,13 +258,94 @@ def indice(html: str) -> str:
     return f'<nav class="indice"><p>Indice</p><ol>{righe}</ol></nav>'
 
 
+# --------------------------------------------------------------------- formule
+
+# Markdown non conosce la matematica, e lasciata passare non resta semplicemente
+# grezza: viene **corrotta**. In `\sum_{i=1}^{N}` i due underscore diventano una
+# coppia di corsivi che si mangia mezza formula, e `attr_list` prende `{i=1}` per
+# una lista di attributi e la appiccica al tag. Le formule vanno quindi estratte
+# prima di markdown e reinserite dopo, già convertite in MathML.
+#
+# ⚠ I blocchi di codice vanno saltati, e non è un dettaglio: la relazione mostra
+# sessioni di shell dove ogni comando comincia con `$`. Presi per delimitatori di
+# formula, due prompt consecutivi diventerebbero una formula lunga un paragrafo.
+CODICE = re.compile(r"```.*?```|``.*?``|`[^`\n]*`", re.DOTALL)
+FORMULA_BLOCCO = re.compile(r"\$\$(.+?)\$\$", re.DOTALL)
+# Niente spazio subito dentro i delimitatori: "$ 5 e $ 7" non è una formula, e
+# il prezzo scritto "$5" nemmeno, perché manca la chiusura sulla stessa riga.
+FORMULA_INLINE = re.compile(r"(?<![\\$])\$(?!\s)([^\n$]+?)(?<!\s)\$(?!\$)")
+
+
+def _segnaposto(i: int) -> str:
+    """Un token che markdown lascia passare intatto: sole lettere e cifre."""
+    return f"zzFORMULAzz{i}zzFINEzz"
+
+
+def estrai_formule(testo: str) -> tuple[str, list[tuple[str, bool]]]:
+    """Sostituisce le formule con segnaposto. Ritorna (testo, [(tex, è_blocco)])."""
+    formule: list[tuple[str, bool]] = []
+
+    def fuori_dal_codice(frammento: str) -> str:
+        def blocco(m: re.Match) -> str:
+            formule.append((m.group(1).strip(), True))
+            return f"\n\n{_segnaposto(len(formule) - 1)}\n\n"
+
+        def inline(m: re.Match) -> str:
+            formule.append((m.group(1).strip(), False))
+            return _segnaposto(len(formule) - 1)
+
+        return FORMULA_INLINE.sub(inline, FORMULA_BLOCCO.sub(blocco, frammento))
+
+    pezzi, pos = [], 0
+    for m in CODICE.finditer(testo):
+        pezzi.append(fuori_dal_codice(testo[pos : m.start()]))
+        pezzi.append(m.group(0))  # il codice passa intatto
+        pos = m.end()
+    pezzi.append(fuori_dal_codice(testo[pos:]))
+    return "".join(pezzi), formule
+
+
+def reinserisci_formule(html: str, formule: list[tuple[str, bool]]) -> str:
+    """Converte in MathML e rimette al posto dei segnaposto.
+
+    MathML e non MathJax: i browser moderni lo rendono da soli, quindi l'HTML
+    resta autosufficiente come lo sono le figure incorporate. Una formula che
+    non si converte non sparisce — torna come codice, visibile e segnalata,
+    perché perderla in silenzio sarebbe il modo peggiore di fallire.
+    """
+    if not formule:
+        return html
+    try:
+        from latex2mathml.converter import convert
+    except ImportError:
+        print(
+            "  ⚠ latex2mathml non installato: le formule restano in TeX grezzo\n"
+            "    (pip install -r requirements.txt)"
+        )
+        return html
+
+    for i, (tex, e_blocco) in enumerate(formule):
+        try:
+            mathml = convert(tex, display="block" if e_blocco else "inline")
+        except Exception as exc:  # noqa: BLE001 — qualunque errore del parser TeX
+            print(f"  ⚠ formula non convertita ({exc}): {tex[:60]}")
+            mathml = f"<code>{tex}</code>"
+        segno = _segnaposto(i)
+        if e_blocco:
+            html = html.replace(f"<p>{segno}</p>", f'<div class="formula">{mathml}</div>')
+        html = html.replace(segno, mathml)
+    return html
+
+
 def costruisci(sorgente: str, frammento: bool = False) -> str:
     import markdown
 
     testo = open(sorgente, encoding="utf-8").read()
+    testo, formule = estrai_formule(testo)
     corpo = markdown.markdown(
         testo, extensions=["tables", "fenced_code", "toc", "sane_lists", "attr_list"]
     )
+    corpo = reinserisci_formule(corpo, formule)
     corpo = incorpora(corpo, os.path.dirname(os.path.abspath(sorgente)))
     corpo = corpo.replace("<table>", '<div class="tabella"><table>').replace(
         "</table>", "</table></div>"

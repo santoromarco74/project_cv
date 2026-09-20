@@ -1023,20 +1023,22 @@ trasformazione geometrica — la carta è identica in tutte le prove — quindi 
 fallimenti sono **geometrici e non radiometrici**.
 
 Scomponendo per ampiezza della rotazione si vede esattamente dove, e il quadro
-è netto (RMSE mediano in pixel, senza preprocessing):
+è netto (RMSE mediano in pixel, a degradazione nulla e senza preprocessing):
 
 | matcher | 0° | 5° | 15° | 30° | 45° | 90° |
 |---|---|---|---|---|---|---|
-| SIFT | 0.000 | 0.033 | 0.252 | 0.181 | 0.270 | 0.500 |
-| ORB | 0.000 | 0.216 | 0.891 | 0.378 | 0.452 | 0.446 |
-| LoFTR | 0.030 | 0.073 | **1.100** | **1.270** | **1745** | **8715** |
+| SIFT | 0.000 | 0.033 | 0.110 | 0.181 | 0.270 | 0.500 |
+| ORB | 0.000 | 0.216 | 0.413 | 0.378 | 0.452 | 0.446 |
+| LoFTR | 0.030 | 0.073 | 0.201 | **1.270** | **1745** | **8715** |
 
-Per SIFT e ORB l'errore cresce e oscilla con la rotazione ma resta sotto il
-pixel fino a 90°: è il costo dell'interpolazione del warp e della
-quantizzazione dell'orientamento dei descrittori, non un difetto. **LoFTR
-invece supera già il pixel a 15°, resta dello stesso ordine di grandezza fino
-a 30° e poi si rompe**: a 45° l'errore mediano è di circa 1745 pixel, a 90° di
-circa 8715.
+Per SIFT l'errore cresce in modo monotòno e resta sotto il pixel fino a 90°;
+ORB oscilla di qualche centesimo ma non supera il mezzo pixel. In entrambi i
+casi è il costo dell'interpolazione del warp e della quantizzazione
+dell'orientamento dei descrittori, non un difetto. **LoFTR resta sub-pixel fino
+a 15° (0.201), supera il pixel a 30° e poi si rompe**: fra 30° e 45° l'errore
+mediano passa da 1.270 a circa 1745 pixel, e a 90° arriva a circa 8715. Il
+punto di rottura è quindi localizzato fra 30° e 45°, non più precisamente: le
+sei ampiezze provate non campionano quell'intervallo.
 
 È il limite più netto emerso da E1, e ha una spiegazione strutturale. SIFT e ORB
 stimano un orientamento dominante per ogni keypoint e ruotano il descrittore di
