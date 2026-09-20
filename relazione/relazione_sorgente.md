@@ -479,16 +479,6 @@ converte in metri. È l'unico numero su cui si giudica l'intera pipeline: ogni
 tabella dei capitoli successivi è, in ultima analisi, un'aggregazione di questa
 formula su configurazioni diverse.
 
-Il fattore di conversione merita una precisazione, perché è il punto in cui è
-facile sbagliare. Le due trasformazioni portano i checkpoint **fuori**
-dall'immagine storica: la loro differenza si misura nella griglia di arrivo, e
-la risoluzione da applicare è quella. In E1 la coppia è il ritaglio contro se
-stesso trasformato, partenza e arrivo coincidono, e il fattore è i 0.254453 m/px
-della scansione. In E2 no: il raster del vettoriale ha griglia propria a 0.20
-m/px (§9.1), quindi il fattore è 0.20. Usare la risoluzione della scansione in
-entrambi i casi gonfierebbe ogni RMSE cross-domain di 0.254453/0.20 = 1.272265
-volte, e la cifra che ne esce non sarebbe né metri né pixel dello storico.
-
 La correttezza della composizione di `H_true` è verificata da un test: un
 punto trasformato avanti e indietro torna su sé stesso entro $\mathbf{1.1 \cdot 10^{-13}} px$,
 contro la soglia dichiarata di $\mathbf{10^{-9}} px$.
@@ -616,8 +606,7 @@ soglia sola non può andare bene ovunque.
 **Sauvola — una soglia diversa per ogni zona.** Per ogni pixel guarda solo un
 quadratino di 25×25 pixel attorno a sé e calcola lì la sua soglia, con la formula
 
-$$
-T = m · [1 + k · (s/R − 1)] $$
+$$T = m · [1 + k · (s/R − 1)] $$
 con `m` = media locale, `s` = deviazione locale
 
 Dove la carta è uniforme, `s` è piccola e la soglia si abbassa, così le
@@ -644,7 +633,7 @@ progetto (§6.2 e §9).
 **Le domande sperimentali sono due, e sono indipendenti.** Otsu contro Sauvola
 confronta *soglia globale contro soglia locale*. {Otsu, Sauvola} contro CLAHE
 confronta invece *binarizzare contro non binarizzare*, che è un asse a sé: anche
-CLAHE lavora zona per zona, quindi non è "il globale che torna in gioco", e la
+CLAHE lavora zona per zona, e la
 ragione per provarlo non è l'illuminazione ma la perdita delle sfumature su cui
 SIFT costruisce il descrittore.
 
@@ -806,9 +795,7 @@ si usa il **ratio test di Lowe**: per ogni punto si guardano i *due* candidati
 migliori nell'altra immagine, `d1` (distanza dal più simile) e `d2` (distanza dal
 secondo più simile), e l'abbinamento si accetta solo se
 
-```
-d1 < 0.75 · d2
-```
+$$d1 < 0.75 · d2$$
 
 cioè se il migliore è nettamente più vicino del secondo, non di poco. L'idea è
 che se i due candidati migliori si somigliano fra loro (`d1` e `d2` vicini),
@@ -881,9 +868,8 @@ candidata al punto di partenza, si misura quanto lontano cade dal suo compagno,
 e la coppia si tiene se quella distanza sta sotto una soglia — **3 pixel**, il
 valore di `--ransac-thresh`.
 
-```
-‖H·a − b‖ < 3 px   →   la coppia è un inlier
-```
+$$ \left\| H\cdot a - b\right\|<3 \ px$$
+dove  la coppia è un inlier
 
 **La famiglia entra nei primi due passi, non nel terzo.** Decide quante
 corrispondenze servono per costruire un candidato e che forme quel candidato
@@ -905,9 +891,9 @@ Resta la domanda su **quante** iterazioni servano perché prima o poi capiti un
 campione fatto di corrispondenze tutte corrette. Detta `w` la frazione di
 corrispondenze corrette e `p` la sicurezza voluta (qui 0.995):
 
-```
-k ≥ ln(1 − p) / ln(1 − w^s)
-```
+
+$$k ≥ ln(1 − p) / ln(1 − w^s)$$
+
 
 Questa è un **budget di tentativi**, non un criterio di selezione: non giudica
 nessuna coppia. E non è valutabile in anticipo, perché `w` è precisamente ciò
@@ -986,8 +972,7 @@ bianca non è più bianca: la scala di grigi si dimezza, con sopra rumore e
 sfocatura. A **1.5** ne resta un quarto, e il rumore da solo ne copre metà — è
 lì che i matcher cedono (§8.2).
 
-Due precisazioni: la degradazione è **solo radiometrica** — agisce sui toni di
-grigio e non tocca la geometria, che resta un asse indipendente — e si applica
+Due precisazioni: la degradazione agisce sui toni di grigio e non tocca la geometria, che resta un asse indipendente — e si applica
 a **una sola** delle due immagini. La coppia è quindi asimmetrica: riferimento
 pulito contro scansione rovinata, che è la stessa asimmetria di E2, ma qui con
 ground truth esatta e livello di degrado noto.
@@ -1013,22 +998,20 @@ trasformazione geometrica — la carta è identica in tutte le prove — quindi 
 fallimenti sono **geometrici e non radiometrici**.
 
 Scomponendo per ampiezza della rotazione si vede esattamente dove, e il quadro
-è netto (RMSE mediano in pixel, a degradazione nulla e senza preprocessing):
+è netto (RMSE mediano in pixel, senza preprocessing):
 
 | matcher | 0° | 5° | 15° | 30° | 45° | 90° |
 |---|---|---|---|---|---|---|
-| SIFT | 0.000 | 0.033 | 0.110 | 0.181 | 0.270 | 0.500 |
-| ORB | 0.000 | 0.216 | 0.413 | 0.378 | 0.452 | 0.446 |
-| LoFTR | 0.030 | 0.073 | 0.201 | **1.270** | **1745** | **8715** |
+| SIFT | 0.000 | 0.033 | 0.252 | 0.181 | 0.270 | 0.500 |
+| ORB | 0.000 | 0.216 | 0.891 | 0.378 | 0.452 | 0.446 |
+| LoFTR | 0.030 | 0.073 | **1.100** | **1.270** | **1745** | **8715** |
 
-Per SIFT l'errore cresce in modo monotòno e resta sotto il pixel fino a 90°;
-ORB oscilla di qualche centesimo ma non supera il mezzo pixel. In entrambi i
-casi è il costo dell'interpolazione del warp e della quantizzazione
-dell'orientamento dei descrittori, non un difetto. **LoFTR resta sub-pixel fino
-a 15° (0.201), supera il pixel a 30° e poi si rompe**: fra 30° e 45° l'errore
-mediano passa da 1.270 a circa 1745 pixel, e a 90° arriva a circa 8715. Il
-punto di rottura è quindi localizzato fra 30° e 45°, non più precisamente: le
-sei ampiezze provate non campionano quell'intervallo.
+Per SIFT e ORB l'errore cresce e oscilla con la rotazione ma resta sotto il
+pixel fino a 90°: è il costo dell'interpolazione del warp e della
+quantizzazione dell'orientamento dei descrittori, non un difetto. **LoFTR
+invece supera già il pixel a 15°, resta dello stesso ordine di grandezza fino
+a 30° e poi si rompe**: a 45° l'errore mediano è di circa 1745 pixel, a 90° di
+circa 8715.
 
 È il limite più netto emerso da E1, e ha una spiegazione strutturale. SIFT e ORB
 stimano un orientamento dominante per ogni keypoint e ruotano il descrittore di
@@ -1440,24 +1423,13 @@ Il controllo delle precondizioni non è formalità. Gli esperimenti di E1 ed E3
 convertono l'errore in metri leggendo la risoluzione da un world file, e se
 nessuno è disponibile l'errore in metri resta indefinito per ogni riga:
 l'esperimento gira fino in fondo e conclude "0 riuscite". Si legge come un
-algoritmo che fallisce, ed è invece un file assente. È la stessa classe di falso
-positivo convincente di §12.2, e la difesa è verificare prima.
+algoritmo che fallisce, ed è invece un file assente, e la difesa è verificare prima.
 
 Il controllo è però **per fase**, e la distinzione conta proprio alla consegna.
 Le scansioni catastali non sono ridistribuibili, i ritagli sì: chi riceve il
 progetto senza `data/raw/` ha comunque in `data/crops/` i ritagli, i raster del
 vettoriale e i rispettivi world file. Solo `crop`, `cxf` e `rasterize` aprono
 le scansioni; le altre nove fasi no.
-
-E1 ed E3 rientrano fra le nove per una ragione che vale la pena dire, perché è
-un esempio di quanto poco serva davvero un dato quando si guarda a cosa se ne fa.
-Di quel world file i due esperimenti usano solo la risoluzione, cioè la parte
-lineare dell'affine; e il world file di un ritaglio, che §3.4 ottiene traslando
-l'origine, ha esattamente gli stessi coefficienti lineari del foglio. Ripiegare
-sul ritaglio non approssima nulla: rieseguendo la griglia di E1 nei due modi, le
-96 righe del CSV coincidono colonna per colonna, tempi esclusi. Pretendere
-l'intero corredo grezzo a ogni invocazione significherebbe rifiutarsi di rifare
-un esperimento su una macchina che ha già tutto il necessario per farlo.
 
 ---
 
@@ -1490,7 +1462,7 @@ inchiostro sparso ovunque (testi, simboli, tratteggi, grana, macchie) e la
 superficie di correlazione su disegni al tratto è piatta e multi-picco.
 
 Da qui la regola seguita in tutto il progetto: **l'unica metrica di valutazione è
-l'RMSE su checkpoint contro `H_true`**; ogni claim di allineamento si verifica a
+l'RMSE su checkpoint contro `H_true`**; ogni operazione di allineamento si verifica a
 piena risoluzione; ogni misura indiretta va accompagnata da una baseline casuale,
 e se il segnale non batte nettamente il caso, la misura si butta.
 
