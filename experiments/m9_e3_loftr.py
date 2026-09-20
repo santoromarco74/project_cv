@@ -26,7 +26,7 @@ import time
 import cv2
 
 from src.evaluate import append_csv, valuta
-from src.groundtruth import h_true_from_jgw
+from src.groundtruth import riferimento_da_jgw
 from src.io_geo import jgw_per_risoluzione, read_jgw
 from src.pipeline import Opzioni, registra
 from src.prep.crop import CROPS
@@ -74,7 +74,9 @@ def e1(args, immagini) -> int:
         ris = registra(img, b, opz)
         riga = valuta(
             ris.stima, H_true, img.shape[1], img.shape[0],
-            W_hist=args.W_foglio, soglia_m=SOGLIA_E1_M,
+            # E1: la coppia e' il ritaglio contro se stesso trasformato, quindi
+            # la griglia d'arrivo e' quella storica.
+            W_dest=args.W_foglio, soglia_m=SOGLIA_E1_M,
         )
         riga |= _riga_base(opz, ris) | {
             "esperimento": "E1",
@@ -118,13 +120,16 @@ def e2(args, immagini) -> int:
             seed=args.seed,
         )
         ris = registra(hist, vec, opz)
-        crop_jgw = os.path.join(args.crops_dir, f"{nome}.jgw")
+        H_true, W_dest = riferimento_da_jgw(
+            os.path.join(args.crops_dir, f"{nome}.jgw"),
+            os.path.join(args.crops_dir, f"{chiave}.jgw"),
+        )
         riga = valuta(
             ris.stima,
-            h_true_from_jgw(crop_jgw, os.path.join(args.crops_dir, f"{chiave}.jgw")),
+            H_true,
             hist.shape[1],
             hist.shape[0],
-            W_hist=read_jgw(crop_jgw),
+            W_dest=W_dest,
             soglia_m=SOGLIA_E2_M,
         )
         riga |= _riga_base(opz, ris) | {

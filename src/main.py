@@ -153,16 +153,15 @@ def main(argv: list[str] | None = None) -> int:
     }
     if args.jgw_hist and args.jgw_modern:
         from src.evaluate import valuta
-        from src.groundtruth import h_true_from_jgw
-        from src.io_geo import read_jgw
+        from src.groundtruth import riferimento_da_jgw
 
-        H_true = h_true_from_jgw(args.jgw_hist, args.jgw_modern)
+        H_true, W_dest = riferimento_da_jgw(args.jgw_hist, args.jgw_modern)
         riga |= valuta(
             ris.stima,
             H_true,
             hist.shape[1],
             hist.shape[0],
-            W_hist=read_jgw(args.jgw_hist),
+            W_dest=W_dest,
             soglia_m=args.soglia_m,
         )
         if riga["rmse_m"] is not None:

@@ -82,7 +82,7 @@ PESI_LOFTR = "weights/loftr_outdoor.ckpt"
 # `markdown` serve solo all'ultima fase, ma va controllato all'inizio: scoprirlo
 # dopo un'ora di esperimenti, con il CSV già scritto e la relazione a un passo
 # dalla fine, è il modo peggiore di venirlo a sapere.
-DIPENDENZE = ("cv2", "numpy", "pandas", "matplotlib", "scipy", "PIL", "markdown")
+DIPENDENZE = ("cv2", "numpy", "pandas", "matplotlib", "scipy", "PIL", "markdown", "latex2mathml")
 DIPENDENZE_LOFTR = ("torch", "kornia")
 
 CSV = "results/runs.csv"

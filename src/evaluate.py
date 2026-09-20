@@ -107,14 +107,19 @@ def valuta(
     H_true: np.ndarray,
     width: int,
     height: int,
-    W_hist: np.ndarray | None = None,
+    W_dest: np.ndarray | None = None,
     soglia_m: float | None = None,
     n_checkpoint: int = 10,
 ) -> dict:
     """Riga di metriche per un singolo esperimento (§7.4).
 
-    `W_hist` serve solo a convertire i pixel in metri: senza, le colonne in metri
-    restano vuote e il resto funziona lo stesso.
+    `W_dest` serve solo a convertire i pixel in metri: senza, le colonne in metri
+    restano vuote e il resto funziona lo stesso. È il world file dell'immagine di
+    **arrivo** di `H_true`, non di quella di partenza: gli errori di `errori_px`
+    sono differenze fra due punti che entrambe le H mandano nella griglia di
+    destinazione, e la risoluzione da applicare è quella. Coincidono in E1
+    (l'immagine è trasformata in se stessa) e differiscono in E2, dove il raster
+    del vettoriale è a 0.20 m/px contro i 0.254453 dello storico.
 
     `success` segue §7.4 alla lettera: "stima riuscita **e** RMSE sotto soglia
     dichiarata". Senza soglia dichiarata non è definito, e resta vuoto — non
@@ -145,8 +150,8 @@ def valuta(
     errori = errori_px(stima.H, H_true, pts)
     riga["rmse_px"] = float(np.sqrt(np.mean(errori**2)))
     riga["err_max_px"] = float(errori.max())
-    if W_hist is not None:
-        riga["rmse_m"] = errore_px_to_m(riga["rmse_px"], W_hist)
+    if W_dest is not None:
+        riga["rmse_m"] = errore_px_to_m(riga["rmse_px"], W_dest)
 
     if soglia_m is None:
         riga["success"] = ""  # non dichiarata: la domanda non ha risposta

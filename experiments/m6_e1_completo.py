@@ -65,7 +65,8 @@ def una_riga(
     st = stima_ransac(pts_a, pts_b, modello=modello, seed=seed)
     t_stima = (time.perf_counter() - t0) * 1000
 
-    riga = valuta(st, H_true, w, h, W_hist=W_hist, soglia_m=SOGLIA_M)
+    # E1: A contro A trasformata, stessa griglia in partenza e in arrivo.
+    riga = valuta(st, H_true, w, h, W_dest=W_hist, soglia_m=SOGLIA_M)
     riga |= {
         "esperimento": "E1",
         "crop": nome_crop,
