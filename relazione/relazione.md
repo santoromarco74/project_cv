@@ -1,7 +1,7 @@
 # Registrazione di mappe catastali storiche su cartografia moderna
 
 **Progetto d'esame di Computer Vision — Università di Pavia**
-Caso di studio: Comune di Varazze, foglio 49 (`L675_004900`), Originale di Impianto dell'Agenzia delle Entrate.
+Caso di studio: Comune di Varazze (SV), foglio 49 (`L675_004900`), Originale di Impianto dell'Agenzia delle Entrate.
 
 > Questo documento è generato da `scripts/componi_relazione.py`: tutte le tabelle
 > sono aggregazioni di `results/runs.csv` calcolate al momento della
@@ -57,10 +57,7 @@ sono tre lezioni distinte. Qui sotto, dove il progetto tocca il corso.
 | CV06 | pattern recognition e ricerca visiva | la ricerca di corrispondenze fra le due immagini (§7.1) |
 | CV08 | analisi di regioni, componenti connesse | `rimuovi_componenti` in `preprocess.py`, che elimina le macchie più piccole di una soglia |
 
-Tre precisazioni, per non attribuirsi più di quanto ci sia.
-
-La morfologia usata è quella **binaria** di CV04: l'estensione ai toni di grigio
-di CV05 non serve, perché a valle della binarizzazione l'immagine è già a due
+La morfologia usata è quella **binaria** di CV04: l'estensione ai toni di grigio di CV05 non serve, perché a valle della binarizzazione l'immagine è già a due
 livelli. L'analisi di componenti connesse di CV08 è implementata ma **resta
 fuori dalla griglia sperimentale**: eliminare le macchie piccole toglie anche i
 blob su cui SIFT trova i suoi punti, e misurare quel compromesso avrebbe
@@ -69,18 +66,7 @@ progetto sfrutta solo l'invarianza di scala di SIFT — che nasce dalla piramide
 di gaussiane e dalla loro differenza, cioè dal laplaciano approssimato (§7.1) —
 senza svilupparne il tema per proprio conto.
 
-Il corso tratta inoltre fotometria, compressione, visione tridimensionale e
-sintesi di immagini, che qui non compaiono: la traccia chiede la soluzione di
-*un* problema di visione, non una rassegna del programma.
-
 ### 1.2 Perché questi strumenti e non altri
-
-La traccia ammette esplicitamente «opencv, mathlab, Image magick», e distingue
-fra l'implementazione di un algoritmo e la soluzione di un problema con
-librerie standard. Ma un elenco di strumenti permessi non è una motivazione, e
-"lo consente la traccia" non spiega perché in griglia ci siano proprio questi
-metodi. Ognuno risponde a una domanda del progetto — e più di uno è in griglia
-proprio perché ci si aspettava che perdesse.
 
 **Python e OpenCV, non MATLAB né ImageMagick.** *ImageMagick* saprebbe fare
 tutto il capitolo §6 — soglia globale, soglia adattiva locale, morfologia,
@@ -119,7 +105,7 @@ griglia non ci sarebbe stato niente da smentire.
 **Sauvola, non Niblack né la soglia adattiva già pronta.** Niblack, il
 capostipite delle soglie locali, calcola `T = m + k·s`: dove la carta è
 uniforme `s` è piccolo per definizione, la soglia resta incollata alla media
-locale, e sogliare sul valor medio del rumore significa per costruzione
+locale, e avere una soglia sul valor medio del rumore significa per costruzione
 promuoverne metà a inchiostro. Su un foglio d'archivio, che è quasi tutto fondo
 uniforme, è il difetto peggiore possibile.
 
@@ -360,14 +346,14 @@ Entrate si ottengono, per il foglio 49 di Varazze:
 | `L675_004900.cxf` | cartografia **vigente** in formato vettoriale, stesso sistema |
 
 Raster e vettoriale sono entrambi in **Cassini-Soldner zona G0007, origine Forte
-Diamante**. Non è un EPSG standard e non serve riproiettare nulla: le coordinate
-dei due file sono già confrontabili. Il progetto non usa `pyproj` né `geopandas`.
+Diamante**. Non è un EPSG (sistema di coordinate geografiche) standard  e non serve riproiettare nulla: le coordinate
+dei due file sono già confrontabili.
 
-Vale la pena essere espliciti sulla differenza fra `.cxf` e `.jgw`, perché il
-nome fa pensare a due varianti dello stesso tipo di file, e non lo sono. Il CXF
-**è** un contenuto: un elenco di coordinate che disegnano i confini delle
+E' necessario chiarire subito la differenza fra `.cxf` e `.jgw`, perché il
+nome fa pensare a due varianti dello stesso tipo di file, e non lo sono. Il **CXF è**  un contenuto: un elenco di coordinate che disegnano i confini delle
 particelle, cioè la mappa moderna stessa scritta come numeri invece che come
-disegno. Il JGW **non è** un contenuto, ma un'istruzione di conversione:
+disegno.
+Il **JGW non è** un contenuto, ma un'istruzione di conversione:
 soli sei numeri, che dicono a quale coordinata reale sul terreno corrisponde
 il pixel in alto a sinistra della scansione e quanti metri misura il lato di
 un pixel — non contiene nessun confine, nessuna particella. Senza il JGW la
@@ -477,18 +463,22 @@ Rasterizzando il CXF su una griglia di cui conosciamo, allo stesso modo, il
 legame fra pixel e coordinate, si ottengono due trasformazioni note, e la trasformazione di riferimento è la loro
 composizione:
 
-```
-H_true = W_moderno⁻¹ ∘ W_storico
-```
+$$
+ H_{true} = \frac{W_{storico}}{W_{moderno}}
+$$
 
 **Non è stato annotato un solo punto di controllo a mano.** La ground truth è
 analitica, esatta per costruzione, e `evaluate.py` la usa per produrre l'RMSE in
 metri su una griglia regolare di checkpoint nell'immagine storica (10×10 punti,
 bordi esclusi):
 
-```
-RMSE_m = √( media( ‖H_est·p − H_true·p‖² ) ) × 0.254453
-```
+$$
+e_i= \left\|  H_{est}*p_i - H_{true}*p_i\right\|_2 
+$$
+$$
+RMSE_m = \sqrt{\frac{1}{N}\sum_{i=1}^{N} e_i^2}  * 0.254453
+$$
+
 
 cioè: si applicano entrambe le trasformazioni — quella stimata e quella vera —
 agli stessi 100 punti, si misura di quanto le due risposte divergono, e si
@@ -497,8 +487,8 @@ tabella dei capitoli successivi è, in ultima analisi, un'aggregazione di questa
 formula su configurazioni diverse.
 
 La correttezza della composizione di `H_true` è verificata da un test: un
-punto trasformato avanti e indietro torna su sé stesso entro **1.1e-13 px**,
-contro la soglia dichiarata di 1e-9.
+punto trasformato avanti e indietro torna su sé stesso entro $\mathbf{1.1 \cdot 10^{-13}} px$,
+contro la soglia dichiarata di $\mathbf{10^{-9}} px$.
 
 ### 4.1 L'incertezza del riferimento, dichiarata
 
@@ -623,9 +613,9 @@ soglia sola non può andare bene ovunque.
 **Sauvola — una soglia diversa per ogni zona.** Per ogni pixel guarda solo un
 quadratino di 25×25 pixel attorno a sé e calcola lì la sua soglia, con la formula
 
-```
-T = m · [1 + k · (s/R − 1)]        m = media locale, s = deviazione locale
-```
+$$
+T = m · [1 + k · (s/R − 1)] $$
+con `m` = media locale, `s` = deviazione locale
 
 Dove la carta è uniforme, `s` è piccola e la soglia si abbassa, così le
 irregolarità di fondo non vengono scambiate per tratto. Dove c'è disegno, `s`
@@ -1001,13 +991,13 @@ ground truth esatta e livello di degrado noto.
 
 | matcher | preprocess | prove | successo_pct | rmse_px_mediano_ok | rmse_px_max_ok | inlier_ratio | match_medi | t_ms |
 |---------|------------|-------|--------------|--------------------|----------------|--------------|------------|------|
-| loftr   | none       | 80    | 42.5         | 0.208              | 0.963          | 0.619        | 1909       | 4540 |
-| orb     | clahe      | 80    | 68.8         | 0.499              | 1.0            | 0.619        | 2503       | 133  |
-| orb     | none       | 80    | 67.5         | 0.438              | 0.999          | 0.608        | 2377       | 123  |
-| orb     | sauvola    | 80    | 55.0         | 0.479              | 0.995          | 0.486        | 1945       | 116  |
-| sift    | clahe      | 80    | 82.5         | 0.186              | 0.927          | 0.752        | 2289       | 456  |
-| sift    | none       | 80    | 80.0         | 0.182              | 0.969          | 0.691        | 1709       | 389  |
-| sift    | sauvola    | 80    | 73.8         | 0.206              | 0.927          | 0.614        | 974        | 449  |
+| loftr   | none       | 80    | 42.5         | 0.208              | 0.963          | 0.619        | 1909       | 3886 |
+| orb     | clahe      | 80    | 68.8         | 0.499              | 1.0            | 0.619        | 2503       | 114  |
+| orb     | none       | 80    | 67.5         | 0.438              | 0.999          | 0.608        | 2377       | 107  |
+| orb     | sauvola    | 80    | 55.0         | 0.479              | 0.995          | 0.486        | 1945       | 99   |
+| sift    | clahe      | 80    | 82.5         | 0.186              | 0.927          | 0.752        | 2289       | 373  |
+| sift    | none       | 80    | 80.0         | 0.182              | 0.969          | 0.691        | 1709       | 329  |
+| sift    | sauvola    | 80    | 73.8         | 0.206              | 0.927          | 0.614        | 974        | 368  |
 
 
 ![RMSE contro degradazione](../results/figures/m6_rmse_vs_degradazione.png)
@@ -1123,15 +1113,15 @@ indirette di allineamento producono falsi positivi convincenti.
 
 | matcher | preprocess       | modello    | prove | successo_pct | rmse_m_mediano | rmse_m_minimo | inlier_ratio | match_mediani |
 |---------|------------------|------------|-------|--------------|----------------|---------------|--------------|---------------|
-| loftr   | clahe            | affine     | 3     | 0.0          | 223.18         | 143.065       | 0.333        | 9             |
-| loftr   | clahe            | homography | 3     | 0.0          | 173.14         | 152.009       | 0.444        | 9             |
-| loftr   | clahe            | similarity | 3     | 0.0          | 232.22         | 170.471       | 0.222        | 9             |
-| loftr   | sauvola          | affine     | 3     | 100.0        | 0.47           | 0.445         | 0.279        | 549           |
-| loftr   | sauvola          | homography | 2     | 100.0        | 0.85           | 0.636         | 0.308        | 477           |
-| loftr   | sauvola          | similarity | 3     | 100.0        | 0.45           | 0.417         | 0.291        | 549           |
-| loftr   | sauvola+chiusura | affine     | 2     | 100.0        | 0.59           | 0.535         | 0.298        | 487           |
-| loftr   | sauvola+chiusura | homography | 2     | 100.0        | 0.93           | 0.806         | 0.291        | 487           |
-| loftr   | sauvola+chiusura | similarity | 2     | 100.0        | 0.63           | 0.593         | 0.291        | 487           |
+| loftr   | clahe            | affine     | 10    | 0.0          | 722.91         | 125.203       | 0.464        | 6             |
+| loftr   | clahe            | homography | 10    | 0.0          | 325.19         | 152.009       | 0.619        | 6             |
+| loftr   | clahe            | similarity | 10    | 0.0          | 240.62         | 170.471       | 0.31         | 6             |
+| loftr   | sauvola          | affine     | 10    | 80.0         | 0.77           | 0.445         | 0.275        | 385           |
+| loftr   | sauvola          | homography | 10    | 70.0         | 1.02           | 0.625         | 0.273        | 385           |
+| loftr   | sauvola          | similarity | 10    | 90.0         | 0.44           | 0.171         | 0.288        | 385           |
+| loftr   | sauvola+chiusura | affine     | 10    | 80.0         | 0.63           | 0.443         | 0.288        | 390           |
+| loftr   | sauvola+chiusura | homography | 10    | 70.0         | 1.16           | 0.472         | 0.279        | 390           |
+| loftr   | sauvola+chiusura | similarity | 10    | 90.0         | 0.53           | 0.326         | 0.278        | 390           |
 | orb     | clahe            | affine     | 10    | 0.0          | 105.81         | 25.621        | 0.009        | 777           |
 | orb     | clahe            | homography | 10    | 0.0          | 168.08         | 3.12          | 0.012        | 777           |
 | orb     | clahe            | similarity | 10    | 60.0         | 0.82           | 0.267         | 0.016        | 777           |
@@ -1195,11 +1185,11 @@ diversa, e più forte.
 
 | fattore            | valore     | prove | successo_pct | rmse_m_mediano | inlier_ratio |
 |--------------------|------------|-------|--------------|----------------|--------------|
-| modello geometrico | affine     | 68    | 30.9         | 88.82          | 0.054        |
-| modello geometrico | homography | 67    | 16.4         | 139.81         | 0.097        |
-| modello geometrico | similarity | 68    | 50.0         | 2.87           | 0.071        |
-| codici CXF         | 18         | 104   | 27.9         | 128.57         | 0.071        |
-| codici CXF         | 18+12      | 99    | 37.4         | 130.9          | 0.066        |
+| modello geometrico | affine     | 90    | 35.6         | 35.68          | 0.076        |
+| modello geometrico | homography | 90    | 23.3         | 138.89         | 0.135        |
+| modello geometrico | similarity | 90    | 52.2         | 1.12           | 0.11         |
+| codici CXF         | 18         | 135   | 32.6         | 64.54          | 0.106        |
+| codici CXF         | 18+12      | 135   | 41.5         | 35.68          | 0.104        |
 
 
 Sugli stessi identici insiemi di corrispondenze, il modello geometrico cambia
@@ -1261,12 +1251,12 @@ di `--matcher`. Stessi ritagli, stesse metriche, stesse soglie.
 
 | esperimento | matcher | config                        | prove | successo_pct | rmse_m_mediano_ok | inlier_ratio | match_mediani | t_ms |
 |-------------|---------|-------------------------------|-------|--------------|-------------------|--------------|---------------|------|
-| E1          | loftr   | none / homography             | 80    | 42.5         | 0.053             | 0.622        | 1033          | 4330 |
-| E1          | orb     | clahe / homography            | 80    | 68.8         | 0.127             | 0.705        | 2511          | 132  |
-| E1          | sift    | clahe / homography            | 80    | 82.5         | 0.047             | 0.873        | 1497          | 453  |
-| E2          | loftr   | sauvola / similarity          | 3     | 100.0        | 0.449             | 0.291        | 549           | 3961 |
-| E2          | orb     | sauvola+chiusura / similarity | 10    | 90.0         | 0.362             | 0.049        | 743           | 104  |
-| E2          | sift    | sauvola / affine              | 10    | 40.0         | 1.096             | 0.07         | 146           | 483  |
+| E1          | loftr   | none / homography             | 80    | 42.5         | 0.053             | 0.622        | 1033          | 3703 |
+| E1          | orb     | clahe / homography            | 80    | 68.8         | 0.127             | 0.705        | 2511          | 112  |
+| E1          | sift    | clahe / homography            | 80    | 82.5         | 0.047             | 0.873        | 1497          | 368  |
+| E2          | loftr   | sauvola / similarity          | 10    | 90.0         | 0.435             | 0.288        | 385           | 3295 |
+| E2          | orb     | sauvola+chiusura / similarity | 10    | 90.0         | 0.362             | 0.049        | 743           | 88   |
+| E2          | sift    | sauvola / affine              | 10    | 40.0         | 1.096             | 0.07         | 146           | 387  |
 
 
 ![Confronto classico/neurale](../results/figures/m9_e3_confronto.png)
