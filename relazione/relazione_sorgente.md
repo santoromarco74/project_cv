@@ -1,7 +1,7 @@
 # Registrazione di mappe catastali storiche su cartografia moderna
 
 **Progetto d'esame di Computer Vision — Università di Pavia**
-Caso di studio: Comune di Varazze, foglio 49 (`L675_004900`), Originale di Impianto dell'Agenzia delle Entrate.
+Caso di studio: Comune di Varazze (SV), foglio 49 (`L675_004900`), Originale di Impianto dell'Agenzia delle Entrate.
 
 > Questo documento è generato da `scripts/componi_relazione.py`: tutte le tabelle
 > sono aggregazioni di `results/runs.csv` calcolate al momento della
@@ -57,10 +57,7 @@ sono tre lezioni distinte. Qui sotto, dove il progetto tocca il corso.
 | CV06 | pattern recognition e ricerca visiva | la ricerca di corrispondenze fra le due immagini (§7.1) |
 | CV08 | analisi di regioni, componenti connesse | `rimuovi_componenti` in `preprocess.py`, che elimina le macchie più piccole di una soglia |
 
-Tre precisazioni, per non attribuirsi più di quanto ci sia.
-
-La morfologia usata è quella **binaria** di CV04: l'estensione ai toni di grigio
-di CV05 non serve, perché a valle della binarizzazione l'immagine è già a due
+La morfologia usata è quella **binaria** di CV04: l'estensione ai toni di grigio di CV05 non serve, perché a valle della binarizzazione l'immagine è già a due
 livelli. L'analisi di componenti connesse di CV08 è implementata ma **resta
 fuori dalla griglia sperimentale**: eliminare le macchie piccole toglie anche i
 blob su cui SIFT trova i suoi punti, e misurare quel compromesso avrebbe
@@ -69,18 +66,7 @@ progetto sfrutta solo l'invarianza di scala di SIFT — che nasce dalla piramide
 di gaussiane e dalla loro differenza, cioè dal laplaciano approssimato (§7.1) —
 senza svilupparne il tema per proprio conto.
 
-Il corso tratta inoltre fotometria, compressione, visione tridimensionale e
-sintesi di immagini, che qui non compaiono: la traccia chiede la soluzione di
-*un* problema di visione, non una rassegna del programma.
-
 ### 1.2 Perché questi strumenti e non altri
-
-La traccia ammette esplicitamente «opencv, mathlab, Image magick», e distingue
-fra l'implementazione di un algoritmo e la soluzione di un problema con
-librerie standard. Ma un elenco di strumenti permessi non è una motivazione, e
-"lo consente la traccia" non spiega perché in griglia ci siano proprio questi
-metodi. Ognuno risponde a una domanda del progetto — e più di uno è in griglia
-proprio perché ci si aspettava che perdesse.
 
 **Python e OpenCV, non MATLAB né ImageMagick.** *ImageMagick* saprebbe fare
 tutto il capitolo §6 — soglia globale, soglia adattiva locale, morfologia,
@@ -119,7 +105,7 @@ griglia non ci sarebbe stato niente da smentire.
 **Sauvola, non Niblack né la soglia adattiva già pronta.** Niblack, il
 capostipite delle soglie locali, calcola `T = m + k·s`: dove la carta è
 uniforme `s` è piccolo per definizione, la soglia resta incollata alla media
-locale, e sogliare sul valor medio del rumore significa per costruzione
+locale, e avere una soglia sul valor medio del rumore significa per costruzione
 promuoverne metà a inchiostro. Su un foglio d'archivio, che è quasi tutto fondo
 uniforme, è il difetto peggiore possibile.
 
@@ -360,14 +346,14 @@ Entrate si ottengono, per il foglio 49 di Varazze:
 | `L675_004900.cxf` | cartografia **vigente** in formato vettoriale, stesso sistema |
 
 Raster e vettoriale sono entrambi in **Cassini-Soldner zona G0007, origine Forte
-Diamante**. Non è un EPSG standard e non serve riproiettare nulla: le coordinate
-dei due file sono già confrontabili. Il progetto non usa `pyproj` né `geopandas`.
+Diamante**. Non è un EPSG (sistema di coordinate geografiche) standard  e non serve riproiettare nulla: le coordinate
+dei due file sono già confrontabili.
 
-Vale la pena essere espliciti sulla differenza fra `.cxf` e `.jgw`, perché il
-nome fa pensare a due varianti dello stesso tipo di file, e non lo sono. Il CXF
-**è** un contenuto: un elenco di coordinate che disegnano i confini delle
+E' necessario chiarire subito la differenza fra `.cxf` e `.jgw`, perché il
+nome fa pensare a due varianti dello stesso tipo di file, e non lo sono. Il **CXF è**  un contenuto: un elenco di coordinate che disegnano i confini delle
 particelle, cioè la mappa moderna stessa scritta come numeri invece che come
-disegno. Il JGW **non è** un contenuto, ma un'istruzione di conversione:
+disegno.
+Il **JGW non è** un contenuto, ma un'istruzione di conversione:
 soli sei numeri, che dicono a quale coordinata reale sul terreno corrisponde
 il pixel in alto a sinistra della scansione e quanti metri misura il lato di
 un pixel — non contiene nessun confine, nessuna particella. Senza il JGW la
@@ -470,18 +456,22 @@ Rasterizzando il CXF su una griglia di cui conosciamo, allo stesso modo, il
 legame fra pixel e coordinate, si ottengono due trasformazioni note, e la trasformazione di riferimento è la loro
 composizione:
 
-```
-H_true = W_moderno⁻¹ ∘ W_storico
-```
+$$
+ H_{true} = \frac{W_{storico}}{W_{moderno}}
+$$
 
 **Non è stato annotato un solo punto di controllo a mano.** La ground truth è
 analitica, esatta per costruzione, e `evaluate.py` la usa per produrre l'RMSE in
 metri su una griglia regolare di checkpoint nell'immagine storica (10×10 punti,
 bordi esclusi):
 
-```
-RMSE_m = √( media( ‖H_est·p − H_true·p‖² ) ) × risoluzione della griglia d'arrivo
-```
+$$
+e_i= \left\|  H_{est}*p_i - H_{true}*p_i\right\|_2 
+$$
+$$
+RMSE_m = \sqrt{\frac{1}{N}\sum_{i=1}^{N} e_i^2}  * 0.254453
+$$
+
 
 cioè: si applicano entrambe le trasformazioni — quella stimata e quella vera —
 agli stessi 100 punti, si misura di quanto le due risposte divergono, e si
@@ -500,8 +490,8 @@ entrambi i casi gonfierebbe ogni RMSE cross-domain di 0.254453/0.20 = 1.272265
 volte, e la cifra che ne esce non sarebbe né metri né pixel dello storico.
 
 La correttezza della composizione di `H_true` è verificata da un test: un
-punto trasformato avanti e indietro torna su sé stesso entro **1.1e-13 px**,
-contro la soglia dichiarata di 1e-9.
+punto trasformato avanti e indietro torna su sé stesso entro $\mathbf{1.1 \cdot 10^{-13}} px$,
+contro la soglia dichiarata di $\mathbf{10^{-9}} px$.
 
 ### 4.1 L'incertezza del riferimento, dichiarata
 
@@ -626,9 +616,9 @@ soglia sola non può andare bene ovunque.
 **Sauvola — una soglia diversa per ogni zona.** Per ogni pixel guarda solo un
 quadratino di 25×25 pixel attorno a sé e calcola lì la sua soglia, con la formula
 
-```
-T = m · [1 + k · (s/R − 1)]        m = media locale, s = deviazione locale
-```
+$$
+T = m · [1 + k · (s/R − 1)] $$
+con `m` = media locale, `s` = deviazione locale
 
 Dove la carta è uniforme, `s` è piccola e la soglia si abbassa, così le
 irregolarità di fondo non vengono scambiate per tratto. Dove c'è disegno, `s`
