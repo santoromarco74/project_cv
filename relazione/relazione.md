@@ -265,10 +265,10 @@ algebrica la trasformazione **esatta**, senza doverne indovinare nemmeno un
 pezzo.
 
 Quindi la risposta giusta la conosciamo già, e possiamo dire di **quanti metri**
-il programma ha sbagliato. Nell'esempio della figura: 0.50 m — cioè esattamente
-al livello dell'incertezza del riferimento stesso, che di suo vale circa mezzo
-metro. La registrazione è buona quanto questa ground truth consente di
-misurare.
+il programma ha sbagliato. Nell'esempio della figura: 0.40 m — sotto
+l'incertezza del riferimento stesso, che di suo vale circa mezzo metro. Più in
+là di così non si può andare: la registrazione è buona quanto questa ground
+truth consente di misurare.
 
 **Il programma che stima non vede quei sei numeri.** Li vede solo il codice che
 corregge. È una separazione imposta per costruzione (§4.2): se l'informazione
@@ -472,29 +472,20 @@ analitica, esatta per costruzione, e `evaluate.py` la usa per produrre l'RMSE in
 metri su una griglia regolare di checkpoint nell'immagine storica (10×10 punti,
 bordi esclusi):
 
-$$
-e_i= \left\|  H_{est}*p_i - H_{true}*p_i\right\|_2 
-$$
-$$
-RMSE_m = \sqrt{\frac{1}{N}\sum_{i=1}^{N} e_i^2}  * 0.254453
-$$
+$$e_i = \left\lVert H_{est}\cdot p_i - H_{true}\cdot p_i \right\rVert_2$$
 
+$$\mathrm{RMSE}_m = \sqrt{\frac{1}{N}\sum_{i=1}^{N} e_i^2} \;\cdot\; r_{\mathrm{dest}}$$
+
+dove $N = 100$ sono i checkpoint e $r_{\mathrm{dest}}$ è la risoluzione in metri
+per pixel della griglia di arrivo: 0.254453 m/px in E1, dove la coppia è il
+ritaglio contro se stesso trasformato, e 0.20 m/px in E2, dove l'arrivo è il
+raster del vettoriale (§9.1).
 
 cioè: si applicano entrambe le trasformazioni — quella stimata e quella vera —
 agli stessi 100 punti, si misura di quanto le due risposte divergono, e si
 converte in metri. È l'unico numero su cui si giudica l'intera pipeline: ogni
 tabella dei capitoli successivi è, in ultima analisi, un'aggregazione di questa
 formula su configurazioni diverse.
-
-Il fattore di conversione merita una precisazione, perché è il punto in cui è
-facile sbagliare. Le due trasformazioni portano i checkpoint **fuori**
-dall'immagine storica: la loro differenza si misura nella griglia di arrivo, e
-la risoluzione da applicare è quella. In E1 la coppia è il ritaglio contro se
-stesso trasformato, partenza e arrivo coincidono, e il fattore è i 0.254453 m/px
-della scansione. In E2 no: il raster del vettoriale ha griglia propria a 0.20
-m/px (§9.1), quindi il fattore è 0.20. Usare la risoluzione della scansione in
-entrambi i casi gonfierebbe ogni RMSE cross-domain di 0.254453/0.20 = 1.272265
-volte, e la cifra che ne esce non sarebbe né metri né pixel dello storico.
 
 La correttezza della composizione di `H_true` è verificata da un test: un
 punto trasformato avanti e indietro torna su sé stesso entro $\mathbf{1.1 \cdot 10^{-13}} px$,
@@ -623,8 +614,7 @@ soglia sola non può andare bene ovunque.
 **Sauvola — una soglia diversa per ogni zona.** Per ogni pixel guarda solo un
 quadratino di 25×25 pixel attorno a sé e calcola lì la sua soglia, con la formula
 
-$$
-T = m · [1 + k · (s/R − 1)] $$
+$$T = m · [1 + k · (s/R − 1)] $$
 con `m` = media locale, `s` = deviazione locale
 
 Dove la carta è uniforme, `s` è piccola e la soglia si abbassa, così le
@@ -651,7 +641,7 @@ progetto (§6.2 e §9).
 **Le domande sperimentali sono due, e sono indipendenti.** Otsu contro Sauvola
 confronta *soglia globale contro soglia locale*. {Otsu, Sauvola} contro CLAHE
 confronta invece *binarizzare contro non binarizzare*, che è un asse a sé: anche
-CLAHE lavora zona per zona, quindi non è "il globale che torna in gioco", e la
+CLAHE lavora zona per zona, e la
 ragione per provarlo non è l'illuminazione ma la perdita delle sfumature su cui
 SIFT costruisce il descrittore.
 
@@ -813,9 +803,7 @@ si usa il **ratio test di Lowe**: per ogni punto si guardano i *due* candidati
 migliori nell'altra immagine, `d1` (distanza dal più simile) e `d2` (distanza dal
 secondo più simile), e l'abbinamento si accetta solo se
 
-```
-d1 < 0.75 · d2
-```
+$$d1 < 0.75 · d2$$
 
 cioè se il migliore è nettamente più vicino del secondo, non di poco. L'idea è
 che se i due candidati migliori si somigliano fra loro (`d1` e `d2` vicini),
@@ -888,9 +876,8 @@ candidata al punto di partenza, si misura quanto lontano cade dal suo compagno,
 e la coppia si tiene se quella distanza sta sotto una soglia — **3 pixel**, il
 valore di `--ransac-thresh`.
 
-```
-‖H·a − b‖ < 3 px   →   la coppia è un inlier
-```
+$$ \left\| H\cdot a - b\right\|<3 \ px$$
+dove  la coppia è un inlier
 
 **La famiglia entra nei primi due passi, non nel terzo.** Decide quante
 corrispondenze servono per costruire un candidato e che forme quel candidato
@@ -912,9 +899,9 @@ Resta la domanda su **quante** iterazioni servano perché prima o poi capiti un
 campione fatto di corrispondenze tutte corrette. Detta `w` la frazione di
 corrispondenze corrette e `p` la sicurezza voluta (qui 0.995):
 
-```
-k ≥ ln(1 − p) / ln(1 − w^s)
-```
+
+$$k ≥ ln(1 − p) / ln(1 − w^s)$$
+
 
 Questa è un **budget di tentativi**, non un criterio di selezione: non giudica
 nessuna coppia. E non è valutabile in anticipo, perché `w` è precisamente ciò
@@ -993,21 +980,20 @@ bianca non è più bianca: la scala di grigi si dimezza, con sopra rumore e
 sfocatura. A **1.5** ne resta un quarto, e il rumore da solo ne copre metà — è
 lì che i matcher cedono (§8.2).
 
-Due precisazioni: la degradazione è **solo radiometrica** — agisce sui toni di
-grigio e non tocca la geometria, che resta un asse indipendente — e si applica
+Due precisazioni: la degradazione agisce sui toni di grigio e non tocca la geometria, che resta un asse indipendente — e si applica
 a **una sola** delle due immagini. La coppia è quindi asimmetrica: riferimento
 pulito contro scansione rovinata, che è la stessa asimmetria di E2, ma qui con
 ground truth esatta e livello di degrado noto.
 
 | matcher | preprocess | prove | successo_pct | rmse_px_mediano_ok | rmse_px_max_ok | inlier_ratio | match_medi | t_ms |
 |---------|------------|-------|--------------|--------------------|----------------|--------------|------------|------|
-| loftr   | none       | 80    | 42.5         | 0.208              | 0.963          | 0.619        | 1909       | 3886 |
-| orb     | clahe      | 80    | 68.8         | 0.499              | 1.0            | 0.619        | 2503       | 114  |
+| loftr   | none       | 80    | 42.5         | 0.208              | 0.963          | 0.619        | 1909       | 3954 |
+| orb     | clahe      | 80    | 68.8         | 0.499              | 1.0            | 0.619        | 2503       | 116  |
 | orb     | none       | 80    | 67.5         | 0.438              | 0.999          | 0.608        | 2377       | 107  |
-| orb     | sauvola    | 80    | 55.0         | 0.479              | 0.995          | 0.486        | 1945       | 99   |
-| sift    | clahe      | 80    | 82.5         | 0.186              | 0.927          | 0.752        | 2289       | 373  |
-| sift    | none       | 80    | 80.0         | 0.182              | 0.969          | 0.691        | 1709       | 329  |
-| sift    | sauvola    | 80    | 73.8         | 0.206              | 0.927          | 0.614        | 974        | 368  |
+| orb     | sauvola    | 80    | 55.0         | 0.479              | 0.995          | 0.486        | 1945       | 103  |
+| sift    | clahe      | 80    | 82.5         | 0.186              | 0.927          | 0.752        | 2289       | 377  |
+| sift    | none       | 80    | 80.0         | 0.182              | 0.969          | 0.691        | 1709       | 323  |
+| sift    | sauvola    | 80    | 73.8         | 0.206              | 0.927          | 0.614        | 974        | 371  |
 
 
 ![RMSE contro degradazione](../results/figures/m6_rmse_vs_degradazione.png)
@@ -1029,22 +1015,20 @@ trasformazione geometrica — la carta è identica in tutte le prove — quindi 
 fallimenti sono **geometrici e non radiometrici**.
 
 Scomponendo per ampiezza della rotazione si vede esattamente dove, e il quadro
-è netto (RMSE mediano in pixel, a degradazione nulla e senza preprocessing):
+è netto (RMSE mediano in pixel, senza preprocessing):
 
 | matcher | 0° | 5° | 15° | 30° | 45° | 90° |
 |---|---|---|---|---|---|---|
-| SIFT | 0.000 | 0.033 | 0.110 | 0.181 | 0.270 | 0.500 |
-| ORB | 0.000 | 0.216 | 0.413 | 0.378 | 0.452 | 0.446 |
-| LoFTR | 0.030 | 0.073 | 0.201 | **1.270** | **1745** | **8715** |
+| SIFT | 0.000 | 0.033 | 0.252 | 0.181 | 0.270 | 0.500 |
+| ORB | 0.000 | 0.216 | 0.891 | 0.378 | 0.452 | 0.446 |
+| LoFTR | 0.030 | 0.073 | **1.100** | **1.270** | **1745** | **8715** |
 
-Per SIFT l'errore cresce in modo monotòno e resta sotto il pixel fino a 90°;
-ORB oscilla di qualche centesimo ma non supera il mezzo pixel. In entrambi i
-casi è il costo dell'interpolazione del warp e della quantizzazione
-dell'orientamento dei descrittori, non un difetto. **LoFTR resta sub-pixel fino
-a 15° (0.201), supera il pixel a 30° e poi si rompe**: fra 30° e 45° l'errore
-mediano passa da 1.270 a circa 1745 pixel, e a 90° arriva a circa 8715. Il
-punto di rottura è quindi localizzato fra 30° e 45°, non più precisamente: le
-sei ampiezze provate non campionano quell'intervallo.
+Per SIFT e ORB l'errore cresce e oscilla con la rotazione ma resta sotto il
+pixel fino a 90°: è il costo dell'interpolazione del warp e della
+quantizzazione dell'orientamento dei descrittori, non un difetto. **LoFTR
+invece supera già il pixel a 15°, resta dello stesso ordine di grandezza fino
+a 30° e poi si rompe**: a 45° l'errore mediano è di circa 1745 pixel, a 90° di
+circa 8715.
 
 È il limite più netto emerso da E1, e ha una spiegazione strutturale. SIFT e ORB
 stimano un orientamento dominante per ogni keypoint e ruotano il descrittore di
@@ -1125,44 +1109,44 @@ indirette di allineamento producono falsi positivi convincenti.
 
 | matcher | preprocess       | modello    | prove | successo_pct | rmse_m_mediano | rmse_m_minimo | inlier_ratio | match_mediani |
 |---------|------------------|------------|-------|--------------|----------------|---------------|--------------|---------------|
-| loftr   | clahe            | affine     | 10    | 0.0          | 722.91         | 125.203       | 0.464        | 6             |
-| loftr   | clahe            | homography | 10    | 0.0          | 325.19         | 152.009       | 0.619        | 6             |
-| loftr   | clahe            | similarity | 10    | 0.0          | 240.62         | 170.471       | 0.31         | 6             |
-| loftr   | sauvola          | affine     | 10    | 80.0         | 0.77           | 0.445         | 0.275        | 385           |
-| loftr   | sauvola          | homography | 10    | 70.0         | 1.02           | 0.625         | 0.273        | 385           |
-| loftr   | sauvola          | similarity | 10    | 90.0         | 0.44           | 0.171         | 0.288        | 385           |
-| loftr   | sauvola+chiusura | affine     | 10    | 80.0         | 0.63           | 0.443         | 0.288        | 390           |
-| loftr   | sauvola+chiusura | homography | 10    | 70.0         | 1.16           | 0.472         | 0.279        | 390           |
-| loftr   | sauvola+chiusura | similarity | 10    | 90.0         | 0.53           | 0.326         | 0.278        | 390           |
-| orb     | clahe            | affine     | 10    | 0.0          | 105.81         | 25.621        | 0.009        | 777           |
-| orb     | clahe            | homography | 10    | 0.0          | 168.08         | 3.12          | 0.012        | 777           |
-| orb     | clahe            | similarity | 10    | 60.0         | 0.82           | 0.267         | 0.016        | 777           |
-| orb     | sauvola          | affine     | 10    | 60.0         | 1.49           | 0.313         | 0.034        | 752           |
-| orb     | sauvola          | homography | 10    | 40.0         | 2.96           | 0.707         | 0.022        | 752           |
-| orb     | sauvola          | similarity | 10    | 90.0         | 0.48           | 0.282         | 0.049        | 752           |
-| orb     | sauvola+chiusura | affine     | 10    | 50.0         | 3.52           | 0.286         | 0.032        | 743           |
-| orb     | sauvola+chiusura | homography | 10    | 20.0         | 17.04          | 0.91          | 0.022        | 743           |
-| orb     | sauvola+chiusura | similarity | 10    | 90.0         | 0.42           | 0.21          | 0.049        | 743           |
-| sift    | clahe            | affine     | 10    | 0.0          | 269.84         | 178.276       | 0.09         | 82            |
-| sift    | clahe            | homography | 10    | 0.0          | 169.98         | 139.389       | 0.243        | 82            |
-| sift    | clahe            | similarity | 10    | 0.0          | 170.43         | 138.388       | 0.268        | 82            |
-| sift    | sauvola          | affine     | 10    | 40.0         | 85.03          | 0.303         | 0.07         | 146           |
-| sift    | sauvola          | homography | 10    | 10.0         | 167.15         | 0.394         | 0.13         | 146           |
-| sift    | sauvola          | similarity | 10    | 20.0         | 163.35         | 0.228         | 0.105        | 146           |
-| sift    | sauvola+chiusura | affine     | 10    | 10.0         | 138.13         | 1.22          | 0.078        | 130           |
-| sift    | sauvola+chiusura | homography | 10    | 0.0          | 156.31         | 8.916         | 0.117        | 130           |
-| sift    | sauvola+chiusura | similarity | 10    | 30.0         | 151.06         | 0.409         | 0.084        | 130           |
+| loftr   | clahe            | affine     | 10    | 0.0          | 568.2          | 98.409        | 0.464        | 6             |
+| loftr   | clahe            | homography | 10    | 0.0          | 255.6          | 119.479       | 0.619        | 6             |
+| loftr   | clahe            | similarity | 10    | 0.0          | 189.12         | 133.99        | 0.31         | 6             |
+| loftr   | sauvola          | affine     | 10    | 80.0         | 0.6            | 0.35          | 0.275        | 385           |
+| loftr   | sauvola          | homography | 10    | 70.0         | 0.8            | 0.491         | 0.273        | 385           |
+| loftr   | sauvola          | similarity | 10    | 90.0         | 0.35           | 0.134         | 0.288        | 385           |
+| loftr   | sauvola+chiusura | affine     | 10    | 80.0         | 0.49           | 0.348         | 0.288        | 390           |
+| loftr   | sauvola+chiusura | homography | 10    | 80.0         | 0.91           | 0.371         | 0.279        | 390           |
+| loftr   | sauvola+chiusura | similarity | 10    | 90.0         | 0.42           | 0.257         | 0.278        | 390           |
+| orb     | clahe            | affine     | 10    | 0.0          | 83.17          | 20.138        | 0.009        | 777           |
+| orb     | clahe            | homography | 10    | 0.0          | 132.11         | 2.453         | 0.012        | 777           |
+| orb     | clahe            | similarity | 10    | 60.0         | 0.65           | 0.21          | 0.016        | 777           |
+| orb     | sauvola          | affine     | 10    | 70.0         | 1.17           | 0.246         | 0.034        | 752           |
+| orb     | sauvola          | homography | 10    | 50.0         | 2.33           | 0.555         | 0.022        | 752           |
+| orb     | sauvola          | similarity | 10    | 90.0         | 0.38           | 0.222         | 0.049        | 752           |
+| orb     | sauvola+chiusura | affine     | 10    | 50.0         | 2.76           | 0.225         | 0.032        | 743           |
+| orb     | sauvola+chiusura | homography | 10    | 30.0         | 13.4           | 0.715         | 0.022        | 743           |
+| orb     | sauvola+chiusura | similarity | 10    | 90.0         | 0.33           | 0.165         | 0.049        | 743           |
+| sift    | clahe            | affine     | 10    | 0.0          | 212.1          | 140.125       | 0.09         | 82            |
+| sift    | clahe            | homography | 10    | 0.0          | 133.6          | 109.56        | 0.243        | 82            |
+| sift    | clahe            | similarity | 10    | 0.0          | 133.96         | 108.773       | 0.268        | 82            |
+| sift    | sauvola          | affine     | 10    | 40.0         | 66.83          | 0.238         | 0.07         | 146           |
+| sift    | sauvola          | homography | 10    | 10.0         | 131.38         | 0.31          | 0.13         | 146           |
+| sift    | sauvola          | similarity | 10    | 20.0         | 128.39         | 0.179         | 0.105        | 146           |
+| sift    | sauvola+chiusura | affine     | 10    | 10.0         | 108.57         | 0.959         | 0.078        | 130           |
+| sift    | sauvola+chiusura | homography | 10    | 0.0          | 122.86         | 7.008         | 0.117        | 130           |
+| sift    | sauvola+chiusura | similarity | 10    | 30.0         | 118.73         | 0.322         | 0.084        | 130           |
 
 
 Sulle 180 prove classiche — SIFT e ORB; le 90 righe LoFTR della tabella sono
-taggate anch'esse `E2` nel CSV, ma si commentano a parte in §10 — 50 raggiungono
+taggate anch'esse `E2` nel CSV, ma si commentano a parte in §10 — 55 raggiungono
 un RMSE sotto i 2 m.
 **Il cross-domain non fallisce del tutto**, ma il quadro ribalta E1 su ogni asse.
 
 **La migliore combinazione è ORB + Sauvola con chiusura + similarità: 90% di
-successo, RMSE mediano 0.42 m.** È *sotto* il pavimento del riferimento: la
+successo, RMSE mediano 0.33 m.** È *sotto* il pavimento del riferimento: la
 registrazione è buona quanto questa ground truth consente di misurare. Anche
-Sauvola senza chiusura raggiunge il 90%, con errore mediano 0.48 m: a decidere
+Sauvola senza chiusura raggiunge il 90%, con errore mediano 0.38 m: a decidere
 non è la chiusura, è la coppia binarizzazione più modello vincolato.
 
 ![Verifica a piena risoluzione](../results/figures/m8_verifica_ribba.png)
@@ -1180,15 +1164,15 @@ sia semplicemente troppo severo. **È stata verificata, ed è falsa:**
 
 | ratio | match_mediani | inlier_mediani | inlier_ratio | rmse_m_mediano | riuscite |
 |-------|---------------|----------------|--------------|----------------|----------|
-| 0.75  | 168           | 11             | 0.1089       | 172.2          | 1/5      |
-| 0.85  | 544           | 43             | 0.0773       | 172.2          | 0/5      |
-| 0.95  | 1764          | 106            | 0.0641       | 163.6          | 0/5      |
-| 0.99  | 3191          | 155            | 0.057        | 163.9          | 0/5      |
+| 0.75  | 168           | 11             | 0.1089       | 135.4          | 1/5      |
+| 0.85  | 544           | 43             | 0.0773       | 135.4          | 0/5      |
+| 0.95  | 1764          | 106            | 0.0641       | 128.6          | 0/5      |
+| 0.99  | 3191          | 155            | 0.057        | 128.8          | 0/5      |
 
 
 Allentando il ratio fino a 0.99 le corrispondenze passano da ~100 a ~2500, ma
 l'RMSE resta a centinaia di metri, e su un ritaglio peggiora addirittura da
-0.64 m a 163 m. **I match aggiuntivi non contengono segnale**: sono rumore che
+0.50 m a 129 m. **I match aggiuntivi non contengono segnale**: sono rumore che
 sposta il consenso di RANSAC su un modello sbagliato. Il limite di SIFT su questi
 dati è nei descrittori, non nel filtro che li seleziona — che è una conclusione
 diversa, e più forte.
@@ -1197,16 +1181,16 @@ diversa, e più forte.
 
 | fattore            | valore     | prove | successo_pct | rmse_m_mediano | inlier_ratio |
 |--------------------|------------|-------|--------------|----------------|--------------|
-| modello geometrico | affine     | 90    | 35.6         | 35.68          | 0.076        |
-| modello geometrico | homography | 90    | 23.3         | 138.89         | 0.135        |
-| modello geometrico | similarity | 90    | 52.2         | 1.12           | 0.11         |
-| codici CXF         | 18         | 135   | 32.6         | 64.54          | 0.106        |
-| codici CXF         | 18+12      | 135   | 41.5         | 35.68          | 0.104        |
+| modello geometrico | affine     | 90    | 36.7         | 28.04          | 0.076        |
+| modello geometrico | homography | 90    | 26.7         | 109.17         | 0.135        |
+| modello geometrico | similarity | 90    | 52.2         | 0.88           | 0.11         |
+| codici CXF         | 18         | 135   | 34.8         | 50.73          | 0.106        |
+| codici CXF         | 18+12      | 135   | 42.2         | 28.04          | 0.104        |
 
 
 Sugli stessi identici insiemi di corrispondenze, il modello geometrico cambia
 tutto: la **similarità** (4 gradi di libertà) riesce nel 52% delle prove,
-l'affine nel 36%, l'**omografia** (8 gradi) nel 23%. Con inlier ratio bassi —
+l'affine nel 37%, l'**omografia** (8 gradi) nel 27%. Con inlier ratio bassi —
 sotto il 5% per ORB, attorno al 10% per SIFT — più gradi di libertà significano
 più modi di accordarsi con gli outlier: RANSAC trova un consenso, ma quello
 sbagliato.
@@ -1216,38 +1200,38 @@ le due griglie risoluzioni diverse, `H_true` è una similarità vera con fattore
 di scala 1.272265. I 2 gradi di libertà in più dell'affine e i 4 dell'omografia
 non servono a rappresentarla. La tabella non sta quindi misurando quale modello
 descriva meglio i dati, ma **il costo di concedere allo stimatore più libertà
-di quanta la verità ne richieda**: 29 punti di tasso di successo per
+di quanta la verità ne richieda**: 26 punti di tasso di successo per
 l'omografia. Si potrebbe obiettare che la deformazione residua della carta
 giustifichi i gradi di libertà dell'affine, ma la misura dice che non li
-ripaga — l'affine perde 17 punti invece di guadagnarne.
+ripaga — l'affine perde 16 punti invece di guadagnarne.
 
 È il risultato più trasferibile dell'intero lavoro: **su dati cross-domain con
 inlier ratio bassi, il modello più vincolato non è una semplificazione, è una
 necessità.**
 
 La tabella mostra anche l'esito dell'ablazione sui codici CXF: rasterizzare
-**particelle + acque/strade** (18+12) batte le sole particelle (18), 41% contro
-33% di successo. Le strade e i corsi d'acqua aggiungono struttura proprio dove
+**particelle + acque/strade** (18+12) batte le sole particelle (18), 42% contro
+35% di successo. Le strade e i corsi d'acqua aggiungono struttura proprio dove
 il tratto storico è più marcato.
 
 ### 9.5 I ritagli non sono equivalenti
 
 | crop      | codici | n_matches | inlier_ratio | rmse_m | success |
 |-----------|--------|-----------|--------------|--------|---------|
-| aspera    | 18     | 664       | 0.009036     | 99.614 | False   |
-| aspera    | 18+12  | 766       | 0.011749     | 0.656  | True    |
-| cannei    | 18     | 727       | 0.060523     | 0.473  | True    |
-| cannei    | 18+12  | 836       | 0.077751     | 0.282  | True    |
-| ribba     | 18     | 739       | 0.071719     | 0.484  | True    |
-| ribba     | 18+12  | 856       | 0.060748     | 0.503  | True    |
-| tassarole | 18     | 671       | 0.04769      | 1.593  | True    |
-| tassarole | 18+12  | 792       | 0.04798      | 0.473  | True    |
-| vedra     | 18     | 613       | 0.050571     | 0.405  | True    |
-| vedra     | 18+12  | 808       | 0.048267     | 0.397  | True    |
+| aspera    | 18     | 664       | 0.009036     | 78.296 | False   |
+| aspera    | 18+12  | 766       | 0.011749     | 0.516  | True    |
+| cannei    | 18     | 727       | 0.060523     | 0.372  | True    |
+| cannei    | 18+12  | 836       | 0.077751     | 0.222  | True    |
+| ribba     | 18     | 739       | 0.071719     | 0.38   | True    |
+| ribba     | 18+12  | 856       | 0.060748     | 0.396  | True    |
+| tassarole | 18     | 671       | 0.04769      | 1.252  | True    |
+| tassarole | 18+12  | 792       | 0.04798      | 0.371  | True    |
+| vedra     | 18     | 613       | 0.050571     | 0.318  | True    |
+| vedra     | 18+12  | 808       | 0.048267     | 0.312  | True    |
 
 
-Un caso è istruttivo: **`aspera` fallisce con le sole particelle (99.6 m) e
-riesce includendo acque e strade (0.66 m)**. È il ritaglio che tocca la costa,
+Un caso è istruttivo: **`aspera` fallisce con le sole particelle (78.3 m) e
+riesce includendo acque e strade (0.52 m)**. È il ritaglio che tocca la costa,
 dove buona parte del contenuto sono la linea di riva e i corsi d'acqua: senza il
 codice 12 il vettoriale è quasi vuoto proprio dove l'impianto ha il tratto. La
 stessa configurazione ha anche l'inlier ratio più basso fra tutte le prove
@@ -1263,12 +1247,12 @@ di `--matcher`. Stessi ritagli, stesse metriche, stesse soglie.
 
 | esperimento | matcher | config                        | prove | successo_pct | rmse_m_mediano_ok | inlier_ratio | match_mediani | t_ms |
 |-------------|---------|-------------------------------|-------|--------------|-------------------|--------------|---------------|------|
-| E1          | loftr   | none / homography             | 80    | 42.5         | 0.053             | 0.622        | 1033          | 3703 |
-| E1          | orb     | clahe / homography            | 80    | 68.8         | 0.127             | 0.705        | 2511          | 112  |
-| E1          | sift    | clahe / homography            | 80    | 82.5         | 0.047             | 0.873        | 1497          | 368  |
-| E2          | loftr   | sauvola / similarity          | 10    | 90.0         | 0.435             | 0.288        | 385           | 3295 |
-| E2          | orb     | sauvola+chiusura / similarity | 10    | 90.0         | 0.362             | 0.049        | 743           | 88   |
-| E2          | sift    | sauvola / affine              | 10    | 40.0         | 1.096             | 0.07         | 146           | 387  |
+| E1          | loftr   | none / homography             | 80    | 42.5         | 0.053             | 0.622        | 1033          | 3875 |
+| E1          | orb     | clahe / homography            | 80    | 68.8         | 0.127             | 0.705        | 2511          | 114  |
+| E1          | sift    | clahe / homography            | 80    | 82.5         | 0.047             | 0.873        | 1497          | 378  |
+| E2          | loftr   | sauvola / similarity          | 10    | 90.0         | 0.342             | 0.288        | 385           | 3238 |
+| E2          | orb     | sauvola+chiusura / similarity | 10    | 90.0         | 0.284             | 0.049        | 743           | 87   |
+| E2          | sift    | sauvola / affine              | 10    | 40.0         | 0.861             | 0.07         | 146           | 362  |
 
 
 ![Confronto classico/neurale](../results/figures/m9_e3_confronto.png)
@@ -1292,7 +1276,7 @@ Il confronto è onesto solo se si dichiara ciò che non è simmetrico:
 ### 10.2 LoFTR non ribalta il cross-domain
 
 Sul tasso di successo LoFTR **pareggia** ORB (90%), con RMSE mediano peggiore
-(0.435 contro 0.362 m) e un tempo per registrazione di un ordine di grandezza
+(0.342 contro 0.284 m) e un tempo per registrazione di un ordine di grandezza
 superiore, che si legge nella colonna `t_ms`. La promessa del detector-free
 — funzionare dove i rilevatori a blob non hanno nulla da agganciare — **non si
 realizza su questi dati**.
@@ -1325,9 +1309,9 @@ di successo nasconde questa differenza.
 
 | preprocessing | corrispondenze mediane | successo | RMSE mediano |
 |---|---|---|---|
-| CLAHE | 6 | 0% | 241 – 723 m |
-| Sauvola | 385 | 70 – 90% | 0.44 – 1.02 m |
-| Sauvola + chiusura | 390 | 70 – 90% | 0.53 – 1.16 m |
+| CLAHE | 6 | 0% | 189 – 568 m |
+| Sauvola | 385 | 70 – 90% | 0.35 – 0.80 m |
+| Sauvola + chiusura | 390 | 80 – 90% | 0.42 – 0.91 m |
 
 Il vantaggio del pre-addestramento su immagini naturali **non sopravvive al
 divario di dominio**: a colmarlo è la binarizzazione, non la rete. È forse il
@@ -1518,24 +1502,13 @@ Il controllo delle precondizioni non è formalità. Gli esperimenti di E1 ed E3
 convertono l'errore in metri leggendo la risoluzione da un world file, e se
 nessuno è disponibile l'errore in metri resta indefinito per ogni riga:
 l'esperimento gira fino in fondo e conclude "0 riuscite". Si legge come un
-algoritmo che fallisce, ed è invece un file assente. È la stessa classe di falso
-positivo convincente di §12.2, e la difesa è verificare prima.
+algoritmo che fallisce, ed è invece un file assente, e la difesa è verificare prima.
 
 Il controllo è però **per fase**, e la distinzione conta proprio alla consegna.
 Le scansioni catastali non sono ridistribuibili, i ritagli sì: chi riceve il
 progetto senza `data/raw/` ha comunque in `data/crops/` i ritagli, i raster del
 vettoriale e i rispettivi world file. Solo `crop`, `cxf` e `rasterize` aprono
 le scansioni; le altre nove fasi no.
-
-E1 ed E3 rientrano fra le nove per una ragione che vale la pena dire, perché è
-un esempio di quanto poco serva davvero un dato quando si guarda a cosa se ne fa.
-Di quel world file i due esperimenti usano solo la risoluzione, cioè la parte
-lineare dell'affine; e il world file di un ritaglio, che §3.4 ottiene traslando
-l'origine, ha esattamente gli stessi coefficienti lineari del foglio. Ripiegare
-sul ritaglio non approssima nulla: rieseguendo la griglia di E1 nei due modi, le
-96 righe del CSV coincidono colonna per colonna, tempi esclusi. Pretendere
-l'intero corredo grezzo a ogni invocazione significherebbe rifiutarsi di rifare
-un esperimento su una macchina che ha già tutto il necessario per farlo.
 
 ---
 
@@ -1568,7 +1541,7 @@ inchiostro sparso ovunque (testi, simboli, tratteggi, grana, macchie) e la
 superficie di correlazione su disegni al tratto è piatta e multi-picco.
 
 Da qui la regola seguita in tutto il progetto: **l'unica metrica di valutazione è
-l'RMSE su checkpoint contro `H_true`**; ogni claim di allineamento si verifica a
+l'RMSE su checkpoint contro `H_true`**; ogni operazione di allineamento si verifica a
 piena risoluzione; ogni misura indiretta va accompagnata da una baseline casuale,
 e se il segnale non batte nettamente il caso, la misura si butta.
 
@@ -1617,10 +1590,10 @@ dove invece reggono meglio del previsto.
    di grandezza sotto il pavimento del riferimento.
 2. **La registrazione cross-domain riesce**, ma non con la configurazione che ci
    si aspetterebbe: ORB + Sauvola con chiusura + similarità raggiunge il 90% di
-   successo con RMSE mediano 0.42 m, al limite di ciò che questa ground truth
+   successo con RMSE mediano 0.33 m, al limite di ciò che questa ground truth
    può misurare.
 3. **Il modello geometrico conta più del matcher**: a parità di corrispondenze,
-   passare da omografia a similarità porta il successo dal 23% al 52%. Con inlier
+   passare da omografia a similarità porta il successo dal 27% al 52%. Con inlier
    ratio bassi, vincolare è necessario.
 4. **Il preprocessing conta più della rete**: su E2 è la binarizzazione di
    Sauvola a far funzionare tutti e tre i matcher, LoFTR incluso. Con CLAHE SIFT
