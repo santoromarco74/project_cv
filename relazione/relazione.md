@@ -1640,3 +1640,17 @@ dove invece reggono meglio del previsto.
 Un progetto che misura e spiega perché un metodo cede vale più di uno che mostra
 solo il caso riuscito. Qui i casi riusciti ci sono, e i punti di rottura sono
 documentati con lo stesso rigore.
+
+Resta la domanda di che cosa, di tutto questo, valga fuori dal foglio 49. Non i
+numeri: quelli descrivono questa carta, questa scala, questo vettoriale. Valgono
+le decisioni che li hanno prodotti — vincolare il modello geometrico quando
+l'inlier ratio è basso, ripulire il segnale con una soglia locale invece che
+globale, non credere a una misura indiretta che non batta nettamente una
+baseline casuale — e valgono perché sono state scelte confrontando alternative
+contro una verità esatta, non per plausibilità. È a questo che serve un insieme
+di validazione: decidere dove il riferimento c'è, per poter lavorare dove non
+c'è. Su una scansione d'archivio priva di world file quelle decisioni si
+trasferiscono immutate; quello che non si trasferisce è il criterio di
+accettazione, perché lì l'RMSE in metri non è calcolabile, e al suo posto resta
+l'ispezione a piena risoluzione — più lenta, meno conclusiva, e l'unica
+disponibile.
