@@ -265,10 +265,10 @@ algebrica la trasformazione **esatta**, senza doverne indovinare nemmeno un
 pezzo.
 
 Quindi la risposta giusta la conosciamo già, e possiamo dire di **quanti metri**
-il programma ha sbagliato. Nell'esempio della figura: 0.50 m — cioè esattamente
-al livello dell'incertezza del riferimento stesso, che di suo vale circa mezzo
-metro. La registrazione è buona quanto questa ground truth consente di
-misurare.
+il programma ha sbagliato. Nell'esempio della figura: 0.40 m — sotto
+l'incertezza del riferimento stesso, che di suo vale circa mezzo metro. Più in
+là di così non si può andare: la registrazione è buona quanto questa ground
+truth consente di misurare.
 
 **Il programma che stima non vede quei sei numeri.** Li vede solo il codice che
 corregge. È una separazione imposta per costruzione (§4.2): se l'informazione
@@ -1110,14 +1110,14 @@ indirette di allineamento producono falsi positivi convincenti.
 <!-- TABELLA: e2 -->
 
 Sulle 180 prove classiche — SIFT e ORB; le 90 righe LoFTR della tabella sono
-taggate anch'esse `E2` nel CSV, ma si commentano a parte in §10 — 50 raggiungono
+taggate anch'esse `E2` nel CSV, ma si commentano a parte in §10 — 55 raggiungono
 un RMSE sotto i 2 m.
 **Il cross-domain non fallisce del tutto**, ma il quadro ribalta E1 su ogni asse.
 
 **La migliore combinazione è ORB + Sauvola con chiusura + similarità: 90% di
-successo, RMSE mediano 0.42 m.** È *sotto* il pavimento del riferimento: la
+successo, RMSE mediano 0.33 m.** È *sotto* il pavimento del riferimento: la
 registrazione è buona quanto questa ground truth consente di misurare. Anche
-Sauvola senza chiusura raggiunge il 90%, con errore mediano 0.48 m: a decidere
+Sauvola senza chiusura raggiunge il 90%, con errore mediano 0.38 m: a decidere
 non è la chiusura, è la coppia binarizzazione più modello vincolato.
 
 ![Verifica a piena risoluzione](../results/figures/m8_verifica_ribba.png)
@@ -1137,7 +1137,7 @@ sia semplicemente troppo severo. **È stata verificata, ed è falsa:**
 
 Allentando il ratio fino a 0.99 le corrispondenze passano da ~100 a ~2500, ma
 l'RMSE resta a centinaia di metri, e su un ritaglio peggiora addirittura da
-0.64 m a 163 m. **I match aggiuntivi non contengono segnale**: sono rumore che
+0.50 m a 129 m. **I match aggiuntivi non contengono segnale**: sono rumore che
 sposta il consenso di RANSAC su un modello sbagliato. Il limite di SIFT su questi
 dati è nei descrittori, non nel filtro che li seleziona — che è una conclusione
 diversa, e più forte.
@@ -1148,7 +1148,7 @@ diversa, e più forte.
 
 Sugli stessi identici insiemi di corrispondenze, il modello geometrico cambia
 tutto: la **similarità** (4 gradi di libertà) riesce nel 52% delle prove,
-l'affine nel 36%, l'**omografia** (8 gradi) nel 23%. Con inlier ratio bassi —
+l'affine nel 37%, l'**omografia** (8 gradi) nel 27%. Con inlier ratio bassi —
 sotto il 5% per ORB, attorno al 10% per SIFT — più gradi di libertà significano
 più modi di accordarsi con gli outlier: RANSAC trova un consenso, ma quello
 sbagliato.
@@ -1158,26 +1158,26 @@ le due griglie risoluzioni diverse, `H_true` è una similarità vera con fattore
 di scala 1.272265. I 2 gradi di libertà in più dell'affine e i 4 dell'omografia
 non servono a rappresentarla. La tabella non sta quindi misurando quale modello
 descriva meglio i dati, ma **il costo di concedere allo stimatore più libertà
-di quanta la verità ne richieda**: 29 punti di tasso di successo per
+di quanta la verità ne richieda**: 26 punti di tasso di successo per
 l'omografia. Si potrebbe obiettare che la deformazione residua della carta
 giustifichi i gradi di libertà dell'affine, ma la misura dice che non li
-ripaga — l'affine perde 17 punti invece di guadagnarne.
+ripaga — l'affine perde 16 punti invece di guadagnarne.
 
 È il risultato più trasferibile dell'intero lavoro: **su dati cross-domain con
 inlier ratio bassi, il modello più vincolato non è una semplificazione, è una
 necessità.**
 
 La tabella mostra anche l'esito dell'ablazione sui codici CXF: rasterizzare
-**particelle + acque/strade** (18+12) batte le sole particelle (18), 41% contro
-33% di successo. Le strade e i corsi d'acqua aggiungono struttura proprio dove
+**particelle + acque/strade** (18+12) batte le sole particelle (18), 42% contro
+35% di successo. Le strade e i corsi d'acqua aggiungono struttura proprio dove
 il tratto storico è più marcato.
 
 ### 9.5 I ritagli non sono equivalenti
 
 <!-- TABELLA: e2_per_crop -->
 
-Un caso è istruttivo: **`aspera` fallisce con le sole particelle (99.6 m) e
-riesce includendo acque e strade (0.66 m)**. È il ritaglio che tocca la costa,
+Un caso è istruttivo: **`aspera` fallisce con le sole particelle (78.3 m) e
+riesce includendo acque e strade (0.52 m)**. È il ritaglio che tocca la costa,
 dove buona parte del contenuto sono la linea di riva e i corsi d'acqua: senza il
 codice 12 il vettoriale è quasi vuoto proprio dove l'impianto ha il tratto. La
 stessa configurazione ha anche l'inlier ratio più basso fra tutte le prove
@@ -1214,7 +1214,7 @@ Il confronto è onesto solo se si dichiara ciò che non è simmetrico:
 ### 10.2 LoFTR non ribalta il cross-domain
 
 Sul tasso di successo LoFTR **pareggia** ORB (90%), con RMSE mediano peggiore
-(0.435 contro 0.362 m) e un tempo per registrazione di un ordine di grandezza
+(0.342 contro 0.284 m) e un tempo per registrazione di un ordine di grandezza
 superiore, che si legge nella colonna `t_ms`. La promessa del detector-free
 — funzionare dove i rilevatori a blob non hanno nulla da agganciare — **non si
 realizza su questi dati**.
@@ -1247,9 +1247,9 @@ di successo nasconde questa differenza.
 
 | preprocessing | corrispondenze mediane | successo | RMSE mediano |
 |---|---|---|---|
-| CLAHE | 6 | 0% | 241 – 723 m |
-| Sauvola | 385 | 70 – 90% | 0.44 – 1.02 m |
-| Sauvola + chiusura | 390 | 70 – 90% | 0.53 – 1.16 m |
+| CLAHE | 6 | 0% | 189 – 568 m |
+| Sauvola | 385 | 70 – 90% | 0.35 – 0.80 m |
+| Sauvola + chiusura | 390 | 80 – 90% | 0.42 – 0.91 m |
 
 Il vantaggio del pre-addestramento su immagini naturali **non sopravvive al
 divario di dominio**: a colmarlo è la binarizzazione, non la rete. È forse il
@@ -1539,10 +1539,10 @@ dove invece reggono meglio del previsto.
    di grandezza sotto il pavimento del riferimento.
 2. **La registrazione cross-domain riesce**, ma non con la configurazione che ci
    si aspetterebbe: ORB + Sauvola con chiusura + similarità raggiunge il 90% di
-   successo con RMSE mediano 0.42 m, al limite di ciò che questa ground truth
+   successo con RMSE mediano 0.33 m, al limite di ciò che questa ground truth
    può misurare.
 3. **Il modello geometrico conta più del matcher**: a parità di corrispondenze,
-   passare da omografia a similarità porta il successo dal 23% al 52%. Con inlier
+   passare da omografia a similarità porta il successo dal 27% al 52%. Con inlier
    ratio bassi, vincolare è necessario.
 4. **Il preprocessing conta più della rete**: su E2 è la binarizzazione di
    Sauvola a far funzionare tutti e tre i matcher, LoFTR incluso. Con CLAHE SIFT
