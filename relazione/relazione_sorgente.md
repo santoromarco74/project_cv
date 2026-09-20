@@ -241,17 +241,31 @@ Perché ORB batte SIFT è chiarito da un numero solo: il filtro di ORB lascia
 passare centinaia di abbinamenti in più rispetto al filtro severo di SIFT. Su
 un problema dove solo l'1-10% degli abbinamenti è corretto, RANSAC ha
 bisogno soprattutto di **quantità di candidati**, non di candidati già
-puliti: rendere il filtro di SIFT più permissivo, verificato sperimentalmente,
-non aiuta — i candidati aggiuntivi sono rumore puro, non segnale nascosto.
+puliti. Si potrebbe pensare che basti rendere meno severo anche il filtro di
+SIFT (il *ratio test*, §4): è stato verificato, ed è falso.
 
-Perché la similarità batte l'omografia si spiega allo stesso modo: con inlier
+<!-- TABELLA: diagnosi_ratio -->
+
+Allentando la soglia da 0.75 a 0.99 le corrispondenze passano da 168 a oltre
+3000, ma l'errore mediano resta a oltre 100 metri e le prove riuscite non
+aumentano: i candidati aggiuntivi sono rumore puro, non segnale che il filtro
+teneva nascosto. Il limite di SIFT su questi dati sta nel descrittore, non nel
+filtro che lo seleziona.
+
+Perché la similarità batte l'omografia si spiega in modo analogo: con inlier
 ratio così bassi, concedere più libertà geometrica allo stimatore significa
-solo dargli più modi di accordarsi con dati sbagliati. Passando
-dall'omografia alla similarità il tasso di successo sale dal 27% al 52% a
-parità di tutto il resto — è, fra i risultati del progetto, quello con la
-morale più generale: **su dati cross-domain con pochi abbinamenti corretti,
-il modello geometrico più vincolato non è una semplificazione, è una
-necessità**.
+solo dargli più modi di accordarsi con dati sbagliati.
+
+<!-- TABELLA: e2_fattori -->
+
+Passando dall'omografia alla similarità il tasso di successo sale dal 27% al
+52% a parità di tutto il resto — è, fra i risultati del progetto, quello con
+la morale più generale: **su dati cross-domain con pochi abbinamenti
+corretti, il modello geometrico più vincolato non è una semplificazione, è
+una necessità**. La stessa tabella mostra anche che disegnare nel raster
+moderno anche acque e strade, non solo i confini di particella, aiuta
+(42% di successo contro 35%): sono la parte del vettoriale dove il tratto
+storico è più marcato.
 
 Va detto, per onestà, che una parte del vettoriale non ha alcuna
 corrispondenza nell'inchiostro storico: il file CXF è la mappa **di oggi**,

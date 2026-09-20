@@ -286,17 +286,44 @@ Perché ORB batte SIFT è chiarito da un numero solo: il filtro di ORB lascia
 passare centinaia di abbinamenti in più rispetto al filtro severo di SIFT. Su
 un problema dove solo l'1-10% degli abbinamenti è corretto, RANSAC ha
 bisogno soprattutto di **quantità di candidati**, non di candidati già
-puliti: rendere il filtro di SIFT più permissivo, verificato sperimentalmente,
-non aiuta — i candidati aggiuntivi sono rumore puro, non segnale nascosto.
+puliti. Si potrebbe pensare che basti rendere meno severo anche il filtro di
+SIFT (il *ratio test*, §4): è stato verificato, ed è falso.
 
-Perché la similarità batte l'omografia si spiega allo stesso modo: con inlier
+| ratio | match_mediani | inlier_mediani | inlier_ratio | rmse_m_mediano | riuscite |
+|-------|---------------|----------------|--------------|----------------|----------|
+| 0.75  | 168           | 11             | 0.1089       | 135.4          | 1/5      |
+| 0.85  | 544           | 43             | 0.0773       | 135.4          | 0/5      |
+| 0.95  | 1764          | 106            | 0.0641       | 128.6          | 0/5      |
+| 0.99  | 3191          | 155            | 0.057        | 128.8          | 0/5      |
+
+
+Allentando la soglia da 0.75 a 0.99 le corrispondenze passano da 168 a oltre
+3000, ma l'errore mediano resta a oltre 100 metri e le prove riuscite non
+aumentano: i candidati aggiuntivi sono rumore puro, non segnale che il filtro
+teneva nascosto. Il limite di SIFT su questi dati sta nel descrittore, non nel
+filtro che lo seleziona.
+
+Perché la similarità batte l'omografia si spiega in modo analogo: con inlier
 ratio così bassi, concedere più libertà geometrica allo stimatore significa
-solo dargli più modi di accordarsi con dati sbagliati. Passando
-dall'omografia alla similarità il tasso di successo sale dal 27% al 52% a
-parità di tutto il resto — è, fra i risultati del progetto, quello con la
-morale più generale: **su dati cross-domain con pochi abbinamenti corretti,
-il modello geometrico più vincolato non è una semplificazione, è una
-necessità**.
+solo dargli più modi di accordarsi con dati sbagliati.
+
+| fattore            | valore     | prove | successo_pct | rmse_m_mediano | inlier_ratio |
+|--------------------|------------|-------|--------------|----------------|--------------|
+| modello geometrico | affine     | 90    | 36.7         | 28.04          | 0.076        |
+| modello geometrico | homography | 90    | 26.7         | 109.17         | 0.135        |
+| modello geometrico | similarity | 90    | 52.2         | 0.88           | 0.11         |
+| codici CXF         | 18         | 135   | 34.8         | 50.73          | 0.106        |
+| codici CXF         | 18+12      | 135   | 42.2         | 28.04          | 0.104        |
+
+
+Passando dall'omografia alla similarità il tasso di successo sale dal 27% al
+52% a parità di tutto il resto — è, fra i risultati del progetto, quello con
+la morale più generale: **su dati cross-domain con pochi abbinamenti
+corretti, il modello geometrico più vincolato non è una semplificazione, è
+una necessità**. La stessa tabella mostra anche che disegnare nel raster
+moderno anche acque e strade, non solo i confini di particella, aiuta
+(42% di successo contro 35%): sono la parte del vettoriale dove il tratto
+storico è più marcato.
 
 Va detto, per onestà, che una parte del vettoriale non ha alcuna
 corrispondenza nell'inchiostro storico: il file CXF è la mappa **di oggi**,
