@@ -216,9 +216,17 @@ math { font-size: 1.02em; }
 @media print {
   .indice { display: none; }
   .foglio { display: block; max-width: none; padding: 0; }
-  h2 { break-before: page; }
+  /* Documento breve (relazione condensata): un capitolo per pagina sprecherebbe
+     spazio, quindi il testo scorre e usa tutta la larghezza del foglio. */
+  .testo > * { max-width: none; }
+  h2 { break-before: auto; break-after: avoid; margin: 1.6rem 0 0.8rem; padding-top: 0.6rem; }
+  h3 { break-after: avoid; }
   figure, .tabella, pre, .formula { break-inside: avoid; }
-  body { font-size: 11pt; background: #fff; color: #000; }
+  figure { margin: 1rem 0 1.2rem; }
+  /* Una figura quasi quadrata a larghezza piena occuperebbe da sola l'intera
+     pagina: limitare l'altezza mantiene le proporzioni senza quello spreco. */
+  figure img { width: auto; max-width: 100%; max-height: 115mm; margin: 0 auto; display: block; }
+  body { font-size: 10.5pt; line-height: 1.4; background: #fff; color: #000; }
 }
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
 """
