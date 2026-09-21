@@ -8,7 +8,7 @@ numeri ricopiati a mano". Questo script rende quella frase verificabile.
     <!-- TABELLA: e3 -->
 
 Ogni segnaposto viene sostituito con la tabella corrispondente, calcolata al
-momento da `results/runs.csv`. Il risultato è `relazione/relazione.md`, che è il
+momento da `results/runs.csv`. Il risultato è `relazione/Relazione_finale.md`, che è il
 documento da leggere e non va modificato a mano: se un numero è sbagliato, è
 sbagliato l'esperimento o l'aggregazione, non il testo.
 
@@ -60,11 +60,9 @@ def componi(sorgente: str, csv: str) -> str:
 
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__)
-    # nome diverso da relazione.md non solo per maiuscole: su filesystem
-    # case-insensitive (NTFS) i due path collidono sullo stesso file fisico
     ap.add_argument("--sorgente", default=os.path.join("relazione", "relazione_sorgente.md"))
     ap.add_argument("--csv", default=os.path.join("results", "runs.csv"))
-    ap.add_argument("--out", default=os.path.join("relazione", "relazione.md"))
+    ap.add_argument("--out", default=os.path.join("relazione", "Relazione_finale.md"))
     args = ap.parse_args(argv)
 
     uscita = componi(args.sorgente, args.csv)
