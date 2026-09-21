@@ -388,8 +388,8 @@ def costruisci(sorgente: str, frammento: bool = False) -> str:
 
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("--sorgente", default=os.path.join("relazione", "relazione.md"))
-    ap.add_argument("--out", default=os.path.join("relazione", "relazione.html"))
+    ap.add_argument("--sorgente", default=os.path.join("relazione", "Relazione_finale.md"))
+    ap.add_argument("--out", default=os.path.join("relazione", "Relazione_finale.html"))
     ap.add_argument("--frammento", action="store_true", help="senza wrapper html/head/body")
     args = ap.parse_args(argv)
 
