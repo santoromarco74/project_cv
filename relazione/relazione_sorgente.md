@@ -44,6 +44,28 @@ risposta giusta** (§3).
 
 ---
 
+### 1.1 Gli argomenti del corso che il progetto attraversa
+
+La registrazione di due immagini è un **metodo di allineamento**, che nel
+programma del corso compare fra i processi di riconoscimento accanto al
+confronto diretto e ai metodi basati su proprietà invarianti. Il progetto tocca
+tutte e tre queste voci: allinea, usa descrittori invarianti a scala e
+rotazione, e mette alla prova il confronto diretto — che su questi dati non
+funziona, per la ragione misurata in §12.2.
+
+Anche il preprocessing di §6 viene dal programma, e non da una scelta di comodo:
+le tre strade messe a confronto — soglia globale, contrasto locale, morfologia —
+sono tre lezioni distinte. Qui sotto, dove il progetto tocca il corso.
+
+| lezione | argomento | dove compare |
+|---|---|---|
+| CV02 | segmentazione, immagini binarie, distribuzione bimodale | Otsu come soglia globale, e Sauvola come sua versione locale (§6.1) |
+| CV03 | istogrammi, LUT, operazioni locali | CLAHE, l'alternativa che non binarizza (§6.1) |
+| CV04 | morfologia matematica binaria | apertura e chiusura con elemento strutturante (§6.1) |
+| CV06 | pattern recognition e ricerca visiva | la ricerca di corrispondenze fra le due immagini (§7.1) |
+| CV08 | analisi di regioni, componenti connesse | `rimuovi_componenti` in `preprocess.py`, che elimina le macchie più piccole di una soglia |
+
+
 ## 2. Come funziona il sistema
 
 ![Una registrazione passo per passo](../results/figures/m10_passo_passo.png)
@@ -87,12 +109,69 @@ il confronto fra stima e verità resta un test indipendente e non un esercizio
 con le soluzioni già viste.
 
 ---
+### 2.4 Perché è difficile
+
+Se la procedura sembra ragionevole, resta da capire perché non funzioni sempre.
+Tre ragioni, tutte misurate nei capitoli §8-§10:
+
+1. **I due disegni sono fatti di linee sottili, non di texture.** I metodi
+   classici per riconoscere punti nascono per le fotografie, dove ogni zona ha un
+   aspetto diverso dalle altre. Su un reticolo di confini, un incrocio somiglia a
+   tutti gli altri incroci.
+2. **I due documenti non rappresentano la stessa realtà.** Il CXF è la mappa
+   *di oggi*, il foglio è quella *di un secolo fa*: alcuni confini sono cambiati,
+   e ci sono linee vettoriali che nell'inchiostro non esistono (§12.1).
+3. **L'aspetto è completamente diverso**: inchiostro sbiadito irregolare contro
+   linee nette uniformi. È quello che in letteratura si chiama *divario di
+   dominio*.
+
+### 2.5 Glossario
+
+| termine | significato |
+|---|---|
+| **registrazione** | sovrapporre due immagini della stessa zona, trovando la trasformazione che porta l'una sull'altra |
+| **raster / immagine** | griglia di pixel |
+| **vettoriale** | descrizione per coordinate (elenchi di vertici), non per pixel |
+| **rasterizzare** | disegnare un vettoriale su un'immagine |
+| **world file** (`.jgw`) | sei numeri che legano i pixel di un'immagine alle coordinate sul terreno |
+| **georeferenziazione** | il fatto che un'immagine sappia dove si trova sul terreno |
+| **luminosità** | il valore di grigio di un pixel: un solo numero, 0 (nero) – 255 (bianco) |
+| **gradiente** | quanto e in che direzione la luminosità cambia in UN pixel, confrontandolo coi vicini (§7.1) |
+| **keypoint** | un punto dell'immagine giudicato "riconoscibile" |
+| **descrittore** | l'impronta numerica che riassume l'aspetto attorno a un keypoint, costruita raccogliendo i gradienti di molti pixel vicini |
+| **SIFT, ORB** | due modi diversi di calcolare keypoint e descrittori |
+| **matching** | accoppiare i keypoint di un'immagine con quelli dell'altra |
+| **ratio test di Lowe** | il filtro di SIFT: tiene un abbinamento solo se il candidato migliore batte nettamente il secondo (§7.1) |
+| **RANSAC** | la procedura a votazione del passo 5, che trova la risposta giusta anche con pochi dati buoni (dettaglio matematico in §7.2) |
+| **inlier** | un abbinamento che concorda con la trasformazione scelta |
+| **inlier ratio** | la percentuale di inlier: quanto erano buoni i dati di partenza |
+| **campione minimo** | il numero di corrispondenze che bastano a calcolare esattamente una trasformazione (2, 3 o 4 a seconda della famiglia, §7.2) |
+| **omografia, affine, similarità** | famiglie di trasformazioni con 8, 6 e 4 parametri liberi (§7.2) |
+| **binarizzazione** | decidere, pixel per pixel, se è inchiostro o carta |
+| **Otsu, Sauvola** | due modi di scegliere quella soglia (§6.1) |
+| **CLAHE** | tecnica che non binarizza, ma aumenta il contrasto locale (§6.1) |
+| **LoFTR** | rete neurale che abbina due immagini senza cercare prima i keypoint (§7.3) |
+| **RMSE** | l'errore medio commesso, qui espresso in metri |
+| **E1, E2, E3** | i tre esperimenti: sintetico, reale, comparativo (§8, §9, §10) |
+
+---
 
 ## 3. I dati e la verità di riferimento
 
 Dal servizio dell'Agenzia delle Entrate si ottengono, per il foglio 49 di
-Varazze: la scansione dell'Originale di Impianto (8489 × 5648 pixel), il suo
-world file(formato JGW), e un file vettoriale (formato CXF) con la cartografia catastale
+Varazze: 
+| file | contenuto |
+|---|---|
+| `L675_004900.jpg` | scansione dell'Originale di Impianto, **8489 × 5648 px** |
+| `L675_004900.jgw` | world file: la georeferenziazione della scansione |
+| `L675_004900.txt` | metadati del ricampionamento |
+| `L675_004900.cxf` | cartografia **vigente** in formato vettoriale, stesso sistema |
+
+Raster e vettoriale sono entrambi in **Cassini-Soldner zona G0007, origine Forte
+Diamante**. Non è un EPSG standard e non serve riproiettare nulla: le coordinate
+dei due file sono già confrontabili. Il progetto non usa `pyproj` né `geopandas`.
+la scansione dell'Originale di Impianto (8489 × 5648 pixel), il suo
+world file (formato JGW), e un file vettoriale (formato CXF) con la cartografia catastale
 **vigente**, nello stesso sistema di riferimento della scansione — un
 dettaglio non scontato, perché il servizio distribuisce per lo stesso foglio
 anche una seconda variante vettoriale in un sistema diverso, facile da
@@ -116,6 +195,12 @@ dove il catasto terreni non ha competenza e quindi il vettoriale non ha nulla
 da confrontare).
 
 <!-- TABELLA: crop -->
+Ogni ritaglio è salvato come PNG accompagnato dal **proprio world file**,
+composto per traslazione dell'origine pixel:
+
+
+$$C' = C + A\cdot x_0 + B\cdot y_0  \ \ \ F' = F + D\cdot x_0 + E\cdot y_0$$
+
 
 ### 3.1 La ground truth: esatta e gratuita
 
@@ -127,6 +212,24 @@ assi — **0.254453 m**, cioè la scala 1:2000 — due termini di rotazione, qui
 nulli, e le coordinate del centro del primo pixel, (−31480.044315,
 −11278.758056). Da questi sei numeri la posizione sul terreno di qualunque
 pixel si ottiene con due moltiplicazioni e due somme.
+
+Quindi nel dettaglio il world file `L675_004900.jgw` è una trasformazione affine da pixel a coordinate:
+
+```
+0.254453        A → dimensione pixel x (m)
+0.0             D → rotazione
+0.0             B → rotazione
+-0.254453       E → dimensione pixel y (negativa)
+-31480.044315   C → x del centro del pixel (0,0)
+-11278.758056   F → y del centro del pixel (0,0)
+```
+
+cioè `X = A·col + B·row + C` e `Y = D·col + E·row + F`, con risoluzione
+**0.254453 m/px** (scala 1:2000).
+
+Rasterizzando il CXF su una griglia con trasformazione pixel→CRS anch'essa nota,
+si ottengono due affini note, e la trasformazione di riferimento è la loro
+composizione:
 
 Rasterizzando il CXF su una griglia di cui conosciamo, allo stesso modo, il
 legame fra pixel e coordinate, si ottengono due trasformazioni note, e la trasformazione di riferimento è la loro
@@ -454,7 +557,6 @@ python -m src.main --hist data/crops/ribba.png --modern data/crops/ribba_vec.png
     --matcher loftr --preprocess sauvola --model similarity
 ```
 
-
 ### 7.3 Preparazione dei dati ed esperimenti
 
 ```bash
@@ -538,7 +640,7 @@ le scansioni; le altre nove fasi no.
    o neurale: è la binarizzazione locale a rendere il problema trattabile per
    tutti e tre i metodi messi alla prova.
 
-Il progetto misura, e spiega, dove i metodi classici cedono sul confronto fra
+Per concludere il progetto misura, e spiega, dove i metodi classici cedono sul confronto fra
 stili grafici così diversi — e dove reggono meglio del previsto. Quello che
 vale oltre questo foglio non sono le cifre in metri, legate a questa scala e
 a questo vettoriale, ma le decisioni che le hanno prodotte: vincolare il
