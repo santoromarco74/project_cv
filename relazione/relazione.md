@@ -345,6 +345,22 @@ costruzione e non c'è alcun divario fra i due stili di disegno: se il
 programma sbagliasse anche qui, il problema sarebbe nel codice, non nel
 compito.
 
+La trasformazione **nota** con cui si costruisce la coppia si applica così:
+una rotazione di angolo θ e una scala s attorno al centro del ritaglio, poi
+una traslazione (tx, ty) — nei casi più impegnativi anche una lieve
+componente prospettica:
+
+```
+H (similarity):
+[ s·cosθ   -s·sinθ   tx ]
+[ s·sinθ    s·cosθ   ty ]
+[ 0         0         1 ]
+```
+
+È la stessa H_true del capitolo 3, qui non ricavata dal world file ma
+fissata a priori: nota senza incertezza, così un errore misurato in questo
+esperimento è per forza del codice, non del riferimento.
+
 | matcher | preprocess | prove | successo_pct | rmse_px_mediano_ok | rmse_px_max_ok | inlier_ratio | match_medi | t_ms |
 |---------|------------|-------|--------------|--------------------|----------------|--------------|------------|------|
 | loftr   | none       | 80    | 42.5         | 0.208              | 0.963          | 0.619        | 1909       | 3954 |
@@ -602,29 +618,6 @@ python -m src.main \
     --jgw-hist data/crops/ribba.jgw --jgw-modern data/crops/ribba_vec.jgw \
     --soglia-m 2.0 --out-figure results/figures/registrazione.png
 ```
-
-che stampa, fra l'altro, la trasformazione stimata:
-
-```
-H_est (similarity):
-[[  1.265382  -0.003152 103.362963]
- [  0.003152   1.265382 100.463   ]
- [  0.         0.         1.      ]]
-match 716 · inlier 16 (0.022) · 499 ms
-RMSE 3.893 px = 0.779 m · success=True
-```
-
-`H_est` è la matrice, in coordinate omogenee, che porta ogni punto
-dell'immagine storica nella sua posizione stimata sull'immagine moderna:
-applicata a un pixel (x, y, 1) restituisce la sua posizione dopo la
-registrazione. Con il modello `similarity` i nove numeri codificano solo
-quattro gradi di libertà — scala, rotazione e le due traslazioni — leggibili
-direttamente dalla matrice: qui una scala di circa 1,265 (lo storico va
-ingrandito del 26,5% per combaciare con il moderno), una rotazione quasi
-nulla (0,14°) e uno spostamento di circa 103 e 100 pixel sui due assi. Il
-resto della riga è quanto basta per giudicare quella trasformazione: 716
-abbinamenti trovati, 16 sopravvissuti a RANSAC, un errore di 3,893 pixel
-(0,779 m) sotto la soglia di successo dichiarata.
 
 **Esempio 2 — senza world file: la pipeline gira lo stesso.** È la prova che la
 georeferenziazione non entra nell'algoritmo:
