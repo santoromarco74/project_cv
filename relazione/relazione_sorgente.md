@@ -339,6 +339,16 @@ misura indiretta senza un confronto con un caso casuale.
 
 ## 7. Uso pratico e conclusioni
 
+**Lo stack tecnologico.** Il nucleo classico è scritto in Python 3.12 con
+OpenCV (SIFT, ORB, RANSAC, deformazione dell'immagine), NumPy, pandas,
+Matplotlib e Pillow — senza librerie geospaziali come `pyproj` o
+`geopandas`: raster e vettoriale sono già nello stesso sistema di
+riferimento, quindi non c'è nulla da riproiettare. Il solo componente B
+(LoFTR) richiede `torch` e `kornia`, caricati solo se il matcher scelto è
+`loftr`: senza quella scelta la pipeline classica gira anche su una
+macchina senza le due librerie installate. I pesi del modello (~90 MB)
+sono distribuiti insieme al progetto, non scaricati al primo avvio.
+
 Il programma si esegue da riga di comando, passando le due immagini da
 registrare e, quando disponibili, i rispettivi world file per calcolare
 l'errore:
