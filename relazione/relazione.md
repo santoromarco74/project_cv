@@ -78,7 +78,7 @@ storica, che così si sovrappone al vettoriale: dove i due disegni coincidono
 l'overlay appare nero, dove no si vede una frangia colorata.
 
 **Come si giudica il risultato.** Sia la scansione storica sia il file
-vettoriale portano con sé un *world file*: sei numeri che indicano a quali
+vettoriale portano con sé un *world file(jgw)*: sei numeri che indicano a quali
 coordinate reali corrisponde ogni pixel. Da questi numeri si calcola per via
 puramente algebrica la trasformazione **esatta**, senza dover annotare a mano
 un solo punto di controllo (§3). Il programma che stima la trasformazione non
@@ -92,7 +92,7 @@ con le soluzioni già viste.
 
 Dal servizio dell'Agenzia delle Entrate si ottengono, per il foglio 49 di
 Varazze: la scansione dell'Originale di Impianto (8489 × 5648 pixel), il suo
-world file, e un file vettoriale (formato CXF) con la cartografia catastale
+world file(formato JGW), e un file vettoriale (formato CXF) con la cartografia catastale
 **vigente**, nello stesso sistema di riferimento della scansione — un
 dettaglio non scontato, perché il servizio distribuisce per lo stesso foglio
 anche una seconda variante vettoriale in un sistema diverso, facile da
@@ -124,16 +124,44 @@ da confrontare).
 | aspera    | 5600 | 2600 | 1024      | 1024    | -30055 … -29795 | -12201 … -11940 |
 
 
-### 3.1 Una verità di riferimento esatta e senza annotazione manuale
+### 3.1 La ground truth: esatta e gratuita
 
-Il world file della scansione contiene sei numeri che trasformano un pixel
-nella sua coordinata reale sul terreno; lo stesso vale, con numeri propri, per
-il raster ricavato dal file vettoriale. Componendo le due trasformazioni si
-ottiene, per via puramente analitica, la trasformazione **vera** che lega le
-due immagini — senza avere annotato un solo punto a mano. È su questa
-trasformazione, e non su un giudizio visivo, che si misura l'errore di ogni
-registrazione, espresso in metri su una griglia di 100 punti di controllo
-distribuiti sull'immagine storica.
+Questo è il punto metodologico su cui poggia tutto il resto.
+
+Il world file `L675_004900.jgw` contiene sei numeri che definiscono una
+trasformazione affine da pixel a coordinate: la dimensione del pixel sui due
+assi — **0.254453 m**, cioè la scala 1:2000 — due termini di rotazione, qui
+nulli, e le coordinate del centro del primo pixel, (−31480.044315,
+−11278.758056). Da questi sei numeri la posizione sul terreno di qualunque
+pixel si ottiene con due moltiplicazioni e due somme.
+
+Rasterizzando il CXF su una griglia di cui conosciamo, allo stesso modo, il
+legame fra pixel e coordinate, si ottengono due trasformazioni note, e la trasformazione di riferimento è la loro
+composizione:
+
+$$
+ H_{true} = \frac{W_{storico}}{W_{moderno}}
+$$
+
+**Non è stato annotato un solo punto di controllo a mano.** La ground truth è
+analitica, esatta per costruzione, e `evaluate.py` la usa per produrre l'RMSE in
+metri su una griglia regolare di checkpoint nell'immagine storica (10×10 punti,
+bordi esclusi):
+
+$$e_i = \left\lVert H_{est}\cdot p_i - H_{true}\cdot p_i \right\rVert_2$$
+
+$$\mathrm{RMSE}_m = \sqrt{\frac{1}{N}\sum_{i=1}^{N} e_i^2} \;\cdot\; r_{\mathrm{dest}}$$
+
+dove $N = 100$ sono i checkpoint e $r_{\mathrm{dest}}$ è la risoluzione in metri
+per pixel della griglia di arrivo: 0.254453 m/px in E1, dove la coppia è il
+ritaglio contro se stesso trasformato, e 0.20 m/px in E2, dove l'arrivo è il
+raster del vettoriale (§9.1).
+
+cioè: si applicano entrambe le trasformazioni — quella stimata e quella vera —
+agli stessi 100 punti, si misura di quanto le due risposte divergono, e si
+converte in metri. È l'unico numero su cui si giudica l'intera pipeline: ogni
+tabella dei capitoli successivi è, in ultima analisi, un'aggregazione di questa
+formula su configurazioni diverse.
 
 Questa verità di riferimento non è però infinitamente precisa: i metadati del
 foglio dichiarano un errore medio di ricampionamento di 0.56 m (massimo 1.28
@@ -141,6 +169,10 @@ m, su 76 punti di taratura). È un **pavimento**: un errore misurato sotto
 mezzo metro non descrive più la qualità dell'algoritmo, descrive l'incertezza
 del riferimento stesso, e va letto con questa avvertenza in tutte le tabelle
 del capitolo 5.
+
+La correttezza della composizione di `H_true` è verificata da un test: un
+punto trasformato avanti e indietro torna su sé stesso entro $\mathbf{1.1 \cdot 10^{-13}} px$,
+contro la soglia dichiarata di $\mathbf{10^{-9}} px$.
 
 ---
 
@@ -415,50 +447,166 @@ riferimento, quindi non c'è nulla da riproiettare. Il solo componente B
 macchina senza le due librerie installate. I pesi del modello (~90 MB)
 sono distribuiti insieme al progetto, non scaricati al primo avvio.
 
-Il programma si esegue da riga di comando, passando le due immagini da
-registrare e, quando disponibili, i rispettivi world file per calcolare
-l'errore:
+### 7.1 Installazione
 
 ```bash
-python -m src.main --hist crop_storico.png --modern raster_vettoriale.png \
-    --matcher orb --preprocess sauvola --model similarity \
-    --jgw-hist crop_storico.jgw --jgw-modern raster_vettoriale.jgw
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
 ```
 
-Le opzioni disponibili sono tutte quelle con cui è stata prodotta la griglia
-sperimentale del capitolo 5, nessuna esclusa:
+Per il solo approccio classico bastano `numpy`, `opencv-python`, `Pillow`,
+`scipy`, `pandas`, `matplotlib`.
+`torch` e `kornia` servono **solo** a `--matcher loftr`; su CPU conviene l'indice dedicato:
 
-| opzione | valori | default | significato |
-|---|---|---|---|
-| `--hist` | percorso file | *obbligatorio* | immagine storica da registrare |
-| `--modern` | percorso file | *obbligatorio* | immagine di riferimento (raster del vettoriale) |
-| `--matcher` | `sift`, `orb`, `loftr` | `sift` | metodo di ricerca delle corrispondenze; `loftr` è il componente B |
-| `--preprocess` | `none`, `clahe`, `otsu`, `sauvola` | `sauvola` | pulizia applicata a entrambe le immagini (capitolo 4) |
-| `--morph-close` | intero | `0` | iterazioni di chiusura morfologica dopo la binarizzazione |
-| `--morph-open` | intero | `0` | iterazioni di apertura morfologica dopo la binarizzazione |
-| `--model` | `similarity`, `affine`, `homography` | `homography` | famiglia di trasformazioni concessa a RANSAC (capitolo 4) |
-| `--ratio` | numero decimale | `0.75` | soglia del ratio test di Lowe (solo SIFT) |
-| `--ransac-thresh` | numero decimale | `3.0` | soglia in pixel per accettare un abbinamento come inlier |
-| `--seed` | intero | `42` | seme casuale, per risultati riproducibili |
-| `--jgw-hist` | percorso file | nessuno | world file storico, solo per calcolare l'errore |
-| `--jgw-modern` | percorso file | nessuno | world file moderno, solo per calcolare l'errore |
-| `--soglia-m` | numero decimale | nessuno | errore massimo, in metri, sotto il quale una prova conta come riuscita |
-| `--out-csv` | percorso file | `results/runs.csv` | file su cui accodare la riga di risultato |
-| `--out-figure` | percorso file | nessuno | overlay storico/moderno più le corrispondenze inlier |
-| `--esperimento` | testo | `cli` | etichetta libera scritta nella colonna `esperimento` del CSV |
-| `--crop` | testo | nessuno | etichetta libera scritta nella colonna `crop` del CSV |
-| `--verbose` | flag | disattivo | stampa a schermo i passaggi intermedi |
+```bash
+pip install torch==2.3.1 --index-url https://download.pytorch.org/whl/cpu
+pip install kornia==0.7.3
+python -m scripts.scarica_pesi          # pesi LoFTR + verifica del checksum
+```
 
-Senza `--jgw-hist` e `--jgw-modern` la pipeline gira comunque e produce la
-trasformazione stimata, semplicemente senza calcolare l'errore: è la verifica
-concreta, eseguibile in ogni momento, che la posizione di riferimento non
-entra mai nell'algoritmo (capitolo 2).
+I dati cartografici non sono versionati: `data/README.md` documenta come
+ricostruirli.
 
-Cambiando un solo parametro (`--matcher sift`, `--matcher loftr`, oppure il
-tipo di preprocessing o il modello geometrico) si ottiene ciascuna delle
-configurazioni discusse nel capitolo 5: è il modo in cui l'intera griglia
-sperimentale è stata prodotta, un'esecuzione alla volta, sempre con lo stesso
-programma.
+### 7.2 La CLI
+
+```
+python -m src.main --hist <crop.png> --modern <raster.png> [opzioni]
+
+  --hist <path>             immagine storica (obbligatorio)
+  --modern <path>           immagine di riferimento (obbligatorio)
+  --matcher <sift|orb|loftr>              default: sift
+  --preprocess <none|clahe|otsu|sauvola>  default: sauvola
+  --morph-close <n>         default 0
+  --morph-open <n>          default 0
+  --model <similarity|affine|homography>  default: homography
+  --ratio <float>           ratio test di Lowe, default 0.75
+  --ransac-thresh <float>   px, default 3.0
+  --seed <int>              default 42
+  --jgw-hist <path>         world file storico   (solo evaluate)
+  --jgw-modern <path>       world file moderno   (solo evaluate)
+  --soglia-m <float>        soglia di successo in metri
+  --out-csv <path>          default results/runs.csv (in append)
+  --out-figure <path>       overlay del warp + corrispondenze
+  --esperimento <str>       etichetta nella colonna `esperimento` del CSV
+  --crop <str>              etichetta nella colonna `crop` del CSV
+  --verbose                 descrizione dettagliata delle operazioni
+  --help                    questa lista di comandi
+```
+
+**Esempio 1 — la configurazione migliore su dati reali:**
+
+```bash
+python -m src.main \
+    --hist data/crops/ribba.png --modern data/crops/ribba_vec.png \
+    --matcher orb --preprocess sauvola --model similarity \
+    --jgw-hist data/crops/ribba.jgw --jgw-modern data/crops/ribba_vec.jgw \
+    --soglia-m 2.0 --out-figure results/figures/registrazione.png
+```
+
+che stampa, fra l'altro, la trasformazione stimata:
+
+```
+H_est (similarity):
+[[  1.265382  -0.003152 103.362963]
+ [  0.003152   1.265382 100.463   ]
+ [  0.         0.         1.      ]]
+match 716 · inlier 16 (0.022) · 499 ms
+RMSE 3.893 px = 0.779 m · success=True
+```
+
+`H_est` è la matrice, in coordinate omogenee, che porta ogni punto
+dell'immagine storica nella sua posizione stimata sull'immagine moderna:
+applicata a un pixel (x, y, 1) restituisce la sua posizione dopo la
+registrazione. Con il modello `similarity` i nove numeri codificano solo
+quattro gradi di libertà — scala, rotazione e le due traslazioni — leggibili
+direttamente dalla matrice: qui una scala di circa 1,265 (lo storico va
+ingrandito del 26,5% per combaciare con il moderno), una rotazione quasi
+nulla (0,14°) e uno spostamento di circa 103 e 100 pixel sui due assi. Il
+resto della riga è quanto basta per giudicare quella trasformazione: 716
+abbinamenti trovati, 16 sopravvissuti a RANSAC, un errore di 3,893 pixel
+(0,779 m) sotto la soglia di successo dichiarata.
+
+**Esempio 2 — senza world file: la pipeline gira lo stesso.** È la prova che la
+georeferenziazione non entra nell'algoritmo:
+
+```bash
+python -m src.main --hist data/crops/ribba.png --modern data/crops/ribba_vec.png \
+    --matcher sift --preprocess sauvola
+# → H_est prodotta, "nessun world file: RMSE non calcolato"
+```
+
+**Esempio 3 — lo stesso confronto con il matcher neurale**, cambiando una parola:
+
+```bash
+python -m src.main --hist data/crops/ribba.png --modern data/crops/ribba_vec.png \
+    --matcher loftr --preprocess sauvola --model similarity
+```
+
+
+### 7.3 Preparazione dei dati ed esperimenti
+
+```bash
+# ritagli dal foglio (PNG + world file affiancato)
+python -m src.prep.crop
+
+# ispezione e verifica del parser CXF
+python -m src.io_geo
+
+# rasterizzazione del vettoriale sulla zona di un ritaglio
+python -m src.prep.rasterize --crop ribba --codici 18,12
+python -m experiments.m7_rasterize_check --crop ribba
+
+# confronto dei preprocessing
+python -m experiments.m5_preprocess --crop tutti --dettaglio ribba
+
+# gli esperimenti: E1, E2, la diagnosi del ratio, E3
+python -m experiments.m6_e1_completo --riparti
+python -m experiments.m8_e2_griglia
+python -m experiments.m8_e2_griglia --diagnosi-ratio
+python -m experiments.m9_e3_loftr
+
+# figure e tabelle, tutte generate dal CSV
+python -m src.report --csv results/runs.csv
+
+```
+
+### 7.4 Riprodurre tutto in un comando
+
+I comandi di §7.3 vanno eseguiti in quest'ordine, e l'ordine non è arbitrario:
+i ritagli prima della rasterizzazione, la rasterizzazione prima di E2, gli
+esperimenti prima delle tabelle, le tabelle prima di questo documento. Eseguirli
+a mano funziona, ma un passo dimenticato non dà errore: produce un CSV parziale
+e tabelle che sembrano complete.
+
+```bash
+python -m scripts.riproduci --controlla   # verifica le precondizioni, non esegue
+python -m scripts.riproduci --lista       # le fasi, in ordine, con i tempi
+python -m scripts.riproduci               # tutto tranne E3      (~18 min)
+python -m scripts.riproduci --con-loftr   # tutto, E3 compreso   (~60 min)
+python -m scripts.riproduci --da verifica-raster   # senza i dati AdE, dai soli ritagli
+```
+
+Lo script stampa ogni comando prima di eseguirlo — il log di una corsa è la
+versione eseguita di §7.3 — e dopo ogni fase verifica che gli artefatti attesi
+esistano davvero: un comando che esce con codice 0 senza aver scritto quello che
+doveva ferma la corsa, che riprende con `--da <fase>`. In coda controlla che ogni
+figura citata da questa relazione sia stata prodotta e che nessun segnaposto di
+tabella sia rimasto vuoto.
+
+Il controllo delle precondizioni non è formalità. Gli esperimenti di E1 ed E3
+convertono l'errore in metri leggendo la risoluzione da un world file, e se
+nessuno è disponibile l'errore in metri resta indefinito per ogni riga:
+l'esperimento gira fino in fondo e conclude "0 riuscite". Si legge come un
+algoritmo che fallisce, ed è invece un file assente, e la difesa è verificare prima.
+
+Il controllo è però **per fase**, e la distinzione conta proprio alla consegna.
+Le scansioni catastali non sono ridistribuibili, i ritagli sì: chi riceve il
+progetto senza `data/raw/` ha comunque in `data/crops/` i ritagli, i raster del
+vettoriale e i rispettivi world file. Solo `crop`, `cxf` e `rasterize` aprono
+le scansioni; le altre nove fasi no.
+
+---
 
 **In sintesi:**
 

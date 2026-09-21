@@ -130,6 +130,7 @@ h3 {
   text-wrap: balance;
 }
 p, ul, ol { margin: 0 0 1.1rem; }
+p, li { text-align: justify; text-justify: inter-word; }
 li { margin-bottom: 0.35rem; }
 strong { font-weight: 700; }
 a { color: var(--rosso); }
