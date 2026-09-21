@@ -359,6 +359,30 @@ python -m src.main --hist crop_storico.png --modern raster_vettoriale.png \
     --jgw-hist crop_storico.jgw --jgw-modern raster_vettoriale.jgw
 ```
 
+**Un'esecuzione reale.** Su uno dei cinque ritagli (`ribba`, ORB + Sauvola +
+similarità) il programma stampa, fra l'altro, la trasformazione stimata:
+
+```
+H_est (similarity):
+[[  1.265382  -0.003152 103.362963]
+ [  0.003152   1.265382 100.463   ]
+ [  0.         0.         1.      ]]
+match 716 · inlier 16 (0.022) · 499 ms
+RMSE 3.893 px = 0.779 m · success=True
+```
+
+`H_est` è la matrice, in coordinate omogenee, che porta ogni punto
+dell'immagine storica nella sua posizione stimata sull'immagine moderna:
+applicata a un pixel (x, y, 1) restituisce la sua posizione dopo la
+registrazione. Con il modello `similarity` i nove numeri codificano solo
+quattro gradi di libertà — scala, rotazione e le due traslazioni — leggibili
+direttamente dalla matrice: qui una scala di circa 1,265 (lo storico va
+ingrandito del 26,5% per combaciare con il moderno), una rotazione quasi
+nulla (0,14°) e uno spostamento di circa 103 e 100 pixel sui due assi. Il
+resto della riga è quanto basta per giudicare quella trasformazione: 716
+abbinamenti trovati, 16 sopravvissuti a RANSAC, un errore di 3,893 pixel
+(0,779 m) sotto la soglia di successo dichiarata.
+
 Le opzioni disponibili sono tutte quelle con cui è stata prodotta la griglia
 sperimentale del capitolo 5, nessuna esclusa:
 
