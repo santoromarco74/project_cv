@@ -224,19 +224,14 @@ Quindi nel dettaglio il world file `L675_004900.jgw` è una trasformazione affin
 -11278.758056   F → y del centro del pixel (0,0)
 ```
 
-cioè `X = A·col + B·row + C` e `Y = D·col + E·row + F`, con risoluzione
-**0.254453 m/px** (scala 1:2000).
+cioè
+$$ X = A \cdot col + B \cdot row + C \quad\text{e}\quad Y = D \cdot col + E \cdot row + F $$
+con risoluzione **0.254453 m/px** (scala 1:2000).
 
-Rasterizzando il CXF su una griglia con trasformazione pixel→CRS anch'essa nota,
-si ottengono due affini note, e la trasformazione di riferimento è la loro
-composizione:
-
-Rasterizzando il CXF su una griglia di cui conosciamo, allo stesso modo, il
-legame fra pixel e coordinate, si ottengono due trasformazioni note, e la trasformazione di riferimento è la loro
-composizione:
+Rasterizzando il CXF su una griglia di cui conosciamo, allo stesso modo, il legame fra pixel e coordinate, si ottengono due trasformazioni affini note, e la trasformazione di riferimento è la loro composizione:
 
 $$
- H_{true} = \frac{W_{storico}}{W_{moderno}}
+ H_{\text{true}} = W_{\text{moderno}}^{-1} \circ W_{\text{storico}}
 $$
 
 **Non è stato annotato un solo punto di controllo a mano.** La ground truth è
